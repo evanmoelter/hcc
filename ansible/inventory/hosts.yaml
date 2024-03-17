@@ -1,0 +1,14 @@
+---
+kubernetes:
+  children:
+    controllers:
+      hosts:
+        "hcc":
+          ansible_user: "root"
+          ansible_host: "192.168.4.10"
+        "hcc2":
+          ansible_user: "root"
+          ansible_host: "192.168.4.11"
+        "hcc-tablet1":
+          ansible_user: "evan"
+          ansible_host: "192.168.5.218"
