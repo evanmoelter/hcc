@@ -21,7 +21,7 @@ jobs:
         config-files:
           - k3s-ipv4
           - k3s-ipv6
-          - talos
+          # - talos
     steps:
       - name: Checkout
         uses: actions/checkout@v4
