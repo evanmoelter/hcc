@@ -13,7 +13,6 @@ spec:
   dependsOn:
     - name: cloudnative-pg
     - name: longhorn
-      namespace: storage
   path: ./kubernetes/main/apps/database/cloudnative-pg/cluster
   prune: true
   sourceRef:
