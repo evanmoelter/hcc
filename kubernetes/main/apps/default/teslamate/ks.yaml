@@ -6,7 +6,6 @@ metadata:
   name: &app teslamate
   namespace: flux-system
 spec:
-  suspend: true # Suspend the reconciliation until restore job is done
   targetNamespace: default
   commonMetadata:
     labels:

@@ -5,5 +5,5 @@ resources:
   # Pre Flux-Kustomizations
   - namespace.yaml
   # Apps
-  # - teslamate/ks.yaml
+  - teslamate/ks.yaml
   - teslamate/ks-restore.yaml
