@@ -32,7 +32,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: teslamate-secret
-              key: DATABASE_PASS
+              key: INIT_POSTGRES_SUPER_PASS
         command: ["/bin/bash", "/scripts/restore.sh"]
       restartPolicy: Never
       volumes:

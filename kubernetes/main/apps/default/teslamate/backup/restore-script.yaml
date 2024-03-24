@@ -8,9 +8,9 @@ data:
     #!/bin/bash
     set -e
     # Pre-restore script
-    psql -U $DATABASE_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /scripts/restore.sql
+    psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /scripts/restore.sql
     # Restore from backup
-    psql -U $DATABASE_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /backup/teslamate_db_2024-03-18.sql
+    psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /backup/teslamate_db_2024-03-18.sql
   restore.sql: |
     drop schema public cascade;
     create schema if not exists public;
