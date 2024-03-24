@@ -13,12 +13,6 @@ spec:
         volumeMounts:
         - name: backup-volume
           mountPath: /backup
-      - name: set-script-permissions
-        image: busybox
-        command: ["sh", "-c", "chmod +x /scripts/restore.sh"]
-        volumeMounts:
-        - name: script-volume
-          mountPath: /scripts
       containers:
       - name: postgres-restore
         image: postgres:16.2
@@ -30,7 +24,7 @@ spec:
         envFrom:
         - secretRef:
             name: teslamate-secret
-        command: ["/bin/bash", "-c", "/scripts/restore.sh"]
+        command: ["/bin/bash", "/scripts/restore.sh"]
       restartPolicy: Never
       volumes:
       - name: backup-volume
