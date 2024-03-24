@@ -29,7 +29,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: teslamate-secret
-              key: DATABASE_PASSWORD
+              key: DATABASE_PASS
         command: ["/bin/bash", "/scripts/restore.sh"]
       restartPolicy: Never
       volumes:
