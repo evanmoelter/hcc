@@ -12,7 +12,7 @@ spec:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: cnpg-cluster
-  path: ./kubernetes/main/apps/default/teslamate/app
+  path: ./kubernetes/main/apps/default/teslamate/backup
   prune: true
   sourceRef:
     kind: GitRepository
