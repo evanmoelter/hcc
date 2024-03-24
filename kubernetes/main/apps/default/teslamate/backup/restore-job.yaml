@@ -14,10 +14,7 @@ spec:
         - name: backup-volume
           mountPath: /backup
       - name: init-db
-        image:
-          repository: ghcr.io/onedr0p/postgres-init
-          tag: 16.2
-          pullPolicy: IfNotPresent
+        image: ghcr.io/onedr0p/postgres-init:16.2
         envFrom: &envFrom
           - secretRef:
               name: teslamate-secret
