@@ -12,8 +12,6 @@ data:
     # Restore from backup
     psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /backup/teslamate_db_2024-03-18.sql
   restore.sql: |
-    drop schema public cascade;
-    create schema if not exists public;
     create extension cube;
     create extension earthdistance;
     CREATE OR REPLACE FUNCTION public.ll_to_earth(float8, float8)

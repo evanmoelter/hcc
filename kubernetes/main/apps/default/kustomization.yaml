@@ -6,4 +6,4 @@ resources:
   - namespace.yaml
   # Apps
   - teslamate/ks.yaml
-  # - teslamate/ks-restore.yaml
+  - teslamate/ks-restore.yaml
