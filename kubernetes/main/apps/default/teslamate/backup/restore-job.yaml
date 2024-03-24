@@ -1,0 +1,42 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-restore
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: set-backup-permissions
+        image: busybox
+        command: ["sh", "-c", "chmod 777 /backup"]
+        volumeMounts:
+        - name: backup-volume
+          mountPath: /backup
+      - name: set-script-permissions
+        image: busybox
+        command: ["sh", "-c", "chmod +x /scripts/restore.sh"]
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      containers:
+      - name: postgres-restore
+        image: postgres:16.2
+        volumeMounts:
+        - name: backup-volume
+          mountPath: /backup
+        - name: script-volume
+          mountPath: /scripts
+        envFrom:
+        - secretRef:
+            name: teslamate-secret
+        command: ["/bin/bash", "-c", "/scripts/restore.sh"]
+      restartPolicy: Never
+      volumes:
+      - name: backup-volume
+        persistentVolumeClaim:
+          claimName: teslamate-backup-pvc
+      - name: script-volume
+        configMap:
+          name: restore-script
+  backoffLimit: 0

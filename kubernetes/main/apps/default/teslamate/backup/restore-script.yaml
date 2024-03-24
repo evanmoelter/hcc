@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: restore-script
+data:
+  restore.sh: |
+    #!/bin/bash
+    set -e
+    # Pre-restore script
+    psql -U $DATABASE_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /scripts/restore.sql
+    # Restore from backup
+    psql -U $DATABASE_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /backup/teslamate_db_2024-03-18.sql
+  restore.sql: |
+    drop schema public cascade;
+    create schema if not exists public;
+    create extension cube;
+    create extension earthdistance;
+    CREATE OR REPLACE FUNCTION public.ll_to_earth(float8, float8)
+        RETURNS public.earth
+        LANGUAGE SQL
+        IMMUTABLE STRICT
+        PARALLEL SAFE
+        AS 'SELECT public.cube(public.cube(public.cube(public.earth()*cos(radians(\$1))*cos(radians(\$2))),public.earth()*cos(radians(\$1))*sin(radians(\$2))),public.earth()*sin(radians(\$1)))::public.earth';

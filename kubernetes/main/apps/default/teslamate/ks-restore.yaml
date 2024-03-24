@@ -3,10 +3,9 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app teslamate
+  name: &app teslamate-restore
   namespace: flux-system
 spec:
-  suspend: true # Suspend the reconciliation until restore job is done
   targetNamespace: default
   commonMetadata:
     labels:
@@ -18,7 +17,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
-  wait: false
+  wait: true
   interval: 30m
   retryInterval: 1m
   timeout: 5m
