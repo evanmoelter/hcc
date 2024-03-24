@@ -8,9 +8,9 @@ data:
     #!/bin/bash
     set -e
     # Pre-restore script
-    psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /scripts/restore.sql
+    psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -v "ON_ERROR_STOP=1" -f /scripts/restore.sql
     # Restore from backup
-    psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -f /backup/teslamate_db_2024-03-18.sql
+    psql -U $INIT_POSTGRES_SUPER_USER -h $DATABASE_HOST -d $DATABASE_NAME -v "ON_ERROR_STOP=1" -f /backup/teslamate_db_2024-03-18.sql
   restore.sql: |
     create extension cube;
     create extension earthdistance;
