@@ -7,4 +7,4 @@ resources:
   - ./backup-pvc.yaml
   - ./backup-pod.yaml
   - ./restore-script.yaml
-  - ./restore-job.yaml
+  # - ./restore-job.yaml
