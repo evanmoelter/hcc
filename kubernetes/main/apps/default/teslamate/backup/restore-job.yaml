@@ -13,6 +13,14 @@ spec:
         volumeMounts:
         - name: backup-volume
           mountPath: /backup
+      - name: init-db
+        image:
+          repository: ghcr.io/onedr0p/postgres-init
+          tag: 16.2
+          pullPolicy: IfNotPresent
+        envFrom: &envFrom
+          - secretRef:
+              name: teslamate-secret
       containers:
       - name: postgres-restore
         image: postgres:16.2
@@ -21,9 +29,7 @@ spec:
           mountPath: /backup
         - name: script-volume
           mountPath: /scripts
-        envFrom:
-        - secretRef:
-            name: teslamate-secret
+        envFrom: *envFrom
         env:
         - name: PGPASSWORD
           valueFrom:
