@@ -24,6 +24,12 @@ spec:
         envFrom:
         - secretRef:
             name: teslamate-secret
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: teslamate-secret
+              key: DATABASE_PASSWORD
         command: ["/bin/bash", "/scripts/restore.sh"]
       restartPolicy: Never
       volumes:
