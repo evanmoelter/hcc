@@ -47,7 +47,7 @@ spec:
 
     admin:
       existingSecret: pihole-secret
-      secretKey: ADMIN_PASSWORD
+      passwordKey: ADMIN_PASSWORD
 
     DNS1: "1.1.1.1"
     DNS2: "1.0.0.1"
