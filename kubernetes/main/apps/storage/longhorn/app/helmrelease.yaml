@@ -24,6 +24,9 @@ spec:
       strategy: rollback
       retries: 3
   values:
+    persistence:
+      enabled: true
+      defaultClassReplicaCount: 2
     defaultSettings:
       defaultReplicaCount: 2
       defaultDataPath: /storage01
