@@ -54,4 +54,4 @@ spec:
 
     upstreamServers:
       # Split DNS for internal services
-      - "server=/${SECRET_DOMAIN}/${LB_K8S_GATEWAY}"
+      - server=/${SECRET_DOMAIN}/${LB_K8S_GATEWAY}
