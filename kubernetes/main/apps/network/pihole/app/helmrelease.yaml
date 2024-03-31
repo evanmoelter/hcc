@@ -1,0 +1,57 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: pihole
+  namespace: networking
+spec:
+  interval: 5m
+  chart:
+    spec:
+      # renovate: registryUrl=https://mojo2600.github.io/pihole-kubernetes/
+      chart: pihole
+      version: 2.22.0
+      sourceRef:
+        kind: HelmRepository
+        name: mojo2600
+        namespace: flux-system
+
+  values:
+    replicaCount: 1
+    image:
+      repository: "pihole/pihole"
+      tag: "2024.03.1"
+      pullPolicy: IfNotPresent
+
+    serviceDns:
+      type: LoadBalancer
+      annotations:
+        io.cilium/lb-ipam-ips: ${LB_PIHOLE}
+      loadBalancerIP: ${LB_PIHOLE}
+
+    serviceDhcp:
+      enabled: false
+
+    ingress:
+      ingressClassName: internal-nginx
+      enabled: true
+      hosts:
+        - pihole.${SECRET_DOMAIN}
+
+    persistentVolumeClaim:
+      enabled: true
+      accessModes:
+        - ReadWriteMany
+      size: "10G"
+      storageClassName: "longhorn"
+
+    admin:
+      existingSecret: pihole-secret
+      secretKey: ADMIN_PASSWORD
+
+    DNS1: "1.1.1.1"
+    DNS2: "1.0.0.1"
+
+    upstreamServers:
+      # Split DNS for internal services
+      - "server=/${SECRET_DOMAIN}/${LB_K8S_GATEWAY}"

@@ -11,5 +11,6 @@ resources:
   - ./k8s-gateway.yaml
   - ./longhorn.yaml
   - ./metrics-server.yaml
+  - ./mojo2600.yaml
   - ./piraeus.yaml
   - ./stakater.yaml

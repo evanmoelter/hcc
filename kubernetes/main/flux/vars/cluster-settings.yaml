@@ -8,3 +8,5 @@ data:
   TIMEZONE: "America/Los_Angeles"
   CLUSTER_CIDR: "10.69.0.0/16"
   NODE_CIDR: "192.168.4.0/22"
+  LB_K8S_GATEWAY: "192.168.5.15"
+  LB_PIHOLE: "192.168.5.53"
