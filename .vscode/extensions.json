@@ -10,6 +10,12 @@
         "will-stone.in-any-case",
         "EditorConfig.editorconfig",
         "PKief.material-icon-theme",
-        "Gruntfuggly.todo-tree"
+        "Gruntfuggly.todo-tree",
+        "streetsidesoftware.code-spell-checker",
+        "github.copilot",
+        "eamodio.gitlens",
+        "weaveworks.vscode-gitops-tools",
+        "hashicorp.terraform",
+        "eriklynd.json-tools"
     ]
 }
