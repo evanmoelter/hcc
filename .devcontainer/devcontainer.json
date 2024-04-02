@@ -7,5 +7,20 @@
   },
   "postStartCommand": {
     "git": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "signageos.signageos-vscode-sops",
+        "streetsidesoftware.code-spell-checker",
+        "mitchdenny.ecdc",
+        "GitHub.copilot",
+        "eamodio.gitlens",
+        "hashicorp.terraform",
+        "eriklynd.json-tools",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "fcrespo82.markdown-table-formatter"
+      ]
+    }
   }
 }
