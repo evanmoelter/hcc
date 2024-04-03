@@ -31,7 +31,7 @@ spec:
         compression: bzip2
         maxParallel: 8
       destinationPath: s3://tf-hcc-cloudnativepg/
-      endpointURL: http://${SECRET_CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+      endpointURL: https://${SECRET_CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
       serverName: postgres16-v1 #This must increment when bootstrapping. You cannot have this be the same as the bootstrap version
       s3Credentials:
         accessKeyId:
