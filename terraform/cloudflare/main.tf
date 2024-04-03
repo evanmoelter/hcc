@@ -57,4 +57,6 @@ resource "aws_s3_bucket" "volsync" {
   bucket = "tf-hcc-volsync"
 }
 
-
+resource "aws_s3_bucket" "cloudnativepg" {
+  bucket = "tf-hcc-cloudnativepg"
+}
