@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
     name: teslamate-secret
-    namespace: database
+    namespace: default
 stringData:
     #ENC[AES256_GCM,data:QaXI7iL7ocPO+g==,iv:XPhxt8bTHa00pT9BsuaxXAAYPkKeTRUjq8V97QKjfs4=,tag:lIJS93jBdw/qgY7grG25CA==,type:comment]
     ENCRYPTION_KEY: ENC[AES256_GCM,data:mTGaaKiq1IbDIwXgJzEI5fC8P7KReQA+cWsl71ioWzsPTYf8JTUBOlIwBYbL5ktGaMdsqmcREpY=,iv:KqW2iaw0iIuP1FQr/at3FHuDW+WCldvry/AmoIFpaeA=,tag:idCu2AhDb0td9fYIbhSL9Q==,type:str]
@@ -34,8 +34,8 @@ sops:
             eERsWmt0YTBWMFpRNUwydXp2SldTQ1kKXsaFXRygVRwfpTiDelSIoGF1lY55e1Bg
             qACMcEXzsKrLDKi7QfDNxcyqr8FEiisJJfVa9jvxYajzwbuRsDZCkQ==
             -----END AGE ENCRYPTED FILE-----
-    lastmodified: "2024-03-24T22:17:47Z"
-    mac: ENC[AES256_GCM,data:KDS3D+vo2XpEzR33gAPLMjn1CcZoZv0ojPX4hZjU94aIEdvFu9tGbxaXTqgmr0I5zQw3Xw170LbjZwXlRXQJshmLhMlUDSI8wToi6uItQP4NOEGyTGVGWpOg8KpmjuZRPmpxcYOoYKBJXDdNg2oOnEZoybG0ytSAqUXJFjNkxZ8=,iv:B7HDp60GLo+yeJNFPCO1QxEkVIwpj599AUPfH24DkM4=,tag:/4SJm7MtNih8BDtHXdx7Og==,type:str]
+    lastmodified: "2024-04-07T12:40:00Z"
+    mac: ENC[AES256_GCM,data:WCozgunRSuIif4GRgu9aFImMa1tf50m9BCUtPzyvFTzF51yymzAhABiqNT9xuoI1sX/McSnnSoknl1MfOG7mg3VpZdpJ4MjJCSyXuSNQ6JZl+H/RhiT1BTK8Zs4CLa3x5/Xs5o8mK4zGAO4nx5oqoEzdPPVIihhNz6qT2ks8Hck=,iv:5yhVct30uKSr+3HaraM6QoWYLDPvJpl3ExrByh14424=,tag:+/7cVPO5DYRHzpVC35XaCQ==,type:str]
     pgp: []
     encrypted_regex: ^(data|stringData)$
     version: 3.8.1
