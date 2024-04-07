@@ -28,7 +28,6 @@ spec:
       annotations:
         io.cilium/lb-ipam-ips: ${LB_PIHOLE}
         io.cilium/lb-ipam-sharing-key: *app
-      loadBalancerIP: ${LB_PIHOLE}
 
     serviceDhcp:
       enabled: false
