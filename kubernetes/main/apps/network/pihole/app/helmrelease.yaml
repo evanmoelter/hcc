@@ -28,6 +28,7 @@ spec:
       annotations:
         io.cilium/lb-ipam-ips: ${LB_PIHOLE}
         io.cilium/lb-ipam-sharing-key: *app
+      mixedService: true
 
     serviceDhcp:
       enabled: false
