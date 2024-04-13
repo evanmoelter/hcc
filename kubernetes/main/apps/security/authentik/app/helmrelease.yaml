@@ -34,6 +34,9 @@ spec:
       envFrom:
         - secretRef:
             name: &secret authentik-secret
+      env:
+        - name: AUTHENTIK_POSTGRESQL__USE_PGBOUNCER
+          value: "true"
       deploymentAnnotations:
         secret.reloader.stakater.com/reload: *secret
 
@@ -78,7 +81,7 @@ spec:
           serviceMonitor:
             enabled: true
       ingress:
-        enabled: false
+        enabled: true
         ingressClassName: external
         annotations:
           external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}
