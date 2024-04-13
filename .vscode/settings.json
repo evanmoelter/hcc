@@ -23,5 +23,8 @@
         "vs-kubernetes.knownKubeconfigs": [
           "./kubeconfig"
       ]
-    }
+    },
+    "cSpell.words": [
+        "authentik"
+    ]
 }
