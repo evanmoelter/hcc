@@ -90,15 +90,11 @@ spec:
         tls:
         - hosts:
             - *host
-      containerSecurityContext:
-        readOnlyRootFilesystem: true
 
     worker:
       autoscaling:
         enabled: true
         minReplicas: 1
-      containerSecurityContext:
-        readOnlyRootFilesystem: true
 
     postgresql:
       enabled: false
