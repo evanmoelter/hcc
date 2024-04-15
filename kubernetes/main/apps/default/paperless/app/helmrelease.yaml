@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2beta2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: &app paperless
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.1.0
+      interval: 30m
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+
+  values:
+    controllers:
+      paperless:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/evanmoelter/postgres-init
+              tag: 16.2@sha256:4227543bc35320a9a1734312cd5a27c2b2811feadeb9cd1363b0c2b35dd7383f
+              pullPolicy: IfNotPresent
+            env:
+              - name: INIT_POSTGRES_HOST
+                value: ${CNPG_CLUSTER_HOST}
+              - name: INIT_POSTGRES_DBNAME
+                value: *app
+              - name: INIT_POSTGRES_SUPER_USER
+                value: ${CNPG_POSTGRES_SUPER_USER}
+              - name: INIT_POSTGRES_SUPER_PASS
+                value: ${CNPG_POSTGRES_SUPER_PASS}
+            envFrom:
+              - secretRef:
+                  name: teslamate-secret
+        containers:
+          app:
+            image:
+              repository: ghcr.io/paperless-ngx/paperless-ngx
+              tag: 2.7.2
+            env:
+              # Configure application
+              PAPERLESS_URL: https://paperless.${SECRET_DOMAIN}
+              PAPERLESS_PORT: "8000"
+              PAPERLESS_TIME_ZONE: ${TIMEZONE}
+              PAPERLESS_WEBSERVER_WORKERS: "2"
+              PAPERLESS_TASK_WORKERS: "2"
+              # Configure OIDC User auth
+              PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
+              # TODO: disable regular auth
+              PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
+              PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS: "false"
+              # Configure folders
+              PAPERLESS_CONSUMPTION_DIR: /consume
+              PAPERLESS_DATA_DIR: /library/data
+              PAPERLESS_EXPORT_DIR: /library/export
+              PAPERLESS_MEDIA_ROOT: /library/media
+              # Configure folder importer
+              PAPERLESS_CONSUMER_INOTIFY_DELAY: "5"
+              # PAPERLESS_CONSUMER_POLLING: "30"
+              PAPERLESS_CONSUMER_RECURSIVE: "true"
+              PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
+              # Postgres
+              PAPERLESS_DBENGINE: postgresql
+              PAPERLESS_DBHOST: ${CNPG_CLUSTER_HOST}
+              PAPERLESS_DBPORT: "5432"
+              PAPERLESS_DBNAME: *app
+              # Redis
+              PAPERLESS_REDIS: redis://dragonfly.database.svc.cluster.local:6379/2
+              PAPERLESS_REDIS_PREFIX: pngx
+            envFrom:
+              - secretRef:
+                  name: paperless-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 5
+            resources:
+              requests:
+                cpu: 11m
+                memory: 2048Mi
+              limits:
+                memory: 2048Mi
+
+    service:
+      app:
+        controller: paperless
+        ports:
+          http:
+            port: 8000
+
+    ingress:
+      app:
+        className: internal
+        hosts:
+          - host: &hostName paperless.${SECRET_DOMAIN}
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: http
+        tls:
+          - hosts:
+              - *hostName
+
+    persistence:
+      library:
+        enabled: true
+        existingClaim: paperless-library
+        advancedMounts:
+          paperless:
+            app:
+              - path: /library
+      consume:
+        enabled: true
+        existingClaim: paperless-consume
+        advancedMounts:
+          paperless:
+            app:
+              - path: /consume

@@ -7,3 +7,4 @@ resources:
   # Apps
   - teslamate/ks.yaml
   - teslamate/ks-restore.yaml
+  - paperless/ks.yaml
