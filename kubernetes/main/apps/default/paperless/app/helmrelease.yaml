@@ -38,7 +38,7 @@ spec:
                 value: ${CNPG_POSTGRES_SUPER_PASS}
             envFrom:
               - secretRef:
-                  name: teslamate-secret
+                  name: paperless-secret
         containers:
           app:
             image:
