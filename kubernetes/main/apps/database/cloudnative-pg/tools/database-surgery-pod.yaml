@@ -1,0 +1,12 @@
+# Maybe not the best way to do this, but it works for now.
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: database-surgery-pod
+  namespace: database
+spec:
+  containers:
+  - name: temp-container
+    image: postgres
+    command: ["sleep", "36000"]

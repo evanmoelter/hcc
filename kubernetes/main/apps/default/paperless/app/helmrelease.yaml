@@ -53,9 +53,8 @@ spec:
               PAPERLESS_TASK_WORKERS: "2"
               # Configure OIDC User auth
               PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
-              # TODO: disable regular auth
               PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
-              PAPERLESS_SOCIALACCOUNT_ALLOW_SIGNUPS: "false"
+              # TODO: disable regular auth
               # Configure folders
               PAPERLESS_CONSUMPTION_DIR: /consume
               PAPERLESS_DATA_DIR: /library/data
