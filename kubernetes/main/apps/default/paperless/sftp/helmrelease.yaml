@@ -1,0 +1,93 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2beta2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: &app paperless-sftp
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.1.0
+      interval: 30m
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+
+  values:
+    controllers:
+      sftp:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          server:
+            image:
+              repository: atmoz/sftp
+              tag: debian@sha256:c23fe3dfaccd46167180fbcb18a59fb6a84bd7f07cfbc58a708be10219503898
+            env:
+              - name: SFTP_USERS
+                valueFrom:
+                  secretKeyRef:
+                    name: paperless-sftp-secret
+                    key: SFTP_USERS
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 5
+            # TODO: configure resources
+            # resources:
+            #   requests:
+            #     cpu: 11m
+            #     memory: 2048Mi
+            #   limits:
+            #     memory: 2048Mi
+
+    service:
+      sftp:
+        controller: sftp
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: paperless-sftp.${SECRET_DOMAIN}
+          io.cilium/lb-ipam-ips: 192.168.5.22
+        type: LoadBalancer
+        ports:
+          sftp:
+            port: 22
+            protocol: TCP
+
+    persistence:
+      cert_ed25519:
+        enabled: true
+        type: secret
+        name: paperless-sftp-secret
+        advancedMounts:
+          sftp:
+            server:
+              - path: /etc/ssh/ssh_host_ed25519_key
+                subPath: SSH_KEY_ED25519
+                readOnly: true
+      cert_rsa:
+        enabled: true
+        type: secret
+        name: paperless-sftp-secret
+        advancedMounts:
+          sftp:
+            server:
+              - path: /etc/ssh/ssh_host_rsa_key
+                subPath: SSH_KEY_RSA
+                readOnly: true
+      consume:
+        enabled: true
+        existingClaim: paperless-consume
+        advancedMounts:
+          sftp:
+            server:
+              - path: /home/paperless-sftp/consume
+                readOnly: false

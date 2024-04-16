@@ -8,3 +8,4 @@ resources:
   - teslamate/ks.yaml
   - teslamate/ks-restore.yaml
   - paperless/ks.yaml
+  - paperless/ks-sftp.yaml
