@@ -67,6 +67,7 @@ spec:
         enabled: true
         type: secret
         name: paperless-sftp-secret
+        defaultMode: 0600
         advancedMounts:
           sftp:
             server:
@@ -77,6 +78,7 @@ spec:
         enabled: true
         type: secret
         name: paperless-sftp-secret
+        defaultMode: 0600
         advancedMounts:
           sftp:
             server:
