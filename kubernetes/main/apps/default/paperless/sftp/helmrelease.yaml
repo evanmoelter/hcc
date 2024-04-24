@@ -22,11 +22,6 @@ spec:
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
-          sleep-test:
-            image:
-              repository: ghcr.io/evanmoelter/ubuntu
-              tag: jammy-20240405
-            command: ["sleep", "infinity"]
           server:
             image:
               repository: atmoz/sftp
@@ -79,10 +74,6 @@ spec:
               - path: /etc/ssh/ssh_host_ed25519_key
                 subPath: SSH_KEY_ED25519
                 readOnly: true
-            sleep-test:
-              - path: /etc/ssh/ssh_host_ed25519_key
-                subPath: SSH_KEY_ED25519
-                readOnly: true
       cert-rsa:
         enabled: true
         type: secret
@@ -91,10 +82,6 @@ spec:
         advancedMounts:
           sftp:
             server:
-              - path: /etc/ssh/ssh_host_rsa_key
-                subPath: SSH_KEY_RSA
-                readOnly: true
-            sleep-test:
               - path: /etc/ssh/ssh_host_rsa_key
                 subPath: SSH_KEY_RSA
                 readOnly: true
