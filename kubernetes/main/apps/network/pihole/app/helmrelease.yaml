@@ -23,9 +23,6 @@ spec:
       tag: "2024.03.1"
       pullPolicy: IfNotPresent
 
-    nodeSelector:
-      kubernetes.io/arch: arm64
-
     serviceDns:
       type: LoadBalancer
       annotations:
