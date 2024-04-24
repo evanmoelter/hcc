@@ -46,16 +46,18 @@
             dest: /etc/hosts
             mode: preserve
         # https://github.com/onedr0p/cluster-template/discussions/635
-        - name: Network Configuration | Remove immutable flag from /etc/resolv.conf
+        - name: Network Configuration (Debian) | Remove immutable flag from /etc/resolv.conf
           ansible.builtin.file:
             attributes: -i
             path: /etc/resolv.conf
-        - name: Network Configuration | Remove /etc/resolv.conf
+          when: ansible_distribution == 'Debian'
+        - name: Network Configuration (Debian) | Remove /etc/resolv.conf
           ansible.builtin.file:
             attributes: -i
             path: /etc/resolv.conf
             state: absent
-        - name: Network Configuration | Add custom /etc/resolv.conf
+          when: ansible_distribution == 'Debian'
+        - name: Network Configuration (Debian) | Add custom /etc/resolv.conf
           ansible.builtin.copy:
             attributes: +i
             mode: '0644'
@@ -64,6 +66,20 @@
               search .
               nameserver 1.1.1.1
               nameserver 1.0.0.1
+          when: ansible_distribution == 'Debian'
+        - name: Network Configuration (Ubuntu) | Configure systemd-resolved
+          ansible.builtin.blockinfile:
+            path: /etc/systemd/resolved.conf
+            block: |
+              [Resolve]
+              DNS=1.1.1.1 1.0.0.1
+              Domains=~.
+          when: ansible_distribution == 'Ubuntu'
+        - name: Network Configuration (Ubuntu) | Restart systemd-resolved
+          ansible.builtin.service:
+            name: systemd-resolved
+            state: restarted
+          when: ansible_distribution == 'Ubuntu'
 
     - name: System Configuration
       notify: Reboot

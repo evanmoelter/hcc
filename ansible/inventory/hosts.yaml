@@ -12,3 +12,9 @@ kubernetes:
         "hcc-tablet1":
           ansible_user: "evan"
           ansible_host: "192.168.5.218"
+        "hcc3":
+          ansible_user: "hcc_admin"
+          ansible_host: "192.168.4.13"
+        "hcc4":
+          ansible_user: "hcc_admin"
+          ansible_host: "192.168.4.14"
