@@ -63,7 +63,7 @@ spec:
             protocol: TCP
 
     persistence:
-      cert_ed25519:
+      cert-ed25519:
         enabled: true
         type: secret
         name: paperless-sftp-secret
@@ -73,7 +73,7 @@ spec:
               - path: /etc/ssh/ssh_host_ed25519_key
                 subPath: SSH_KEY_ED25519
                 readOnly: true
-      cert_rsa:
+      cert-rsa:
         enabled: true
         type: secret
         name: paperless-sftp-secret
