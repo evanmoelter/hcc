@@ -25,7 +25,7 @@ spec:
           server:
             image:
               repository: atmoz/sftp
-              tag: debian@sha256:c23fe3dfaccd46167180fbcb18a59fb6a84bd7f07cfbc58a708be10219503898
+              tag: debian@sha256:a83c4a9f2c1d8cae6fef5f3616841d8b6be291b2020329f566bbb3176953573a
             env:
               - name: SFTP_USERS
                 valueFrom:
