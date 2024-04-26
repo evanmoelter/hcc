@@ -92,7 +92,7 @@ spec:
         advancedMounts:
           sftp:
             server:
-              - path: /etc/ssh/sshd_config/scanner-sshd-config
+              - path: /etc/ssh/sshd_config.d/scanner-sshd-config
                 subPath: scanner-sshd-config
                 readOnly: true
       consume:
