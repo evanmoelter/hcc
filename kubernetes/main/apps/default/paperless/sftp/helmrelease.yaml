@@ -24,8 +24,8 @@ spec:
         containers:
           server:
             image:
-              repository: atmoz/sftp
-              tag: debian@sha256:c23fe3dfaccd46167180fbcb18a59fb6a84bd7f07cfbc58a708be10219503898
+              repository: ghcr.io/evanmoelter/sftp
+              tag: 9.6@sha256:677f3aae7d0a6c934726f8cd5fe16d0c712d30800b0a8e88c3ffb214579e27db
             env:
               - name: SFTP_USERS
                 valueFrom:
