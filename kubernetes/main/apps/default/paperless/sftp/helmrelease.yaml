@@ -85,6 +85,16 @@ spec:
               - path: /etc/ssh/ssh_host_rsa_key
                 subPath: SSH_KEY_RSA
                 readOnly: true
+      scanner-sshd-config:
+        enabled: true
+        type: configMap
+        name: scanner-sshd-config
+        advancedMounts:
+          sftp:
+            server:
+              - path: /etc/ssh/sshd_config/scanner-sshd-config
+                subPath: scanner-sshd-config
+                readOnly: true
       consume:
         enabled: true
         existingClaim: paperless-consume

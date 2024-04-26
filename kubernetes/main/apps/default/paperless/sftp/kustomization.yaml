@@ -6,3 +6,4 @@ namespace: default
 resources:
   - ./secret.sops.yaml
   - ./helmrelease.yaml
+  - ./configmap.yaml

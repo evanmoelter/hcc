@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scanner-sshd-config
+data:
+  scanner-sshd-config: |
+    # Add this key exchange algorithm to support Brother Scanner
+    KexAlgorithms +diffie-hellman-group14-sha1
