@@ -38,3 +38,5 @@ spec:
             type: snap
       serviceMonitor:
         create: true
+    webhook:
+      enabled: false
