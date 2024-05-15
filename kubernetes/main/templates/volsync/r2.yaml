@@ -22,4 +22,7 @@ spec:
       runAsGroup: "${VOLSYNC_GID:-568}"
       fsGroup: "${VOLSYNC_GID:-568}"
     retain:
-      daily: 7
+      daily: "${VOLSYNC_RETAIN_DAILY:-7}"
+      weekly: "${VOLSYNC_RETAIN_WEEKLY:-4}"
+      monthly: "${VOLSYNC_RETAIN_MONTHLY:-12}"
+      yearly: "${VOLSYNC_RETAIN_YEARLY:-1}"

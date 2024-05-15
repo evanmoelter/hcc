@@ -73,6 +73,9 @@ spec:
               # Redis
               PAPERLESS_REDIS: redis://dragonfly.database.svc.cluster.local:6379/2
               PAPERLESS_REDIS_PREFIX: pngx
+              # Configure user ID mapping
+              USERMAP_UID: 1000
+              USERMAP_GID: 1000
             envFrom:
               - secretRef:
                   name: paperless-secret
