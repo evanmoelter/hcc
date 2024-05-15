@@ -7,3 +7,5 @@ resources:
   - ./secret.sops.yaml
   - ./helmrelease.yaml
   - ./pvc.yaml
+  - ./library-volsync-r2.sops.yaml
+  - ./library-volsync-r2.yaml
