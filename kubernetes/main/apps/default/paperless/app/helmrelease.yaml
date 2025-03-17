@@ -25,7 +25,7 @@ spec:
           init-db:
             image:
               repository: ghcr.io/evanmoelter/postgres-init
-              tag: 16.2@sha256:4227543bc35320a9a1734312cd5a27c2b2811feadeb9cd1363b0c2b35dd7383f
+              tag: 16.4@sha256:bc967eaaa48af92ba3d10ade772955b5db2636d39139f03b38b7bb6c1725f04c
               pullPolicy: IfNotPresent
             env:
               - name: INIT_POSTGRES_HOST
