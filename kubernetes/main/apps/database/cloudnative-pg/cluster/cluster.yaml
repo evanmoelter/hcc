@@ -6,9 +6,6 @@ metadata:
   name: cnpg-cluster
   namespace: database
 spec:
-  affinity:
-    nodeSelector:
-      kubernetes.io/arch: arm64
   instances: 1
   imageName: ghcr.io/cloudnative-pg/postgresql:16.2-10
   primaryUpdateStrategy: unsupervised
