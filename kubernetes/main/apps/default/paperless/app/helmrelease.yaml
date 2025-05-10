@@ -51,6 +51,7 @@ spec:
               PAPERLESS_TIME_ZONE: ${TIMEZONE}
               PAPERLESS_WEBSERVER_WORKERS: "2"
               PAPERLESS_TASK_WORKERS: "2"
+              PAPERLESS_DATE_ORDER: MDY
               # Configure OIDC User auth
               PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
               PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
