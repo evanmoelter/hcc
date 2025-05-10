@@ -26,10 +26,13 @@ spec:
   values:
     persistence:
       enabled: true
-      defaultClassReplicaCount: 2
+      defaultClassReplicaCount: 3
+      defaultDataLocality: best-effort
     defaultSettings:
-      defaultReplicaCount: 2
+      defaultReplicaCount: 3
       defaultDataPath: /storage01
+      defaultDataLocality: best-effort
+      replicaAutoBalance: best-effort
     ingress:
       enabled: true
       ingressClassName: internal

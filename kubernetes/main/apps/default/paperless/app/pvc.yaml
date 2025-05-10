@@ -15,7 +15,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: paperless-consume
 spec:
-  accessModes: ["ReadWriteOnce"]
+  accessModes: ["ReadWriteMany"]
   storageClassName: longhorn
   resources:
     requests:
