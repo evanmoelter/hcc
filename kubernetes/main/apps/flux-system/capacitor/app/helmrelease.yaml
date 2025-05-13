@@ -95,7 +95,9 @@ spec:
           roleRef:
             identifier: capacitor-role
           subjects:
-            - identifier: capacitor
+            - kind: ServiceAccount
+              name: capacitor
+              namespace: flux-system
 
     service:
       app:
