@@ -88,10 +88,16 @@
       "separateMultipleMajor": true,
       "separateMultipleMinor": true
     },
-    // dashboard approvals
+    // separate PRs
     {
       "description": ["Helm Separate PRs"],
       "matchDatasources": ["helm"],
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": true
+    },
+    {
+      "description": ["Container Separate PRs"],
+      "matchDatasources": ["docker"],
       "separateMultipleMajor": true,
       "separateMultipleMinor": true
     },
