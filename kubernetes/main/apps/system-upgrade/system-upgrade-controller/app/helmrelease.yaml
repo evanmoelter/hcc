@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: app-template
-      version: 2.6.0
+      version: 3.7.3
       sourceRef:
         kind: HelmRepository
         name: bjw-s
@@ -22,10 +22,10 @@ spec:
       retries: 3
   values:
     controllers:
-      main:
+      system-upgrade:
         strategy: RollingUpdate
         containers:
-          main:
+          app:
             image:
               repository: docker.io/rancher/system-upgrade-controller
               tag: v0.13.4
@@ -75,7 +75,8 @@ spec:
       create: true
       name: system-upgrade
     service:
-      main:
+      app:
+        controller: system-upgrade
         enabled: false
     persistence:
       tmp:
