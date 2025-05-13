@@ -75,6 +75,8 @@ spec:
       app:
         serviceName: app
         enabled: true
+        endpoints:
+          - port: http
     ingress:
       main:
         enabled: true
