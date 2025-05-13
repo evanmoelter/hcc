@@ -29,7 +29,7 @@ spec:
     keepHistory: false
   values:
     controllers:
-      main:
+      teslamate:
         annotations:
           reloader.stakater.com/auto: "true"
         initContainers:
@@ -54,7 +54,7 @@ spec:
             envFrom: *envFrom
 
     service:
-      main:
+      app:
         controller: teslamate
         ports:
           http:
@@ -69,7 +69,7 @@ spec:
             paths:
               - path: /
                 service:
-                  identifier: main
+                  identifier: app
                   port: http
         tls:
           - hosts:
