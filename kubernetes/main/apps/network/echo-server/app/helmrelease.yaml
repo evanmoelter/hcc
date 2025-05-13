@@ -72,7 +72,8 @@ spec:
           http:
             port: *port
     serviceMonitor:
-      main:
+      app:
+        serviceName: app
         enabled: true
     ingress:
       main:
