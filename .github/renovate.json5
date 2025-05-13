@@ -9,6 +9,7 @@
     ":automergeBranch"
   ],
   "dependencyDashboard": true,
+  "dependencyDashboardApproval": true,
   "dependencyDashboardTitle": "Renovate Dashboard 🤖",
   "suppressNotifications": ["prEditedNotification", "prIgnoreNotification"],
   "rebaseWhen": "conflicted",
@@ -84,6 +85,13 @@
         "commitMessageTopic": "{{{groupName}}} group"
       },
       "separateMinorPatch": true,
+      "separateMultipleMajor": true,
+      "separateMultipleMinor": true
+    },
+    // dashboard approvals
+    {
+      "description": ["Helm Separate PRs"],
+      "matchDatasources": ["helm"],
       "separateMultipleMajor": true,
       "separateMultipleMinor": true
     },
