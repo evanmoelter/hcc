@@ -88,8 +88,9 @@ spec:
           http:
             port: *port
     serviceMonitor:
-      main:
+      app:
         enabled: true
+        serviceName: app
     persistence:
       config:
         enabled: true
