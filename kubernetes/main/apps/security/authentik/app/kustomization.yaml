@@ -5,4 +5,4 @@ resources:
   - ./secret.sops.yaml
   - ./helmrelease.yaml
   - ./internal-ingress.yaml
-  - ./webfinger-ingress.yaml
+  - ./webfinger.yaml
