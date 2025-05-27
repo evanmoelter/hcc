@@ -16,4 +16,5 @@ resources:
   - ./metrics-server.yaml
   - ./mojo2600.yaml
   - ./piraeus.yaml
+  - ./tailscale.yaml
   - ./stakater.yaml
