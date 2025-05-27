@@ -20,7 +20,7 @@ spec:
     operatorConfig:
       hostname: "tailscale-operator"
     apiServerProxyConfig:
-      mode: "true"
+      mode: "noauth"
   valuesFrom:
     - kind: Secret
       name: tailscale-operator
