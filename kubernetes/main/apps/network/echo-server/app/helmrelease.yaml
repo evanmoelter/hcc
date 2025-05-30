@@ -112,7 +112,8 @@ spec:
         defaultBackend:
           service:
             name: app
-            port: http
+            port:
+              name: http
         tls:
           - hosts:
               - "{{ .Release.Name }}"
