@@ -3,7 +3,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta2
 kind: HelmRelease
 metadata:
-  name: kube-ops-view
+  name: &app kube-ops-view
   namespace: monitoring
 spec:
   interval: 30m
@@ -76,3 +76,14 @@ spec:
         tls:
           - hosts:
               - *host
+      tailscale:
+        enabled: true
+        className: tailscale
+        defaultBackend:
+          service:
+            name: *app
+            port:
+              name: http
+        tls:
+          - hosts:
+              - "{{ .Release.Name }}"
