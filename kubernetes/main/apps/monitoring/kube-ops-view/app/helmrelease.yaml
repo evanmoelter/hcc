@@ -81,6 +81,9 @@ spec:
         className: tailscale
         defaultBackend:
           service:
-            identifier: main
+            name: *app
             port:
               name: http
+        tls:
+          - hosts:
+              - "{{ .Release.Name }}"
