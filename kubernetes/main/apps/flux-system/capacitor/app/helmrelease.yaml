@@ -121,3 +121,14 @@ spec:
         tls:
           - hosts:
               - *host
+      tailscale:
+        enabled: true
+        className: tailscale
+        defaultBackend:
+          service:
+            name: *app
+            port:
+              name: http
+        tls:
+          - hosts:
+              - "{{ .Release.Name }}"
