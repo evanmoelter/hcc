@@ -19,8 +19,9 @@ spec:
   values:
     operatorConfig:
       hostname: "tailscale-operator"
-    apiServerProxyConfig:
-      mode: "noauth"
+    # API proxy is not working with k3s cluster auth
+    # apiServerProxyConfig:
+    #   mode: "noauth"
   valuesFrom:
     - kind: Secret
       name: tailscale-operator
