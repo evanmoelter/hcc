@@ -47,6 +47,9 @@ spec:
             env:
               # Configure application
               PAPERLESS_URL: https://paperless.${SECRET_DOMAIN}
+              PAPERLESS_ALLOWED_HOSTS: "paperless.${SECRET_TAILSCALE_DOMAIN}"
+              PAPERLESS_CSRF_TRUSTED_ORIGINS: "https://paperless.${SECRET_TAILSCALE_DOMAIN}"
+              PAPERLESS_CORS_ALLOWED_HOSTS: "https://paperless.${SECRET_TAILSCALE_DOMAIN}"
               PAPERLESS_PORT: "8000"
               PAPERLESS_TIME_ZONE: ${TIMEZONE}
               PAPERLESS_WEBSERVER_WORKERS: "2"
