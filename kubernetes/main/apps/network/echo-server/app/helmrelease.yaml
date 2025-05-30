@@ -2,7 +2,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2beta2
 kind: HelmRelease
 metadata:
-  name: echo-server
+  name: &app echo-server
 spec:
   interval: 30m
   chart:
@@ -111,7 +111,7 @@ spec:
         className: tailscale
         defaultBackend:
           service:
-            name: app
+            name: *app
             port:
               name: http
         tls:
