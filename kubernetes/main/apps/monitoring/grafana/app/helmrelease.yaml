@@ -66,64 +66,64 @@ spec:
             editable: true
             options:
               path: /var/lib/grafana/dashboards/default
-          - name: cilium
-            orgId: 1
-            folder: Cilium
-            type: file
-            disableDeletion: false
-            editable: true
-            options:
-              path: /var/lib/grafana/dashboards/cilium
-          - name: data
-            orgId: 1
-            folder: Data
-            type: file
-            disableDeletion: false
-            editable: true
-            options:
-              path: /var/lib/grafana/dashboards/data
-          - name: flux
-            orgId: 1
-            folder: Flux
-            type: file
-            disableDeletion: false
-            editable: true
-            options:
-              path: /var/lib/grafana/dashboards/flux
-          - name: kubernetes
-            orgId: 1
-            folder: Kubernetes
-            type: file
-            disableDeletion: false
-            editable: true
-            options:
-              path: /var/lib/grafana/dashboards/kubernetes
-          - name: network
-            orgId: 1
-            folder: Network
-            type: file
-            disableDeletion: false
-            editable: true
-            options:
-              path: /var/lib/grafana/dashboards/network
-          - name: system
-            orgId: 1
-            folder: System
-            type: file
-            disableDeletion: false
-            editable: true
-            allowUiUpdates: true
-            options:
-              path: /var/lib/grafana/dashboards/system
-          - name: thanos
-            orgId: 1
-            folder: Thanos
-            type: file
-            disableDeletion: false
-            editable: true
-            allowUiUpdates: true
-            options:
-              path: /var/lib/grafana/dashboards/thanos
+          # - name: cilium
+          #   orgId: 1
+          #   folder: Cilium
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/cilium
+          # - name: data
+          #   orgId: 1
+          #   folder: Data
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/data
+          # - name: flux
+          #   orgId: 1
+          #   folder: Flux
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/flux
+          # - name: kubernetes
+          #   orgId: 1
+          #   folder: Kubernetes
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/kubernetes
+          # - name: network
+          #   orgId: 1
+          #   folder: Network
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/network
+          # - name: system
+          #   orgId: 1
+          #   folder: System
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   allowUiUpdates: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/system
+          # - name: thanos
+          #   orgId: 1
+          #   folder: Thanos
+          #   type: file
+          #   disableDeletion: false
+          #   editable: true
+          #   allowUiUpdates: true
+          #   options:
+          #     path: /var/lib/grafana/dashboards/thanos
     datasources:
       datasources.yaml:
         apiVersion: 1
