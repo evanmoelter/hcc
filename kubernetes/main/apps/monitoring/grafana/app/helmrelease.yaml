@@ -34,6 +34,9 @@ spec:
       GF_DATE_FORMATS_USE_BROWSER_LOCALE: true
       GF_EXPLORE_ENABLED: true
       GF_SECURITY_COOKIE_SAMESITE: *app
+    envFrom:
+      - secretRef:
+          name: grafana-secret
     grafana.ini:
       analytics:
         check_for_updates: false
@@ -166,9 +169,9 @@ spec:
             access: proxy
             url: cnpg-cluster-r.default.svc.cluster.local:5432
             database: teslamate
-            user: ${TESLAMATE_DB_USER}
+            user: $TESLAMATE_DB_USER
             secureJsonData:
-              password: ${TESLAMATE_DB_PASSWORD}
+              password: $TESLAMATE_DB_PASSWORD
     dashboards:
       # data:
       #   cloudnative-pg:
