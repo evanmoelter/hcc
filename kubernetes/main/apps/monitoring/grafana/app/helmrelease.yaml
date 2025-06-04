@@ -127,10 +127,10 @@ spec:
     datasources:
       datasources.yaml:
         apiVersion: 1
-        deleteDatasources:
-          - { name: Alertmanager, orgId: 1 }
-          - { name: Loki, orgId: 1 }
-          - { name: Prometheus, orgId: 1 }
+        # deleteDatasources:
+        #   - { name: Alertmanager, orgId: 1 }
+        #   - { name: Loki, orgId: 1 }
+        #   - { name: Prometheus, orgId: 1 }
         datasources:
           # - name: Prometheus
           #   type: prometheus
@@ -158,12 +158,9 @@ spec:
             access: proxy
             url: cnpg-cluster-r.default.svc.cluster.local:5432
             database: teslamate
-            user: TODO
+            user: ${TESLAMATE_DB_USER}
             secureJsonData:
-              password: TODO
-            jsonData:
-              postgresVersion: 1000
-              sslmode: disable
+              password: ${TESLAMATE_DB_PASSWORD}
     dashboards:
       # data:
       #   cloudnative-pg:
