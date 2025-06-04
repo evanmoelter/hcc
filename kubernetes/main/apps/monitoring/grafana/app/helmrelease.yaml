@@ -311,12 +311,21 @@ spec:
       - snuids-trafficlights-panel
     serviceMonitor:
       enabled: true
-    route:
-      main:
-        enabled: true
-        hostnames:
-          - grafana.${SECRET_DOMAIN}
-        # TODO
+    # TODO: switch to routes
+    # route:
+    #   main:
+    #     enabled: true
+    #     hostnames:
+    #       - grafana.${SECRET_DOMAIN}
+    #     # TODO
+    ingress:
+      enabled: true
+      ingressClassName: nginx-internal
+      hosts:
+        - &host grafana.${SECRET_DOMAIN}
+      tls:
+        - hosts:
+            - *host
     persistence:
       enabled: false
     topologySpreadConstraints:
