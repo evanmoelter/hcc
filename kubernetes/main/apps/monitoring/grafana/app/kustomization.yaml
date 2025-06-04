@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ./secret.sops.yaml
   - ./helmrelease.yaml
+  - ./grafana-external-ingress.yaml
