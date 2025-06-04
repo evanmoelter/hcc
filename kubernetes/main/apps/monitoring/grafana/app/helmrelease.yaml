@@ -115,6 +115,14 @@ spec:
           #   allowUiUpdates: true
           #   options:
           #     path: /var/lib/grafana/dashboards/system
+          - name: teslamate
+            orgId: 1
+            folder: Teslamate
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/teslamate
           # - name: thanos
           #   orgId: 1
           #   folder: Thanos
