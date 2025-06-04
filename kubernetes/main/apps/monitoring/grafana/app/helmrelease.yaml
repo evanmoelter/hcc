@@ -34,9 +34,8 @@ spec:
       GF_DATE_FORMATS_USE_BROWSER_LOCALE: true
       GF_EXPLORE_ENABLED: true
       GF_SECURITY_COOKIE_SAMESITE: *app
-    envFrom:
-      - secretRef:
-          name: grafana-secret
+    envFromSecrets:
+      - name: grafana-secret
     grafana.ini:
       analytics:
         check_for_updates: false
