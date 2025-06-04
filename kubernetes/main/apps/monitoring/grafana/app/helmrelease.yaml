@@ -166,7 +166,7 @@ spec:
           - name: teslamate
             type: postgres
             access: proxy
-            url: cnpg-cluster-r.default.svc.cluster.local:5432
+            url: cnpg-cluster-r.database.svc.cluster.local:5432
             database: teslamate
             user: $TESLAMATE_DB_USER
             secureJsonData:
