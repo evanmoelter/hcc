@@ -46,7 +46,7 @@ spec:
         disable_login_form: true
       auth.anonymous:
         enabled: true
-        org: Stuff
+        org: Main Org.
         org_role: Editor
     deploymentStrategy:
       type: RollingUpdate
