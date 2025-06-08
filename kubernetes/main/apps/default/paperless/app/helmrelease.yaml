@@ -55,6 +55,7 @@ spec:
               PAPERLESS_WEBSERVER_WORKERS: "2"
               PAPERLESS_TASK_WORKERS: "2"
               PAPERLESS_DATE_ORDER: MDY
+              PAPERLESS_NUMBER_OF_SUGGESTED_DATES: "6"
               # Configure OIDC User auth
               PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
               PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
@@ -68,6 +69,11 @@ spec:
               PAPERLESS_CONSUMER_POLLING: "60" # Must use polling for Longhorn RWX volume
               PAPERLESS_CONSUMER_RECURSIVE: "true"
               PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
+              # Configure barcode reader
+              PAPERLESS_CONSUMER_ENABLE_ASN_BARCODE: "true"
+              PAPERLESS_CONSUMER_ASN_BARCODE_PREFIX: "ASN"
+              PAPERLESS_CONSUMER_ENABLE_TAG_BARCODE: "true"
+              PAPERLESS_CONSUMER_TAG_BARCODE_MAPPING: "{\"ASN.*\": \"ASN\"}"
               # Postgres
               PAPERLESS_DBENGINE: postgresql
               PAPERLESS_DBHOST: ${CNPG_CLUSTER_HOST}
