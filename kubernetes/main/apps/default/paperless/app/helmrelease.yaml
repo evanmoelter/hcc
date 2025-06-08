@@ -74,6 +74,8 @@ spec:
               PAPERLESS_CONSUMER_ASN_BARCODE_PREFIX: "ASN"
               PAPERLESS_CONSUMER_ENABLE_TAG_BARCODE: "true"
               PAPERLESS_CONSUMER_TAG_BARCODE_MAPPING: "{\"ASN.*\": \"ASN\"}"
+              PAPERLESS_CONSUMER_BARCODE_UPSCALE: "1.5"
+              PAPERLESS_CONSUMER_BARCODE_MAX_PAGES: "2"
               # Postgres
               PAPERLESS_DBENGINE: postgresql
               PAPERLESS_DBHOST: ${CNPG_CLUSTER_HOST}
