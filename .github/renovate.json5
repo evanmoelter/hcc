@@ -3,13 +3,13 @@
   extends: [
     'config:recommended',
     'docker:enableMajor',
+    'helpers:pinGitHubActionDigests',
     ':disableRateLimiting',
     ':dependencyDashboard',
     ':semanticCommits',
     ':automergeBranch',
   ],
   dependencyDashboard: true,
-  dependencyDashboardApproval: true,
   dependencyDashboardTitle: 'Renovate Dashboard 🤖',
   suppressNotifications: [
     'prEditedNotification',
@@ -17,12 +17,23 @@
   ],
   rebaseWhen: 'conflicted',
   schedule: [
-    'on saturday',
+    'every weekend',
   ],
+  ignorePaths: [
+    '**/*.sops.*',
+  ],
+
+  // Manager configurations
   flux: {
     managerFilePatterns: [
       '/(^|/)ansible/.+\\.ya?ml$/',
       '/(^|/)kubernetes/.+\\.ya?ml$/',
+    ],
+  },
+  helmfile: {
+    managerFilePatterns: [
+      '/(^|/)helmfile\\.ya?ml$/',
+      '/(^|/)helmfile\\.d/.+\\.ya?ml$/',
     ],
   },
   'helm-values': {
@@ -52,13 +63,16 @@
       '/(^|/)(galaxy|requirements)(\\.ansible)?\\.ya?ml$/',
     ],
   },
+
   commitMessageTopic: '{{depName}}',
   commitMessageExtra: 'to {{newVersion}}',
   commitMessageSuffix: '',
+
   packageRules: [
+    // Auto-merge GitHub Actions (minor/patch/digest)
     {
       description: [
-        'Auto merge Github Actions',
+        'Auto-merge GitHub Actions',
       ],
       matchManagers: [
         'github-actions',
@@ -69,8 +83,48 @@
       matchUpdateTypes: [
         'minor',
         'patch',
+        'digest',
+      ],
+      minimumReleaseAge: '3 days',
+    },
+
+    // Auto-merge mise tools
+    {
+      description: [
+        'Auto-merge Mise Tools',
+      ],
+      matchManagers: [
+        'mise',
+      ],
+      automerge: true,
+      automergeType: 'branch',
+      ignoreTests: true,
+      matchUpdateTypes: [
+        'minor',
+        'patch',
       ],
     },
+
+    // Flux Operator Group
+    {
+      description: [
+        'Flux Operator Group',
+      ],
+      groupName: 'Flux Operator',
+      matchDatasources: [
+        'docker',
+      ],
+      matchPackageNames: [
+        '/flux-operator/',
+        '/flux-instance/',
+        '/flux-operator-manifests/',
+      ],
+      group: {
+        commitMessageTopic: '{{{groupName}}} group',
+      },
+    },
+
+    // Flux Group
     {
       description: [
         'Flux Group',
@@ -91,6 +145,8 @@
         '/flux/',
       ],
     },
+
+    // System Upgrade Controller Group
     {
       description: [
         'System Upgrade Controller Group',
@@ -110,6 +166,8 @@
         '/system-upgrade-controller/',
       ],
     },
+
+    // Helm Separate PRs
     {
       description: [
         'Helm Separate PRs',
@@ -120,6 +178,8 @@
       separateMultipleMajor: true,
       separateMultipleMinor: true,
     },
+
+    // Container Separate PRs
     {
       description: [
         'Container Separate PRs',
@@ -130,6 +190,8 @@
       separateMultipleMajor: true,
       separateMultipleMinor: true,
     },
+
+    // k3s versioning
     {
       description: [
         'Use custom versioning for k3s',
@@ -142,179 +204,86 @@
         '/k3s/',
       ],
     },
+
+    // Semantic commits by update type
     {
-      matchDatasources: [
-        'helm',
-      ],
-      commitMessageTopic: 'chart {{depName}}',
-    },
-    {
-      matchDatasources: [
-        'docker',
-      ],
-      commitMessageTopic: 'image {{depName}}',
-    },
-    {
-      matchDatasources: [
-        'docker',
-      ],
       matchUpdateTypes: [
         'major',
       ],
-      commitMessagePrefix: 'feat(container)!: ',
+      semanticCommitType: 'feat',
+      commitMessagePrefix: '{{semanticCommitType}}({{semanticCommitScope}})!:',
+      commitMessageExtra: '( {{currentVersion}} → {{newVersion}} )',
     },
     {
-      matchDatasources: [
-        'docker',
-      ],
       matchUpdateTypes: [
         'minor',
       ],
       semanticCommitType: 'feat',
-      semanticCommitScope: 'container',
+      commitMessageExtra: '( {{currentVersion}} → {{newVersion}} )',
     },
     {
-      matchDatasources: [
-        'docker',
-      ],
       matchUpdateTypes: [
         'patch',
       ],
       semanticCommitType: 'fix',
-      semanticCommitScope: 'container',
+      commitMessageExtra: '( {{currentVersion}} → {{newVersion}} )',
     },
     {
-      matchDatasources: [
-        'docker',
-      ],
       matchUpdateTypes: [
         'digest',
       ],
       semanticCommitType: 'chore',
+      commitMessageExtra: '( {{currentDigestShort}} → {{newDigestShort}} )',
+    },
+
+    // Semantic scopes by datasource
+    {
+      matchDatasources: [
+        'docker',
+      ],
       semanticCommitScope: 'container',
+      commitMessageTopic: 'image {{depName}}',
     },
     {
       matchDatasources: [
         'helm',
       ],
-      matchUpdateTypes: [
-        'major',
-      ],
-      commitMessagePrefix: 'feat(helm)!: ',
-    },
-    {
-      matchDatasources: [
-        'helm',
-      ],
-      matchUpdateTypes: [
-        'minor',
-      ],
-      semanticCommitType: 'feat',
       semanticCommitScope: 'helm',
-    },
-    {
-      matchDatasources: [
-        'helm',
-      ],
-      matchUpdateTypes: [
-        'patch',
-      ],
-      semanticCommitType: 'fix',
-      semanticCommitScope: 'helm',
-    },
-    {
-      matchDatasources: [
-        'galaxy',
-        'galaxy-collection',
-      ],
-      matchUpdateTypes: [
-        'major',
-      ],
-      commitMessagePrefix: 'feat(ansible)!: ',
-    },
-    {
-      matchDatasources: [
-        'galaxy',
-        'galaxy-collection',
-      ],
-      matchUpdateTypes: [
-        'minor',
-      ],
-      semanticCommitType: 'feat',
-      semanticCommitScope: 'ansible',
-    },
-    {
-      matchDatasources: [
-        'galaxy',
-        'galaxy-collection',
-      ],
-      matchUpdateTypes: [
-        'patch',
-      ],
-      semanticCommitType: 'fix',
-      semanticCommitScope: 'ansible',
-    },
-    {
-      matchDatasources: [
-        'github-releases',
-        'github-tags',
-      ],
-      matchUpdateTypes: [
-        'major',
-      ],
-      commitMessagePrefix: 'feat(github-release)!: ',
-    },
-    {
-      matchDatasources: [
-        'github-releases',
-        'github-tags',
-      ],
-      matchUpdateTypes: [
-        'minor',
-      ],
-      semanticCommitType: 'feat',
-      semanticCommitScope: 'github-release',
-    },
-    {
-      matchDatasources: [
-        'github-releases',
-        'github-tags',
-      ],
-      matchUpdateTypes: [
-        'patch',
-      ],
-      semanticCommitType: 'fix',
-      semanticCommitScope: 'github-release',
+      commitMessageTopic: 'chart {{depName}}',
     },
     {
       matchManagers: [
         'github-actions',
       ],
-      matchUpdateTypes: [
-        'major',
-      ],
-      commitMessagePrefix: 'feat(github-action)!: ',
-    },
-    {
-      matchManagers: [
-        'github-actions',
-      ],
-      matchUpdateTypes: [
-        'minor',
-      ],
-      semanticCommitType: 'feat',
+      semanticCommitType: 'ci',
       semanticCommitScope: 'github-action',
+      commitMessageTopic: 'action {{depName}}',
+    },
+    {
+      matchDatasources: [
+        'github-releases',
+        'github-tags',
+      ],
+      semanticCommitScope: 'github-release',
+      commitMessageTopic: 'release {{depName}}',
     },
     {
       matchManagers: [
-        'github-actions',
+        'mise',
       ],
-      matchUpdateTypes: [
-        'patch',
-      ],
-      semanticCommitType: 'fix',
-      semanticCommitScope: 'github-action',
+      semanticCommitScope: 'mise',
+      commitMessageTopic: 'tool {{depName}}',
     },
+    {
+      matchDatasources: [
+        'galaxy',
+        'galaxy-collection',
+      ],
+      semanticCommitScope: 'ansible',
+      commitMessageTopic: 'collection {{depName}}',
+    },
+
+    // Labels by update type
     {
       matchUpdateTypes: [
         'major',
@@ -340,6 +309,16 @@
       ],
     },
     {
+      matchUpdateTypes: [
+        'digest',
+      ],
+      labels: [
+        'type/digest',
+      ],
+    },
+
+    // Labels by datasource
+    {
       matchDatasources: [
         'docker',
       ],
@@ -356,12 +335,11 @@
       ],
     },
     {
-      matchDatasources: [
-        'galaxy',
-        'galaxy-collection',
+      matchManagers: [
+        'github-actions',
       ],
       addLabels: [
-        'renovate/ansible',
+        'renovate/github-action',
       ],
     },
     {
@@ -375,29 +353,55 @@
     },
     {
       matchManagers: [
-        'github-actions',
+        'mise',
       ],
       addLabels: [
-        'renovate/github-action',
+        'renovate/mise',
+      ],
+    },
+    {
+      matchDatasources: [
+        'galaxy',
+        'galaxy-collection',
+      ],
+      addLabels: [
+        'renovate/ansible',
       ],
     },
   ],
+
   customManagers: [
+    // Annotated dependencies
     {
       customType: 'regex',
       description: [
-        'Process custom dependencies',
+        'Process annotated dependencies',
       ],
       managerFilePatterns: [
+        '/(^|/).+\\.env$/',
+        '/(^|/).+\\.sh$/',
+        '/(^|/).+\\.ya?ml$/',
         '/(^|/).taskfiles/.+\\.ya?ml$/',
-        '/(^|/)ansible/.+\\.ya?ml$/',
-        '/(^|/)kubernetes/.+\\.ya?ml$/',
       ],
       matchStrings: [
         '(?m:# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( repository=(?<registryUrl>\\S+))?\\n.+?: "?(?<currentValue>\\S+?)"?$)',
         '(?m:# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n.+?/(?<currentValue>(v|\\d)[^/]+)\\S+$)',
       ],
       datasourceTemplate: '{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}',
+    },
+    // OCI dependencies
+    {
+      customType: 'regex',
+      description: [
+        'Process OCI dependencies',
+      ],
+      managerFilePatterns: [
+        '/\\.ya?ml$/',
+      ],
+      matchStrings: [
+        'oci://(?<depName>[^:]+):(?<currentValue>\\S+)',
+      ],
+      datasourceTemplate: 'docker',
     },
   ],
 }
