@@ -21,35 +21,35 @@
   ],
   flux: {
     managerFilePatterns: [
-      '/(^|/)ansible/.+\\.ya?ml(\\.j2)?$/',
-      '/(^|/)kubernetes/.+\\.ya?ml(\\.j2)?$/',
+      '/(^|/)ansible/.+\\.ya?ml$/',
+      '/(^|/)kubernetes/.+\\.ya?ml$/',
     ],
   },
   'helm-values': {
     managerFilePatterns: [
-      '/(^|/)ansible/.+\\.ya?ml(\\.j2)?$/',
-      '/(^|/)kubernetes/.+\\.ya?ml(\\.j2)?$/',
+      '/(^|/)ansible/.+\\.ya?ml$/',
+      '/(^|/)kubernetes/.+\\.ya?ml$/',
     ],
   },
   kubernetes: {
     managerFilePatterns: [
-      '/(^|/)ansible/.+\\.ya?ml(\\.j2)?$/',
-      '/(^|/)kubernetes/.+\\.ya?ml(\\.j2)?$/',
+      '/(^|/)ansible/.+\\.ya?ml$/',
+      '/(^|/)kubernetes/.+\\.ya?ml$/',
     ],
   },
   kustomize: {
     managerFilePatterns: [
-      '/(^|/)kustomization\\.ya?ml(\\.j2)?$/',
+      '/(^|/)kustomization\\.ya?ml$/',
     ],
   },
   pip_requirements: {
     managerFilePatterns: [
-      '/(^|/)[\\w-]*requirements(-\\w+)?\\.(txt|pip)(\\.j2)?$/',
+      '/(^|/)[\\w-]*requirements(-\\w+)?\\.(txt|pip)$/',
     ],
   },
   'ansible-galaxy': {
     managerFilePatterns: [
-      '/(^|/)(galaxy|requirements)(\\.ansible)?\\.ya?ml(\\.j2)?$/',
+      '/(^|/)(galaxy|requirements)(\\.ansible)?\\.ya?ml$/',
     ],
   },
   commitMessageTopic: '{{depName}}',
@@ -390,8 +390,8 @@
       ],
       managerFilePatterns: [
         '/(^|/).taskfiles/.+\\.ya?ml$/',
-        '/(^|/)ansible/.+\\.ya?ml(\\.j2)?$/',
-        '/(^|/)kubernetes/.+\\.ya?ml(\\.j2)?$/',
+        '/(^|/)ansible/.+\\.ya?ml$/',
+        '/(^|/)kubernetes/.+\\.ya?ml$/',
       ],
       matchStrings: [
         '(?m:# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( repository=(?<registryUrl>\\S+))?\\n.+?: "?(?<currentValue>\\S+?)"?$)',
