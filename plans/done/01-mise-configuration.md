@@ -27,10 +27,6 @@ A complete mise configuration that:
 Replace the current `mise.toml` with:
 
 ```toml
-[env]
-KUBECONFIG = "{{config_root}}/kubeconfig"
-SOPS_AGE_KEY_FILE = "{{config_root}}/age.key"
-
 [tools]
 "node" = "24"
 "aqua:cilium/cilium-cli" = "0.18.9"
