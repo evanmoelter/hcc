@@ -62,9 +62,7 @@ Keep `direnv` task for now as it's still useful.
 
 ### Step 3: Update `.envrc` for direnv integration
 
-```bash
-use mise
-```
+Skip this step, will be handled manually.
 
 ### Step 4: Remove or archive Brewfile
 
