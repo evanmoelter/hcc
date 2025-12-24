@@ -1,5 +1,10 @@
 # Plan: Helmfile Bootstrap Process
 
+> **Status: OPTIONAL** - Since you already have a running cluster with generated configs, this plan is mainly useful for:
+> - Rebuilding the cluster from scratch
+> - Setting up additional clusters
+> - Documenting the bootstrap process
+
 ## Overview
 
 Implement a helmfile-based bootstrap process for deploying core cluster components in the correct order with proper dependency management.

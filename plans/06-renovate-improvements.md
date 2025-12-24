@@ -306,7 +306,7 @@ The k3s-specific versioning regex is already included to handle k3s version stri
 ## Dependencies
 
 - Plan 01 (mise) - for mise manager to have files to scan
-- Plan 03 (helmfile) - for helmfile manager to have files to scan
+- Plan 03 (helmfile) - only if you implement helmfile bootstrap
 
 ## Estimated Effort
 

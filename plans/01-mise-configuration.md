@@ -2,7 +2,9 @@
 
 ## Overview
 
-Upgrade the current minimal `mise.toml` to a comprehensive configuration that manages all CLI tools, environment variables, and Python virtual environment automatically.
+Upgrade the current minimal `mise.toml` to a comprehensive configuration that manages all CLI tools and environment variables automatically.
+
+> **Note:** Since you're working with generated configs directly (not maintaining templates), makejinja and Python venv are not needed.
 
 ## Current State
 
@@ -15,9 +17,8 @@ node = "24"
 
 A complete mise configuration that:
 - Manages all required CLI tools via aqua backend
-- Auto-creates Python virtual environment
 - Sets environment variables (KUBECONFIG, SOPS_AGE_KEY_FILE)
-- Eliminates need for Brewfile and manual venv setup
+- Eliminates need for Brewfile
 
 ## Implementation Steps
 
@@ -27,15 +28,11 @@ Replace the current `mise.toml` with:
 
 ```toml
 [env]
-_.python.venv = { path = "{{config_root}}/.venv", create = true }
 KUBECONFIG = "{{config_root}}/kubeconfig"
 SOPS_AGE_KEY_FILE = "{{config_root}}/age.key"
 
 [tools]
-"python" = "3.13"
 "node" = "24"
-"pipx:makejinja" = "2.8.2"
-"aqua:budimanjojo/talhelper" = "3.0.43"
 "aqua:cilium/cilium-cli" = "0.18.9"
 "aqua:cli/cli" = "2.83.2"
 "aqua:cloudflare/cloudflared" = "2025.11.1"
@@ -56,8 +53,8 @@ SOPS_AGE_KEY_FILE = "{{config_root}}/age.key"
 
 ### Step 2: Update Taskfile to remove redundant tasks
 
-The following tasks in `.taskfiles/Workstation/Taskfile.yaml` can be simplified or removed:
-- `venv` - mise handles this automatically
+The following tasks in `.taskfiles/Workstation/Taskfile.yaml` can be removed entirely:
+- `venv` - not needed without templates
 - `brew` - tools now managed by mise
 - `generic-linux` - tools now managed by mise
 
@@ -73,13 +70,9 @@ use mise
 
 The `Brewfile` and `Archfile` in `.taskfiles/Workstation/` can be archived or removed.
 
-### Step 5: Update requirements.txt
+### Step 5: Remove requirements.txt
 
-Ensure `requirements.txt` only contains Python packages not managed by mise:
-- makejinja dependencies
-- netaddr
-- bcrypt
-- Any validation libraries
+Since you're not using makejinja/templates, the `requirements.txt` file can be removed entirely.
 
 ### Step 6: Trust mise configuration
 

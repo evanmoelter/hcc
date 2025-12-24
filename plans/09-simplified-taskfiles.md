@@ -4,6 +4,8 @@
 
 Reorganize and simplify the Taskfile structure to reduce complexity while maintaining functionality needed for k3s clusters.
 
+> **Note:** Since you're working with generated configs directly (not maintaining templates), all template-related tasks (`configure`, `.template`, etc.) can be removed entirely.
+
 ## Current State
 
 Your `.taskfiles/` contains:
@@ -19,15 +21,15 @@ Your `.taskfiles/` contains:
 
 Streamlined structure that:
 - Removes redundancy with mise (Workstation tasks)
+- Removes all template-related tasks
 - Consolidates related tasks
-- Adds bootstrap tasks
 - Keeps k3s/ansible support
 
 ## Implementation Steps
 
 ### Step 1: Simplify main Taskfile.yaml
 
-Update root `Taskfile.yaml`:
+Update root `Taskfile.yaml` (removing all template-related tasks):
 
 ```yaml
 ---
@@ -38,9 +40,7 @@ shopt: [globstar]
 
 vars:
   ANSIBLE_DIR: "{{.ROOT_DIR}}/ansible"
-  BOOTSTRAP_DIR: "{{.ROOT_DIR}}/bootstrap"
   KUBERNETES_DIR: "{{.ROOT_DIR}}/kubernetes/main"
-  PRIVATE_DIR: "{{.ROOT_DIR}}/.private"
   SCRIPTS_DIR: "{{.ROOT_DIR}}/scripts"
 
 env:
@@ -49,7 +49,6 @@ env:
 
 includes:
   ansible: .taskfiles/ansible
-  bootstrap: .taskfiles/bootstrap
   flux: .taskfiles/flux
   kubernetes:
     aliases: ["k8s"]
@@ -62,23 +61,6 @@ includes:
 tasks:
   default: task --list
 
-  init:
-    desc: Initialize configuration files
-    cmds:
-      - mkdir -p {{.PRIVATE_DIR}}
-      - cp -n {{.ROOT_DIR}}/config.sample.yaml {{.ROOT_DIR}}/config.yaml || true
-      - task: sops:age-keygen
-    status:
-      - test -f {{.ROOT_DIR}}/config.yaml
-
-  configure:
-    desc: Configure repository from config.yaml
-    prompt: Any conflicting config will be overwritten... continue?
-    cmds:
-      - task: .template
-      - task: sops:encrypt
-      - task: kubernetes:kubeconform
-
   reconcile:
     desc: Force Flux to pull in changes from Git
     cmd: flux reconcile kustomization cluster-apps --with-source
@@ -86,54 +68,16 @@ tasks:
       - test -f {{.KUBECONFIG}}
       - which flux
 
-  .template:
-    internal: true
-    cmd: makejinja
+  validate:
+    desc: Validate Kubernetes manifests
+    cmd: bash {{.SCRIPTS_DIR}}/kubeconform.sh {{.KUBERNETES_DIR}}
     preconditions:
-      - test -f {{.ROOT_DIR}}/makejinja.toml
-      - test -f {{.ROOT_DIR}}/config.yaml
-      - which makejinja
+      - which kubeconform
 ```
 
-### Step 2: Create bootstrap taskfile
+### Step 2: Simplify ansible taskfile
 
-Create `.taskfiles/bootstrap/Taskfile.yaml`:
-
-```yaml
----
-version: "3"
-
-tasks:
-  cluster:
-    desc: Bootstrap the k3s cluster via Ansible
-    cmds:
-      - task: ansible:install
-      - task: ansible:kubeconfig
-    preconditions:
-      - test -f {{.ANSIBLE_DIR}}/inventory/hosts.yaml
-
-  apps:
-    desc: Bootstrap apps into the cluster
-    cmd: bash {{.SCRIPTS_DIR}}/bootstrap-apps.sh
-    preconditions:
-      - test -f {{.KUBECONFIG}}
-      - which helmfile kubectl sops
-      - test -f {{.SCRIPTS_DIR}}/bootstrap-apps.sh
-
-  flux:
-    desc: Bootstrap Flux into the cluster
-    cmds:
-      - kubectl apply --server-side --kustomize {{.KUBERNETES_DIR}}/bootstrap/flux
-      - sops exec-file {{.KUBERNETES_DIR}}/flux/vars/cluster-secrets.sops.yaml "kubectl apply --server-side -f {}"
-      - kubectl apply --server-side --kustomize {{.KUBERNETES_DIR}}/flux/config
-    preconditions:
-      - test -f {{.KUBECONFIG}}
-      - which kubectl sops
-```
-
-### Step 3: Simplify ansible taskfile
-
-Update `.taskfiles/ansible/Taskfile.yaml`:
+Update `.taskfiles/Ansible/Taskfile.yaml`:
 
 ```yaml
 ---
@@ -177,9 +121,9 @@ tasks:
       - which ansible-playbook
 ```
 
-### Step 4: Simplify flux taskfile
+### Step 3: Simplify flux taskfile
 
-Update `.taskfiles/flux/Taskfile.yaml`:
+Update `.taskfiles/Flux/Taskfile.yaml`:
 
 ```yaml
 ---
@@ -214,9 +158,9 @@ tasks:
       - test -f {{.KUBECONFIG}}
 ```
 
-### Step 5: Simplify kubernetes taskfile
+### Step 4: Simplify kubernetes taskfile
 
-Update `.taskfiles/kubernetes/Taskfile.yaml`:
+Update `.taskfiles/Kubernetes/Taskfile.yaml`:
 
 ```yaml
 ---
@@ -245,9 +189,9 @@ tasks:
       - test -f {{.KUBECONFIG}}
 ```
 
-### Step 6: Simplify sops taskfile
+### Step 5: Simplify sops taskfile
 
-Update `.taskfiles/sops/Taskfile.yaml`:
+Update `.taskfiles/Sops/Taskfile.yaml`:
 
 ```yaml
 ---
@@ -277,24 +221,22 @@ tasks:
       - which sops jq
 ```
 
-### Step 7: Remove or archive Workstation taskfile
+### Step 6: Remove unneeded taskfiles and directories
 
-Since mise handles tool installation, the Workstation taskfile is mostly redundant.
+Since mise handles tool installation and you're not using templates:
 
-Option A: Remove it entirely
-Option B: Keep only direnv task:
+**Remove taskfile directories:**
+- `.taskfiles/Workstation/` - mise handles tool installation
+- `.taskfiles/Repository/` - if not used
+- `.taskfiles/Talos/` - you're using k3s, not Talos
 
-```yaml
----
-version: "3"
-
-tasks:
-  direnv:
-    desc: Allow direnv
-    cmd: direnv allow .
-    status:
-      - "[[ $(direnv status --json | jq '.state.foundRC.allowed') == 0 ]]"
-```
+**Remove/archive template-related files:**
+- `bootstrap/templates/` - template files
+- `bootstrap/scripts/plugin.py` - makejinja plugin
+- `bootstrap/scripts/validation.py` - template validation
+- `makejinja.toml` - template config
+- `config.sample.yaml` - template config sample
+- `requirements.txt` - Python dependencies for templates
 
 ## k3s Compatibility
 
@@ -304,15 +246,13 @@ tasks:
 
 ```
 .taskfiles/
-├── ansible/
+├── Ansible/
 │   └── Taskfile.yaml
-├── bootstrap/
+├── Flux/
 │   └── Taskfile.yaml
-├── flux/
+├── Kubernetes/
 │   └── Taskfile.yaml
-├── kubernetes/
-│   └── Taskfile.yaml
-├── sops/
+├── Sops/
 │   └── Taskfile.yaml
 └── user/           # Optional user overrides
     └── Taskfile.yaml
@@ -339,7 +279,7 @@ tasks:
 2. Test each task group:
    - `task ansible:install` (if applicable)
    - `task sops:age-keygen`
-   - `task configure`
    - `task flux:reconcile`
    - `task kubernetes:debug`
+   - `task validate`
 
