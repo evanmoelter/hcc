@@ -10,6 +10,7 @@
     ':automergeBranch',
   ],
   dependencyDashboard: true,
+  dependencyDashboardApproval: true,
   dependencyDashboardTitle: 'Renovate Dashboard 🤖',
   suppressNotifications: [
     'prEditedNotification',
