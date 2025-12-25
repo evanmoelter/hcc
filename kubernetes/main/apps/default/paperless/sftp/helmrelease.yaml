@@ -25,7 +25,7 @@ spec:
           server:
             image:
               repository: ghcr.io/evanmoelter/sftp
-              tag: 9.6@sha256:677f3aae7d0a6c934726f8cd5fe16d0c712d30800b0a8e88c3ffb214579e27db
+              tag: 9.6@sha256:6b63707f891db2cf913771799736a81f64474d6d0506e221ea572eb540f2dbcc
             env:
               - name: SFTP_USERS
                 valueFrom:
