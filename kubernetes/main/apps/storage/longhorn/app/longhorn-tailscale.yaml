@@ -10,7 +10,7 @@ spec:
     service:
       name: longhorn
       port:
-        name: ui
+        name: longhorn-ui
   tls:
     - hosts:
         - longhorn
