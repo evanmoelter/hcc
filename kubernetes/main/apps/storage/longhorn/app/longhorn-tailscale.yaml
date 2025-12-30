@@ -8,7 +8,7 @@ spec:
   ingressClassName: tailscale
   defaultBackend:
     service:
-      name: longhorn-ui
+      name: longhorn-frontend
       port:
         name: http
   tls:
