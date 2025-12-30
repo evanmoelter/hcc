@@ -20,7 +20,7 @@ spec:
               name: teslamate-secret
       containers:
       - name: postgres-restore
-        image: postgres:16.2
+        image: postgres:17.7
         volumeMounts:
         - name: backup-volume
           mountPath: /backup
