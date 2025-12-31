@@ -29,7 +29,7 @@ spec:
     manageCRDs: true
     image: &image
       repository: ghcr.io/evanmoelter/volsync
-      tag: 0.9.0@sha256:0ee21e7efdbbe50c66ae5247d21d237d2c55f10ad187326c5cca36f491880bb0
+      tag: 0.12.1@sha256:66a513eccd52ee385b09cc40deed1bc3499afc89939dded706d7b28928ccc923
     restic:
       <<: *image
     metrics:
