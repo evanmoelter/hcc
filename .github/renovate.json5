@@ -146,6 +146,26 @@
         '/flux/',
       ],
     },
+    // Flux patch automerge after 7 days
+    {
+      description: [
+        'Automerge Flux patch updates after 7 days',
+      ],
+      matchDatasources: [
+        'docker',
+        'github-tags',
+      ],
+      matchPackageNames: [
+        '/flux/',
+      ],
+      matchUpdateTypes: [
+        'patch',
+      ],
+      dependencyDashboardApproval: false,
+      minimumReleaseAge: '7 days',
+      automerge: true,
+      automergeType: 'pr',
+    },
     // System Upgrade Controller Group
     {
       description: [
@@ -371,21 +391,6 @@
   ],
 
   customManagers: [
-    // FluxInstance version (preserve .x suffix for auto patch updates)
-    {
-      customType: 'regex',
-      description: [
-        'FluxInstance version with .x suffix',
-      ],
-      managerFilePatterns: [
-        '/(^|/)fluxinstance\\.ya?ml$/',
-      ],
-      matchStrings: [
-        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+version: "(?<currentValue>\\S+?)"',
-      ],
-      autoReplaceStringTemplate: '# renovate: datasource={{{datasource}}} depName={{{depName}}}\n    version: "{{{newMajor}}}.{{{newMinor}}}.x"',
-      datasourceTemplate: '{{#if datasource}}{{{datasource}}}{{else}}github-tags{{/if}}',
-    },
     // Annotated dependencies
     {
       customType: 'regex',
