@@ -33,6 +33,7 @@ spec:
       defaultDataPath: /storage01
       defaultDataLocality: best-effort
       replicaAutoBalance: best-effort
+      taintToleration: "dedicated=storage:NoSchedule"
     ingress:
       enabled: true
       ingressClassName: internal
