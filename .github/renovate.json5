@@ -146,6 +146,19 @@
         '/flux/',
       ],
     },
+    // FluxInstance version pattern (preserve .x suffix for auto patch updates)
+    {
+      description: [
+        'FluxInstance version with .x suffix',
+      ],
+      matchFileNames: [
+        'kubernetes/main/apps/flux-system/flux-instance/**',
+      ],
+      matchPackageNames: [
+        'fluxcd/flux2',
+      ],
+      autoReplaceStringTemplate: '{{major}}.{{minor}}.x',
+    },
 
     // System Upgrade Controller Group
     {
