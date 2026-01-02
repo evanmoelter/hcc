@@ -74,26 +74,9 @@ spec:
           name: helm-controller
       # Enable SOPS age decryption
       - patch: |
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: not-used
-          spec:
-            template:
-              spec:
-                containers:
-                  - name: manager
-                    env:
-                      - name: SOPS_AGE_KEY_FILE
-                        value: /home/controller/.config/sops/age/age.agekey
-                    volumeMounts:
-                      - name: sops-age
-                        mountPath: /home/controller/.config/sops/age
-                        readOnly: true
-                volumes:
-                  - name: sops-age
-                    secret:
-                      secretName: sops-age
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --sops-age-secret=sops-age
         target:
           kind: Deployment
           name: kustomize-controller
