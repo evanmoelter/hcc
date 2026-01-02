@@ -4,7 +4,11 @@
       "Bash(kubectl get:*)",
       "Bash(kubectl describe:*)",
       "Bash(kubectl logs:*)",
-      "Bash(flux get kustomization:*)"
+      "Bash(flux get kustomization:*)",
+      "Bash(flux get helmrelease:*)"
+    ],
+    "ask": [
+      "Bash(kubectl get secret:*)"
     ]
   }
 }
