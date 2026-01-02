@@ -31,5 +31,3 @@ spec:
   values:
     crds:
       create: true
-    nodeSelector:
-      kubernetes.io/arch: arm64
