@@ -21,11 +21,6 @@ spec:
     multitenant: false
     networkPolicy: false
     domain: "cluster.local"
-  sync:
-    kind: GitRepository
-    url: "https://github.com/evanmoelter/hcc.git"
-    ref: "refs/heads/main"
-    path: "kubernetes/main/flux"
   kustomize:
     patches:
       # Increase the number of reconciliations and API limits
