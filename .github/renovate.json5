@@ -22,6 +22,7 @@
   ],
   ignorePaths: [
     '**/*.sops.*',
+    '**/bootstrap/**',
   ],
 
   // Manager configurations
