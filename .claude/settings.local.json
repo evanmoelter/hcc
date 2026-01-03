@@ -6,10 +6,14 @@
       "Bash(kubectl logs:*)",
       "Bash(flux get kustomization:*)",
       "Bash(flux get helmrelease:*)",
-      "Bash(flux reconcile:*)"
+      "Bash(flux reconcile:*)",
+      "Bash(git show:*)"
     ],
     "ask": [
       "Bash(kubectl get secret:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "github"
+  ]
 }

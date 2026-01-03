@@ -24,3 +24,4 @@ wiki
 # Bootstrap
 /config.yaml
 .terraform/
+.env

@@ -21,24 +21,6 @@ spec:
       paperless:
         annotations:
           reloader.stakater.com/auto: "true"
-        initContainers:
-          init-db:
-            image:
-              repository: ghcr.io/evanmoelter/postgres-init
-              tag: 16.2@sha256:4227543bc35320a9a1734312cd5a27c2b2811feadeb9cd1363b0c2b35dd7383f
-              pullPolicy: IfNotPresent
-            env:
-              - name: INIT_POSTGRES_HOST
-                value: ${CNPG_CLUSTER_HOST}
-              - name: INIT_POSTGRES_DBNAME
-                value: *app
-              - name: INIT_POSTGRES_SUPER_USER
-                value: ${CNPG_POSTGRES_SUPER_USER}
-              - name: INIT_POSTGRES_SUPER_PASS
-                value: ${CNPG_POSTGRES_SUPER_PASS}
-            envFrom:
-              - secretRef:
-                  name: paperless-secret
         containers:
           app:
             image:
