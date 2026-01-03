@@ -60,22 +60,6 @@ spec:
       autoscaling:
         enabled: true
         minReplicas: 1
-      initContainers:
-        - name: init-db
-          image: ghcr.io/evanmoelter/postgres-init:16.2@sha256:4227543bc35320a9a1734312cd5a27c2b2811feadeb9cd1363b0c2b35dd7383f
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: INIT_POSTGRES_HOST
-              value: *db_host
-            - name: INIT_POSTGRES_DBNAME
-              value: *db_name
-            - name: INIT_POSTGRES_SUPER_USER
-              value: ${CNPG_POSTGRES_SUPER_USER}
-            - name: INIT_POSTGRES_SUPER_PASS
-              value: ${CNPG_POSTGRES_SUPER_PASS}
-          envFrom:
-            - secretRef:
-                name: *secret
       metrics:
         prometheus:
           serviceMonitor:

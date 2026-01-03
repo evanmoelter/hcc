@@ -19,6 +19,8 @@ This directory contains implementation plans for improvements identified from th
 | 07 | [Flux Local Workflow](./07-flux-local-workflow.md) | 30m | None | High | Active |
 | 08 | [HelmRelease Defaults](./08-helmrelease-defaults.md) | 30m | None | High | Active |
 | 09 | [Simplified Taskfiles](./09-simplified-taskfiles.md) | 1h | 01 | Medium | Active |
+| 10 | [Multipath Longhorn Blacklist](./10-multipath-longhorn-blacklist.md) | 30m | None | High | Active |
+| 11 | [CNPG Database Split](./11-cnpg-database-split.md) | 2h | None | Medium | Active |
 
 ## Recommended Implementation Order
 
