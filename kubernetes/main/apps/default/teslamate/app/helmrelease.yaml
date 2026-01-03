@@ -42,7 +42,9 @@ spec:
               DISABLE_MQTT: "true"
               # MQTT_HOST: "mosquitto.home.svc.cluster.local"
               # MQTT_USERNAME: "teslamate"
-            envFrom: *envFrom
+            envFrom:
+              - secretRef:
+                  name: teslamate-secret
 
     service:
       app:

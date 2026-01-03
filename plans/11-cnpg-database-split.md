@@ -2,6 +2,9 @@
 
 ## Overview
 
+TODO: Decide whether pg clusters should be located in the database namespace or the app namespace (leaning towards app namespace).
+TODO: figure out how secrets will be handled across namespaces. For example, how will the teslamate db secret be used by grafana? Maybe it's finally time for 1Password?
+
 Migrate from a single shared CloudNativePG cluster (`cnpg-cluster`) serving multiple applications to dedicated per-app clusters. This improves backup isolation, simplifies upgrades, and follows the microservice database pattern.
 
 ## Problem
@@ -276,9 +279,9 @@ kubernetes/main/apps/database/cloudnative-pg/
 
 | Cluster | Storage | Max Connections | Shared Buffers |
 |---------|---------|-----------------|----------------|
-| teslamate-pg | 10Gi | 100 | 128MB |
+| teslamate-pg | 20Gi | 100 | 128MB |
 | paperless-pg | 5Gi | 50 | 64MB |
-| authentik-pg | 5Gi | 100 | 64MB |
+| authentik-pg | 2Gi | 100 | 64MB |
 
 Total storage: 20Gi (same as before, but isolated)
 
