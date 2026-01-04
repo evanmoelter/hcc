@@ -21,6 +21,8 @@ This directory contains implementation plans for improvements identified from th
 | 09 | [Simplified Taskfiles](./09-simplified-taskfiles.md) | 1h | 01 | Medium | Active |
 | 10 | [Multipath Longhorn Blacklist](./10-multipath-longhorn-blacklist.md) | 30m | None | High | Active |
 | 11 | [CNPG Database Split](./11-cnpg-database-split.md) | 2h | None | Medium | Active |
+| 20260103 | [Multus CNI](./20260103-multus-cni-prerequisite.md) | - | None | Medium | Active |
+| 20260103 | [Home Assistant](./20260103-home-assistant.md) | - | Multus (for IoT) | Medium | Active |
 
 ## Recommended Implementation Order
 
