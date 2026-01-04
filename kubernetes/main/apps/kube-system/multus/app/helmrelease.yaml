@@ -57,15 +57,15 @@ spec:
               privileged: true
 
     persistence:
-      # k3s CNI paths
+      # Cilium uses standard CNI paths
       etc-cni-net-d:
         type: hostPath
-        hostPath: /var/lib/rancher/k3s/agent/etc/cni/net.d
+        hostPath: /etc/cni/net.d
         globalMounts:
           - path: /host/etc/cni/net.d
       opt-cni-bin:
         type: hostPath
-        hostPath: /var/lib/rancher/k3s/data/current/bin
+        hostPath: /opt/cni/bin
         globalMounts:
           - path: /host/opt/cni/bin
 
