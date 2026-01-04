@@ -121,8 +121,34 @@
               fs.inotify.max_user_watches: 524288
               fs.inotify.max_user_instances: 8192
 
+    - name: Multipath Configuration
+      when: ansible_facts.services['multipathd.service'] is defined
+      block:
+        - name: Multipath Configuration | Create conf.d directory
+          ansible.builtin.file:
+            path: /etc/multipath/conf.d
+            state: directory
+            mode: "0755"
+        - name: Multipath Configuration | Blacklist Longhorn devices
+          ansible.builtin.copy:
+            dest: /etc/multipath/conf.d/longhorn-blacklist.conf
+            mode: "0644"
+            content: |
+              blacklist {
+                  device {
+                      vendor "IET"
+                      product "VIRTUAL-DISK"
+                  }
+              }
+          notify: Reload multipathd
+
   handlers:
     - name: Reboot
       ansible.builtin.reboot:
         msg: Rebooting hosts
         reboot_timeout: 3600
+
+    - name: Reload multipathd
+      ansible.builtin.systemd:
+        name: multipathd
+        state: reloaded
