@@ -9,3 +9,4 @@ resources:
   # - teslamate/ks-restore.yaml
   - paperless/ks.yaml
   - paperless/ks-sftp.yaml
+  - home-assistant/ks.yaml

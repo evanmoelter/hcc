@@ -1,0 +1,46 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/postgresql.cnpg.io/cluster_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: home-assistant-pg
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1-system-trixie
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 5Gi
+    storageClass: longhorn
+
+  enableSuperuserAccess: false
+
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: 128MB
+
+  # Bootstrap with initdb - CNPG auto-generates credentials into home-assistant-pg-app secret
+  bootstrap:
+    initdb:
+      database: home_assistant
+      owner: home_assistant
+
+  backup:
+    retentionPolicy: 60d
+    barmanObjectStore:
+      data:
+        compression: bzip2
+      wal:
+        compression: bzip2
+        maxParallel: 4
+      destinationPath: s3://tf-hcc-cloudnativepg/
+      endpointURL: https://${SECRET_CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+      serverName: home-assistant-pg-v1
+      s3Credentials:
+        accessKeyId:
+          name: home-assistant-pg-r2
+          key: R2_ACCESS_KEY_ID
+        secretAccessKey:
+          name: home-assistant-pg-r2
+          key: R2_SECRET_ACCESS_KEY
