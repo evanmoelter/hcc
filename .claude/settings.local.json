@@ -7,7 +7,8 @@
       "Bash(flux get kustomization:*)",
       "Bash(flux get helmrelease:*)",
       "Bash(flux reconcile:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "mcp__github__get_file_contents"
     ],
     "ask": [
       "Bash(kubectl get secret:*)"
