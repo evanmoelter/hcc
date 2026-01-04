@@ -1,6 +1,8 @@
 ---
 # IoT Network - for Home Assistant, ESPHome, etc.
 # Since the cluster is already on the IoT VLAN, no VLAN tagging is needed.
+# Note: Only works on nodes with enp1s0 interface (hcc3, hcc4).
+# Pods using this network should have nodeSelector for compatible nodes.
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -11,7 +13,7 @@ spec:
       "cniVersion": "0.3.1",
       "name": "iot",
       "type": "macvlan",
-      "master": "eth0",
+      "master": "enp1s0",
       "mode": "bridge",
       "ipam": {
         "type": "static"
