@@ -136,14 +136,16 @@ spec:
       tailscale:
         enabled: true
         className: tailscale
-        defaultBackend:
-          service:
-            name: *app
-            port:
-              name: http
+        hosts:
+          - host: &tsHost ha
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: http
         tls:
           - hosts:
-              - ha
+              - *tsHost
 
       code-server:
         className: internal
