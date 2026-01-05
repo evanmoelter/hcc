@@ -1,0 +1,27 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: home-assistant-config-r2
+spec:
+  sourcePVC: home-assistant-config
+  trigger:
+    schedule: "0 2 * * *"
+  restic:
+    copyMethod: Snapshot
+    pruneIntervalDays: 7
+    repository: home-assistant-config-volsync-r2
+    volumeSnapshotClassName: longhorn-snapclass
+    cacheCapacity: 2Gi
+    cacheStorageClassName: longhorn-cache
+    cacheAccessModes: ["ReadWriteOnce"]
+    storageClassName: longhorn-snapshot
+    accessModes: ["ReadWriteOnce"]
+    moverSecurityContext:
+      runAsUser: 568
+      runAsGroup: 568
+      fsGroup: 568
+    retain:
+      daily: 7
+      weekly: 4
+      monthly: 12

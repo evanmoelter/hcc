@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/fluxcd-community/flux2-schemas/main/kustomization-kustomize-v1beta1.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: default
+resources:
+  - ./cluster.yaml
+  - ./scheduledbackup.yaml
+  - ./pvc.yaml
+  - ./secret.sops.yaml
+  - ./helmrelease.yaml
+  - ./config-volsync-r2.yaml
+  - ./config-volsync-r2.sops.yaml
