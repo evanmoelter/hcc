@@ -99,6 +99,7 @@ spec:
               - /config
             env:
               TZ: ${TIMEZONE}
+              HASS_SERVER: http://localhost:8123
             resources:
               requests:
                 cpu: 10m
