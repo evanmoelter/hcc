@@ -11,3 +11,9 @@ resources:
   - ./helmrelease.yaml
   - ./config-volsync-r2.yaml
   - ./config-volsync-r2.sops.yaml
+configMapGenerator:
+  - name: home-assistant-config
+    files:
+      - configs/configuration.yaml
+    options:
+      disableNameSuffixHash: true
