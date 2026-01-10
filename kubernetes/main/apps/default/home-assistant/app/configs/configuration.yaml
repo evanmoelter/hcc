@@ -7,9 +7,6 @@ frontend:
   themes: !include_dir_merge_named themes
 
 homeassistant:
-  name: Home
-  latitude: !env_var HASS_LATITUDE
-  longitude: !env_var HASS_LONGITUDE
   # OIDC auth to be configured in future implementation
   # For now, using default local auth
   packages: !include_dir_named packages
