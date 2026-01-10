@@ -218,7 +218,11 @@ spec:
               # To add a managed package:
               # 1. Create configs/packages/my_package.yaml
               # 2. Add to kustomization.yaml configMapGenerator files list
-              # 3. Uncomment and adjust the mount below:
+              # 3. Uncomment and adjust the mount below (for both app and code-server):
               # - path: /config/packages/managed/my_package.yaml
               #   subPath: packages/my_package.yaml
               #   readOnly: true
+            code-server:
+              - path: /config/configuration.yaml
+                subPath: configuration.yaml
+                readOnly: true
