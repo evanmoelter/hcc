@@ -122,6 +122,58 @@ spec:
               limits:
                 memory: 1Gi
 
+          matter-server:
+            image:
+              repository: ghcr.io/matter-js/python-matter-server
+              tag: 8.1.2
+            args:
+              - --storage-path
+              - /data
+              - --paa-root-cert-dir
+              - /data/credentials
+            env:
+              TZ: ${TIMEZONE}
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 5580
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 5580
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 5580
+                  failureThreshold: 30
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                add: ["NET_RAW", "NET_BIND_SERVICE"]
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+
     service:
       app:
         controller: home-assistant
@@ -187,6 +239,13 @@ spec:
               - path: /config
             code-server:
               - path: /config
+      matter-data:
+        enabled: true
+        existingClaim: home-assistant-matter-data
+        advancedMounts:
+          home-assistant:
+            matter-server:
+              - path: /data
       tmp:
         type: emptyDir
         advancedMounts:
@@ -197,6 +256,9 @@ spec:
             code-server:
               - path: /tmp
                 subPath: code-tmp
+            matter-server:
+              - path: /tmp
+                subPath: matter-tmp
       cache:
         type: emptyDir
         advancedMounts:
