@@ -1,0 +1,28 @@
+---
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: node-red-data-r2
+spec:
+  sourcePVC: node-red-data
+  trigger:
+    schedule: "0 3 * * *"
+  restic:
+    copyMethod: Snapshot
+    pruneIntervalDays: 7
+    repository: node-red-data-volsync-r2
+    volumeSnapshotClassName: longhorn-snapclass
+    cacheCapacity: 1Gi
+    cacheStorageClassName: longhorn-cache
+    cacheAccessModes: ["ReadWriteOnce"]
+    storageClassName: longhorn-snapshot
+    accessModes: ["ReadWriteOnce"]
+    moverSecurityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+    retain:
+      daily: 7
+      weekly: 6
+      monthly: 12
+      yearly: 1
