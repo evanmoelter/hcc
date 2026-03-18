@@ -38,6 +38,7 @@ spec:
               TZ: ${TIMEZONE}
               # Application
               ALLOW_SIGNUP: "false"
+              ALLOW_PASSWORD_LOGIN: "false"
               BASE_URL: https://food.${SECRET_DOMAIN}
               # Database
               DB_ENGINE: postgres
@@ -60,6 +61,7 @@ spec:
                     key: password
               # OIDC
               OIDC_AUTH_ENABLED: "true"
+              OIDC_PROVIDER_NAME: authentik
               OIDC_SIGNUP_ENABLED: "true"
               OIDC_CONFIGURATION_URL: https://sso.${SECRET_DOMAIN}/application/o/mealie/.well-known/openid-configuration
               OIDC_AUTO_REDIRECT: "true"
