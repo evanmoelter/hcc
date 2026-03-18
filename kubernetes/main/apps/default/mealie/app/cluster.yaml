@@ -1,0 +1,46 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/postgresql.cnpg.io/cluster_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: mealie-pg
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1-system-trixie
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 5Gi
+    storageClass: longhorn
+
+  enableSuperuserAccess: false
+
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: 64MB
+
+  # Bootstrap with initdb - CNPG auto-generates credentials into mealie-pg-app secret
+  bootstrap:
+    initdb:
+      database: mealie
+      owner: mealie
+
+  backup:
+    retentionPolicy: 90d
+    barmanObjectStore:
+      data:
+        compression: bzip2
+      wal:
+        compression: bzip2
+        maxParallel: 4
+      destinationPath: s3://tf-hcc-cloudnativepg/
+      endpointURL: https://${SECRET_CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+      serverName: mealie-pg-v1
+      s3Credentials:
+        accessKeyId:
+          name: mealie-pg-r2
+          key: R2_ACCESS_KEY_ID
+        secretAccessKey:
+          name: mealie-pg-r2
+          key: R2_SECRET_ACCESS_KEY
