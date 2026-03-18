@@ -1,0 +1,132 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/app-template-4.6.2/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app mealie
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: 4.6.2
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+
+  values:
+    controllers:
+      mealie:
+        annotations:
+          reloader.stakater.com/auto: "true"
+
+        pod:
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            runAsNonRoot: true
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+
+        containers:
+          app:
+            image:
+              repository: ghcr.io/mealie-recipes/mealie
+              tag: v3.12.0
+            env:
+              TZ: ${TIMEZONE}
+              # Application
+              ALLOW_SIGNUP: "false"
+              BASE_URL: https://food.${SECRET_DOMAIN}
+              # Database
+              DB_ENGINE: postgres
+              POSTGRES_PORT: "5432"
+              POSTGRES_DB: mealie
+              POSTGRES_SERVER:
+                valueFrom:
+                  secretKeyRef:
+                    name: mealie-pg-app
+                    key: host
+              POSTGRES_USER:
+                valueFrom:
+                  secretKeyRef:
+                    name: mealie-pg-app
+                    key: username
+              POSTGRES_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: mealie-pg-app
+                    key: password
+              # OIDC
+              OIDC_AUTH_ENABLED: "true"
+              OIDC_SIGNUP_ENABLED: "true"
+              OIDC_CONFIGURATION_URL: https://sso.${SECRET_DOMAIN}/application/o/mealie/.well-known/openid-configuration
+              OIDC_AUTO_REDIRECT: "true"
+              OIDC_REMEMBER_ME: "true"
+              OIDC_ADMIN_GROUP: mealie-admins
+              OIDC_USER_GROUP: mealie-users
+            envFrom:
+              - secretRef:
+                  name: mealie-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+
+    service:
+      app:
+        controller: mealie
+        ports:
+          http:
+            port: 9000
+
+    ingress:
+      app:
+        className: external
+        annotations:
+          external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}
+        hosts:
+          - host: &host food.${SECRET_DOMAIN}
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: http
+        tls:
+          - hosts:
+              - *host
+
+    persistence:
+      data:
+        enabled: true
+        existingClaim: mealie-data
+        advancedMounts:
+          mealie:
+            app:
+              - path: /app/data
+      nltk-data:
+        type: emptyDir
+        globalMounts:
+          - path: /nltk_data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

@@ -12,3 +12,4 @@ resources:
   - home-assistant/ks.yaml
   - node-red/ks.yaml
   - node-red/ks-backup.yaml
+  - mealie/ks.yaml
