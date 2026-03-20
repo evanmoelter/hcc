@@ -29,6 +29,20 @@ spec:
             fsGroup: 568
             fsGroupChangePolicy: OnRootMismatch
 
+        initContainers:
+          # Ensure data dir is non-empty so VolSync restic backup doesn't fail
+          init-data:
+            image:
+              repository: busybox
+              tag: latest
+            command:
+              - sh
+              - -c
+              - touch /app/data/.initialized
+            securityContext:
+              runAsUser: 568
+              runAsGroup: 568
+
         containers:
           app:
             image:
@@ -122,6 +136,8 @@ spec:
         existingClaim: mealie-data
         advancedMounts:
           mealie:
+            init-data:
+              - path: /app/data
             app:
               - path: /app/data
       nltk-data:

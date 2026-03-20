@@ -13,3 +13,4 @@ resources:
   - node-red/ks.yaml
   - node-red/ks-backup.yaml
   - mealie/ks.yaml
+  - mealie/ks-backup.yaml
