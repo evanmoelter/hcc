@@ -32,7 +32,7 @@ Hopefully some of this peeked your interests!  If you are marching forward, now 
 > [!NOTE]
 > 1. The included behaviour of Talos or k3s is that all nodes are able to run workloads, **including** the controller nodes. **Worker nodes** are therefore **optional**.
 > 2. Do you have 3 or more nodes? It is highly recommended to make 3 of them controller nodes for a highly available control plane.
-> 3. Running the cluster on Proxmox VE? My thoughts and recommendations about that are documented [here](https://onedr0p.github.io/home-ops/notes/proxmox-considerations.html).
+> 3. Running the cluster on Proxmox VE? My thoughts and recommendations about that are documented [here](http://web.archive.org/web/20241117160329/https://onedr0p.github.io/home-ops/notes/proxmox-considerations.html).
 
 | Role    | Cores    | Memory        | System Disk               |
 |---------|----------|---------------|---------------------------|
@@ -108,7 +108,7 @@ Hopefully some of this peeked your interests!  If you are marching forward, now 
 
 2. Flash the image onto an SSD/NVMe drive.
 
-3. Re-mount the drive to your workstation and then do the following (per the [official documentation](https://raspi.debian.net/defaults-and-settings)):
+3. Re-mount the drive to your workstation and then do the following (per the [official documentation](http://web.archive.org/web/20260128064805/https://raspi.debian.net/defaults-and-settings/)):
 
     ```txt
     Open 'sysconf.txt' in a text editor and save it upon updating the information below
