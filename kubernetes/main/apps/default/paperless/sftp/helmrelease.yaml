@@ -21,6 +21,19 @@ spec:
       sftp:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          # Ensure consume subdirs used for tag mapping exist
+          init-consume:
+            image:
+              repository: busybox
+              tag: latest
+            command:
+              - sh
+              - -c
+              - mkdir -p /home/paperless-sftp/consume/receipt
+            securityContext:
+              runAsUser: 1000
+              runAsGroup: 1000
         containers:
           server:
             image:
@@ -99,6 +112,8 @@ spec:
         existingClaim: paperless-consume
         advancedMounts:
           sftp:
+            init-consume:
+              - path: /home/paperless-sftp/consume
             server:
               - path: /home/paperless-sftp/consume
                 readOnly: false
