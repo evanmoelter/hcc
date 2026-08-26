@@ -120,24 +120,26 @@ flowchart TD
         volsync["VolSync"]
         cnpg["CloudNativePG operator<br/>(operator only, no shared Cluster)"]
         multus["Multus<br/>(iot macvlan NAD)"]
-        envoy["Envoy Gateway"]
-        extdns["external-dns<br/>(txtOwnerId: apollo, upsert-only)"]
+        envoy["Envoy Gateway<br/>(internal + external Gateways)"]
+        extdnscf["external-dns (Cloudflare)<br/>external Gateway only"]
+        extdnsunifi["external-dns (UniFi webhook)<br/>both Gateways"]
         cflared["cloudflared<br/>(NEW tunnel + DNSEndpoint)"]
-        gateway["k8s-gateway + pihole"]
-        tailscale["Tailscale operator<br/>(distinct hostname)"]
+        tailscale["Tailscale operator<br/>(distinct hostname, Ingress-based)"]
     end
 
     flux --> spegel --> metrics --> eso
     eso --> certmgr
     eso --> longhorn
-    eso --> extdns
+    eso --> extdnscf
+    eso --> extdnsunifi
     eso --> tailscale
     longhorn --> snapshot --> volsync
     longhorn --> cnpg
     certmgr --> envoy
-    cilium --> gateway
+    envoy --> extdnscf
+    envoy --> extdnsunifi
     envoy --> cflared
-    extdns --> cflared
+    extdnscf --> cflared
 
     subgraph phaseC["Phase C — apps (rebuilt one at a time)"]
         authpg["authentik-pg"]
@@ -168,10 +170,11 @@ flowchart TD
 
 Notes on the pieces that are **not** a straight carry-forward:
 
-> **Decided: Envoy Gateway, not ingress-nginx.** Avoids authoring every app's routing twice (`Ingress` now, `HTTPRoute` later) — write `HTTPRoute` once, while each app is being rebuilt, instead of `Ingress` now and `HTTPRoute` again soon after. `plans/04-envoy-gateway.md` exists but still needs fleshing out for this cluster's actual topology (real IPs/VLAN, cloudflared integration, the raw-`LoadBalancer` apps like paperless-sftp and `postgres-lb` that stay unaffected either way) before Wave 1 — that prep work is unchanged by this decision, just no longer conditional on it. One new concrete thing that prep work needs to cover: `external-dns` currently sources from `["crd", "ingress"]` with `--ingress-class=external`, both Ingress-API concepts with no direct Gateway API equivalent — it needs a Gateway API source (e.g. `gateway-httproute`) and a different way to scope "external only" (Gateway API has no `ingressClassName`; that's normally done via which `Gateway` an `HTTPRoute`'s `parentRefs` points to).
+> **Decided: Envoy Gateway, not ingress-nginx.** Avoids authoring every app's routing twice (`Ingress` now, `HTTPRoute` later) — write `HTTPRoute` once, while each app is being rebuilt, instead of `Ingress` now and `HTTPRoute` again soon after. `plans/04-envoy-gateway.md` exists but still needs fleshing out for this cluster's actual topology (real IPs/VLAN, cloudflared integration, the raw-`LoadBalancer` apps like paperless-sftp and `postgres-lb` that stay unaffected either way) before Wave 1 — that prep work is unchanged by this decision, just no longer conditional on it. `external-dns` currently sources from `["crd", "ingress"]` with `--ingress-class=external`, both Ingress-API concepts with no direct Gateway API equivalent. It needs a Gateway API source (e.g. `gateway-httproute`); the "external only" scoping is now settled — it's which of the two Gateways a route's `parentRefs` names, see "The gateway split" under Networking changes.
 
 - **snapshot-controller is a hard prerequisite for VolSync, and is its own app** (`kubernetes/main/apps/storage/snapshot-controller`), not part of Longhorn's chart. Every `ReplicationSource`/`ReplicationDestination` in this repo uses `copyMethod: Snapshot` with `volumeSnapshotClassName: longhorn-snapclass`, so both the controller and that `VolumeSnapshotClass` must exist before the first VolSync-backed app is rebuilt — otherwise `${APP}-bootstrap` hydration hangs with no obvious cause.
-- **The Tailscale operator needs a distinct identity per cluster.** The old cluster's operator registers as `hostname: tailscale-operator`; a second operator joining the same tailnet with the same hostname gets silently suffixed (`tailscale-operator-1`), and the same is true for every per-app `className: tailscale` Ingress device. The new cluster's operator needs its own hostname (e.g. `tailscale-operator-apollo`) and its own OAuth client credentials. Per-app tailnet names are reclaimed the same way DNS names are — released on the old cluster at disable, recreated on the new one at cutover (see Per-app migration).
+- **The Tailscale operator needs a distinct identity per cluster.** The old cluster's operator registers as `hostname: tailscale-operator`; a second operator joining the same tailnet with the same hostname gets silently suffixed (`tailscale-operator-1`), and the same is true for every per-app `className: tailscale` Ingress device. The new cluster's operator needs its own hostname (e.g. `tailscale-operator-apollo`) and its own OAuth client credentials. Per-app tailnet names are reclaimed the same way DNS names are — released on the old cluster at disable, recreated on the new one at cutover (see Per-app migration). Note its routing stays on the `Ingress` API, not `HTTPRoute` — see Platform component inventory.
+- **Internal DNS moves off the cluster entirely**, to UniFi records written by a second external-dns instance. pihole and k8s-gateway are not carried forward. See "Internal DNS: UniFi, not pihole" under Networking changes for the full design, including the gateway split it depends on.
 - **cloudflared needs a genuinely new tunnel**, not the same credentials copied over. See Networking changes for why, and for the `external-apollo.${SECRET_DOMAIN}` alias that goes with it.
 - **Multus** is foundational rather than app-level, because Home Assistant's `iot` macvlan attachment depends on it — but see "Per-app config review" for the hardware prerequisite that gates Home Assistant specifically.
 - Copy `templates/volsync` into the new tree (`kubernetes/apollo/templates/volsync`), since the per-app rebuild step depends on it being present at the same relative path apps already reference (`../../../../templates/volsync`).
@@ -191,8 +194,12 @@ A fresh cluster bootstrap is the point to reconsider each platform-layer choice 
 | CoreDNS | **Decided — keep Talos-managed, for now.** No serious alternative DNS provider exists in practice; CoreDNS is the Kubernetes project's own graduated-CNCF default across every distribution. Talos *does* auto-deploy a default CoreDNS during bootstrap (same as it auto-deploys Flannel and kube-proxy) unless explicitly disabled via `cluster.coreDNS.disabled: true` — it isn't missing DNS entirely. Unlike Cilium (which replaces Flannel because a real CNI is needed), there's no equivalent forcing reason to take over CoreDNS from Talos right now — leave `cluster.coreDNS.disabled` unset. Revisit if custom CoreDNS config is ever actually needed (`plans/05b-coredns-helm.md`'s original condition still applies) |
 | **Spegel** (P2P image distribution) | **Decided — adopt.** Not yet in the repo (`plans/05a-spegel.md`), but Wave 1 means 4-6 nodes pulling every image fresh during platform/app bring-up — exactly the load Spegel is for |
 | **snapshot-controller** | Already in the repo, but **easy to miss as a VolSync prerequisite** — carry forward, and stand it up (with `longhorn-snapclass`) before the first VolSync-backed app |
-| **Tailscale operator** | Carry forward, but **needs a distinct per-cluster hostname and its own OAuth credentials** — two operators in one tailnet otherwise collide on device names |
+| **Tailscale operator** | Carry forward, but **needs a distinct per-cluster hostname and its own OAuth credentials** — two operators in one tailnet otherwise collide on device names. Its Ingresses **stay `Ingress`**, not `HTTPRoute`: the operator has no Gateway API support ([tailscale/tailscale#10656](https://github.com/tailscale/tailscale/issues/10656) is still open) and acts as its own ingress controller, so it needs no Gateway |
 | **cloudflared** | Carry forward the component, but **the new cluster needs its own tunnel**, not the old tunnel's credentials — see Networking changes |
+| **pihole** | **Decided — drop entirely, do not carry forward.** Already effectively out of service (stability), with clients no longer pointing at it, so nothing depends on it today. Internal DNS moves to UniFi (see Networking changes). Removes a 10Gi RWX Longhorn PVC and the pre-migration audit of its UI-edited drift along with it |
+| **k8s-gateway** | **Decided — drop entirely, do not carry forward.** Its whole job was generating internal records dynamically for pihole to forward to; with UniFi holding records written by external-dns, it's redundant. Also unverified against Gateway API — v2.3.0 watches Ingresses and Services, so it would need work to see `HTTPRoute` hostnames at all |
+| **Flux GitHub webhook receiver** | Carry forward, and **give the new cluster its own**. `flux-webhook.${SECRET_DOMAIN}` (`external` class) fronts a `Receiver` that triggers reconciliation on push; without one, the new cluster falls back to the `GitRepository`'s 30m poll — a painful feedback loop while authoring a cluster's worth of new manifests. GitHub allows multiple webhooks per repo, so both clusters can receive pushes during the migration. Needs its own hostname and its own receiver token |
+| **external-dns** | Carry forward, but **as two instances**: one `provider: cloudflare` for public names, one using the [UniFi webhook provider](https://github.com/kashalls/external-dns-unifi-webhook) for LAN names. external-dns is one provider per instance, so this is two Deployments, scoped by Gateway (see Networking changes) |
 | Longhorn backup target | Already flagged — no cluster-level S3 target configured (Pre-migration backup verification); worth deciding whether to add one as defense-in-depth while touching Longhorn's config anyway |
 | Longhorn `dedicated=storage` taint pattern | Already an Open Question — doesn't map cleanly to six similar NUC11s |
 | OpenEBS | **Resolved — cruft, not a real prior decision.** The `.private/bootstrap-121456/templates/kubernetes/apps/openebs-system` scaffold reference is leftover template noise, not something ever deliberately adopted here; no action needed beyond not carrying it forward |
@@ -200,7 +207,7 @@ A fresh cluster bootstrap is the point to reconsider each platform-layer choice 
 | Dragonfly | **Resolved — keep.** Needed by an app today and expected to be needed going forward |
 | **Secrets management (External Secrets Operator + 1Password)** | **Decided — adopt, for new use cases going forward, not a rip-and-replace of existing SOPS secrets.** Resolves `plans/11-cnpg-database-split.md`'s own open TODO ("Maybe it's finally time for 1Password?") — cross-namespace secret access (e.g. Grafana reading `teslamate-pg`'s credentials from another namespace) becomes an `ExternalSecret` in each namespace pointing at the same 1Password item, instead of a copy/replication workaround. Doesn't remove the `age.key` backup requirement from Pre-migration backup verification — Talos/cluster-bootstrap secrets (`topf.yaml`'s `secretsPath`, `cluster-secrets.sops.yaml`) still need SOPS+age at minimum, including to seed ESO's own 1Password Connect credential; ESO reduces `age.key`'s blast radius for future app secrets, it doesn't eliminate the need for it |
 | **Observability (metrics + alerting)** | **Decided — adopt.** Several components already emit `ServiceMonitor`/`PrometheusRule` resources assuming a compatible backend (Cilium, cert-manager, Authentik, echo-server, external-dns, and VolSync's own `prometheusrule.yaml`) but none is deployed — that wiring is currently dead, and Grafana's Prometheus datasource sits commented out. Stack choice (kube-prometheus-stack vs. the lighter VictoriaMetrics k8s stack) still open |
-| VolSync/restic/R2, external-dns/cert-manager, Authentik, Multus, Cilium, pihole/k8s-gateway, reloader, metrics-server | No signal to reconsider — carrying forward as-is |
+| VolSync/restic/R2, cert-manager, Authentik, Multus, Cilium, reloader, metrics-server | No signal to reconsider — carrying forward as-is |
 
 ## Per-app migration: disable → back up → rebuild
 
@@ -225,7 +232,7 @@ Then, with the app confirmed stopped:
 Home Assistant, Mealie, Node-RED, and Paperless's document library. Author the app fresh under `kubernetes/apollo/apps/...`, copying from the old tree and changing:
 
 - Swap the app's bespoke `pvc.yaml` for the shared `templates/volsync` component (`claim.yaml` + `r2.yaml`). Its `claim.yaml` creates the PVC with `dataSourceRef: kind: ReplicationDestination, name: ${APP}-bootstrap`, so VolSync's CSI populator auto-hydrates the new PVC from the restic repository the moment it's created — no separate manual restore step. Add the one-time `${APP}-bootstrap` `ReplicationDestination`, reusing the app's existing (already-encrypted) R2 credentials. Post-cutover the app is left on the shared template's `r2.yaml` for ongoing backups instead of its old one-off copy.
-- Replace `Ingress` with `HTTPRoute` against the appropriate Gateway.
+- Replace `internal`/`external` `Ingress` resources with `HTTPRoute`s whose `parentRefs` name the internal or external Gateway. `className: tailscale` Ingresses stay as `Ingress`.
 - For externally-exposed apps, point the external-dns target at the new cluster's tunnel alias (`external-apollo.${SECRET_DOMAIN}`) rather than `external.${SECRET_DOMAIN}` — see Networking changes.
 - Apply anything from "Per-app config review," below.
 
@@ -249,7 +256,7 @@ Logical import is the mechanism here rather than Barman/WAL recovery from R2, an
 
 Not arbitrary — `dependsOn` edges in the existing `ks.yaml` files force part of it:
 
-1. **authentik first** (with `authentik-pg`). Mealie and Paperless both declare `dependsOn: authentik`, and it's the SSO front door for everything else. Migrating it first means every later app is authored against its final identity provider rather than being re-pointed afterward.
+1. **authentik first** (with `authentik-pg`). Mealie and Paperless both declare `dependsOn: authentik`, and it's the SSO front door for everything else. Migrating it first means every later app is authored against its final identity provider rather than being re-pointed afterward. It's also where the split-horizon vs. dual-route question gets settled by testing (see Networking changes), and that answer shapes how every later app's routing is authored — another reason it goes first rather than in the middle.
 2. **Mealie or Node-RED second** — small, VolSync-only, externally-exposed (Mealie) and internal-only (Node-RED) respectively. Between them they exercise every mechanism in this doc (VolSync hydration, DNS release/reclaim, tailnet reclaim, internal resolution override) on an app where a mistake is cheap.
 3. **Paperless** — the hybrid, once both mechanisms are proven separately.
 4. **teslamate + Grafana** together, since Grafana's datasource follows teslamate's database.
@@ -259,7 +266,7 @@ Not arbitrary — `dependsOn` edges in the existing `ks.yaml` files force part o
 sequenceDiagram
     participant Old as Old cluster (kubernetes/main)
     participant New as New cluster (kubernetes/apollo)
-    participant DNS as Cloudflare / pihole
+    participant DNS as Cloudflare / UniFi
     participant R2 as Cloudflare R2
 
     Note over Old: commit: replicas 0,<br/>remove external + tailscale Ingress
@@ -274,17 +281,9 @@ sequenceDiagram
 
 ### Internal DNS during migration
 
-This is the piece that per-app DNS release doesn't cover, and it affects most apps: **the majority of apps here are internal-only** (`className: internal` — Paperless, Node-RED, Home Assistant, TeslaMate, kube-ops-view, Capacitor). Only Mealie, echo-server, and Authentik's webfinger use `className: external`.
+Nothing to coordinate, because internal DNS is being rebuilt rather than migrated. Pihole is already out of service and clients no longer point at it, so no internal name resolves through the old cluster today — there is no live state to hand over and nothing for the two clusters to contend on. The new cluster's UniFi external-dns instance starts from an empty record set and creates each app's LAN record as that app is rebuilt.
 
-Internal names don't resolve through external-dns at all. Pihole forwards the whole zone to a single k8s-gateway instance (`server=/${SECRET_DOMAIN}/${LB_K8S_GATEWAY}`), and that instance only knows about its own cluster's Ingresses and LoadBalancer Services. So the moment an internal app is rebuilt on the new cluster, clients still resolve its name to the old cluster's internal ingress IP, where the app no longer runs — and repointing the whole zone at the new k8s-gateway would break every app that hasn't moved yet.
-
-The fix is a per-app override on the old cluster's pihole, added in the same change as that app's cutover. dnsmasq resolves the most specific match first, so a per-host entry wins over the zone-wide forward:
-
-```
-server=/paperless.${SECRET_DOMAIN}/${LB_K8S_GATEWAY_APOLLO}
-```
-
-The override list grows by one per internal app cutover and is deleted wholesale at the end, when clients are repointed at the new cluster's pihole and the old zone-wide forward goes away with the old cluster. Two consequences worth stating: the old cluster's pihole must be able to reach the new cluster's k8s-gateway LB IP (a firewall rule on the HCC VLAN, port 53 — see HCC VLAN isolation), and pihole's config must be GitOps-declared for these overrides to be reviewable rather than UI drift, which is already a pre-migration checklist item.
+The practical consequence for a cutover is that an internal app's LAN name simply starts working when it's rebuilt on the new cluster, rather than needing to be moved. See "Internal DNS: UniFi, not pihole" under Networking changes for the design.
 
 ## Per-app config review (not a blind move)
 
@@ -297,7 +296,9 @@ Copying manifests forward is not sufficient — a few apps bind directly to IPs 
 | Home Assistant | `HASS_HTTP_TRUSTED_PROXY_1/2` hardcoded as raw CIDRs (`10.69.0.0/16`, `10.96.0.0/12`) instead of `cluster-settings` vars | Parameterize while touching the file, so they track the new cluster's actual pod/service CIDR instead of silently going stale |
 | Paperless (sftp) | Dedicated `LoadBalancer` Service with hardcoded `io.cilium/lb-ipam-ips: 192.168.6.22` | Reassign to an address in the new cluster's LB pool |
 | Mealie, echo-server, Authentik (webfinger) | `external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}` — the old cluster's tunnel alias | Repoint at `external-apollo.${SECRET_DOMAIN}` (see Networking changes) |
-| All apps | `className: internal` / `external` / `tailscale` Ingresses | Rewrite as `HTTPRoute` against the appropriate Gateway (Tailscale ingress handling to confirm during plan 04 prep — the Tailscale operator is Ingress-based today) |
+| Authentik | `sso.${SECRET_DOMAIN}` declared **twice** — an `external` ingress in the HelmRelease and a separate `internal` Ingress CRD with the same host. The two have already drifted (only the external one carries annotations) | **Open item, settled by testing at this cutover.** Try collapsing to a single `HTTPRoute` on the external Gateway with split-horizon DNS; fall back to porting both routes if it gets fiddly. See Networking changes for the trade and what fallback costs |
+| All apps | `className: internal` / `external` Ingresses | Rewrite as `HTTPRoute` with `parentRefs` at the internal or external Gateway — which Gateway is what scopes external-dns |
+| All apps | `className: tailscale` Ingresses | **Keep as `Ingress`.** The Tailscale operator has no Gateway API support and is its own ingress controller, so these do not become `HTTPRoute`s and need no Gateway |
 
 **Home Assistant is blocked on hardware that doesn't exist yet.** The `iot` macvlan's parent interface (`enp1s0`) is physically cabled on hcc3/hcc4, which don't join the new cluster until Wave 2, and no Wave-1 node has IoT VLAN reachability today. There is no config-only workaround: this is a cabling and switch-port question (a trunked port carrying the IoT VLAN to whichever node takes the pin), not a manifest edit. Either provision that as explicit Wave-1 prep, or sequence Home Assistant's rebuild after Wave 2. Decide which before Wave 1 starts rather than discovering it at Home Assistant's cutover.
 
@@ -315,11 +316,11 @@ Three distinct phases, deliberately sequenced by how atomically each one can be 
 
 **Phase B — platform services (one by one, each verified before the next):**
 
-4. Bring up each shared/foundational service as its own Flux `Kustomization` with `wait: true`, confirming healthy before moving to the next, in the order given by the dependency graph in "Foundational bootstrap": Spegel (early — it speeds up every image pull after it), the metrics stack (early — so every subsequent service's `ServiceMonitor` gets picked up as it's deployed, rather than backfilled later), External Secrets Operator + 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, the CloudNativePG operator, Multus, Envoy Gateway, external-dns (Gateway API sources, `txtOwnerId: apollo`, `policy: upsert-only`), cloudflared (new tunnel), pihole/k8s-gateway, the Tailscale operator (distinct hostname).
+4. Bring up each shared/foundational service as its own Flux `Kustomization` with `wait: true`, confirming healthy before moving to the next, in the order given by the dependency graph in "Foundational bootstrap": Spegel (early — it speeds up every image pull after it), the metrics stack (early — so every subsequent service's `ServiceMonitor` gets picked up as it's deployed, rather than backfilled later), External Secrets Operator + 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, the CloudNativePG operator, Multus, Envoy Gateway (internal + external Gateways), both external-dns instances (Cloudflare with `txtOwnerId: apollo` and `policy: upsert-only`; UniFi webhook watching both Gateways), cloudflared (new tunnel), the Tailscale operator (distinct hostname). pihole and k8s-gateway are not deployed.
 
 **Phase C — app migration (one by one, as already detailed above):**
 
-5. Rebuild each stateful app in turn via disable → back up → rebuild, in the order given under "App ordering" — VolSync-backed apps hydrating via `${APP}-bootstrap` `ReplicationDestination`, CNPG-backed apps via cross-cluster database import against the old cluster's `postgres-lb` at `192.168.6.21` — verifying and cutting over one at a time, adding each internal app's pihole override as it goes.
+5. Rebuild each stateful app in turn via disable → back up → rebuild, in the order given under "App ordering" — VolSync-backed apps hydrating via `${APP}-bootstrap` `ReplicationDestination`, CNPG-backed apps via cross-cluster database import against the old cluster's `postgres-lb` at `192.168.6.21` — verifying and cutting over one at a time. Internal names need no coordination: the UniFi external-dns instance creates each app's LAN record as it's rebuilt.
 6. Once every app is verified and Longhorn on the old cluster reports no remaining replicas on hcc/hcc2, cordon and drain hcc, hcc2, and hcc-tablet1, then power them off. The old cluster keeps running on hcc3/hcc4 with every app disabled-but-intact until Wave 2.
 
 ## Wave 2 — absorb hcc3 and hcc4
@@ -328,8 +329,7 @@ Three distinct phases, deliberately sequenced by how atomically each one can be 
 2. Cordon and drain hcc3/hcc4 from the now-idle old cluster.
 3. Wipe and reinstall them with Talos, join as workers to the `kubernetes/apollo` cluster — keeping their existing names, so the final six nodes are `hcc3`, `hcc4`, `hcc5`, `hcc6`, `hcc7`, `hcc8` (control-plane: `hcc5`–`hcc7`; workers: `hcc3`, `hcc4`, `hcc8`).
 4. Re-verify the `iot` multus `NetworkAttachmentDefinition` (currently macvlan on `enp1s0`, physically cabled to hcc3/hcc4) against the new OS — interface naming and driver availability can differ under Talos, and this is a physical-cabling dependency, not just config. It also needs an actual VLAN tag added now (see HCC VLAN isolation) — under the old flat networking the cluster and IoT devices shared a broadcast domain, so no tagging was needed; on the new cluster they don't. If Home Assistant was deferred, this is where it gets rebuilt.
-5. Repoint clients at the new cluster's pihole, and delete the accumulated per-app dnsmasq overrides along with the old cluster.
-6. Revert the new cluster's external-dns to `policy: sync` — normal pruning is safe again once no other cluster owns records in the zone.
+5. Revert the new cluster's Cloudflare external-dns to `policy: sync` — normal pruning is safe again once no other cluster owns records in the zone.
 7. Delete `kubernetes/main` entirely, and remove the now-dead ansible/k3s tooling: `ansible/inventory/hosts.yaml`, the `system-upgrade/k3s` Flux Kustomization, `system-upgrade-controller` itself, and any taskfiles that only existed to drive ansible+k3s.
 8. Wipe the old disks (see Security).
 
@@ -341,7 +341,8 @@ Three distinct phases, deliberately sequenced by how atomically each one can be 
 | Postgres: teslamate, authentik, paperless | Shared `cnpg-cluster`, Barman Cloud → R2 | Split during migration: each app's database imported directly from the old cluster's live `postgres-lb` (`192.168.6.21`) into its own new `${app}-pg` cluster — see `plans/11-cnpg-database-split.md`. Source cluster never modified by an import |
 | Grafana | `persistence.enabled: false` (verified) — dashboards provisioned declaratively from ConfigMaps/URLs in `helmrelease.yaml` | Recreated fresh by Flux reconciliation; TeslaMate datasource URL updated alongside teslamate's rebuild |
 | Authentik | No PVC (verified) — all state in the `authentik` database, now `authentik-pg` | Recreated fresh; data already covered by the CNPG split above |
-| Pihole, Dragonfly | No PVC, no VolSync/backup coverage of any kind | **Verify before migrating, don't assume**: confirm Pihole's adlists/custom DNS/whitelist are fully GitOps-declared (not UI-edited drift that only lives in the running pod) before treating it as stateless; confirm Dragonfly is intentionally cache-only and safe to lose |
+| Pihole | 10Gi RWX Longhorn PVC, no backup coverage of any kind | **Not migrated — dropped.** Already out of service; internal DNS moves to UniFi. Confirm nothing still depends on it before deleting the volume with the old cluster |
+| Dragonfly | No PVC, no VolSync/backup coverage of any kind | Recreated fresh — but **verify, don't assume**: confirm it's intentionally cache-only and safe to lose |
 | Teslamate's `teslamate-backup-pvc` | 1Gi PVC holding a one-time historical SQL import artifact, not live data | Not migrated — live data is already in CNPG/Barman; recreated empty |
 
 ## Networking changes
@@ -350,7 +351,7 @@ Three distinct phases, deliberately sequenced by how atomically each one can be 
 - **KubePrism** (no k3s equivalent) splits internal from external API-server traffic: kubelet and, on control-plane nodes, the static pods (`kube-scheduler`/`kube-controller-manager`) talk to a local per-node proxy (port 7445, confirmed against upstream's current values below) instead of riding on the same VIP `kubectl`/`talosctl` use from outside the cluster. On by default in current Talos — nothing to build, just don't let it get disabled while hand-authoring `topf.yaml`'s `all/` machine-config patches from the stale scaffold.
 - **Cilium depends on KubePrism directly, not just incidentally.** Pulled upstream `cluster-template`'s actual current Cilium `HelmRelease` to confirm: `k8sServiceHost: 127.0.0.1` / `k8sServicePort: 7445`, alongside `kubeProxyReplacement: true`. With kube-proxy fully replaced by Cilium's own eBPF datapath, there's no iptables/ipvs fallback for resolving `kubernetes.default.svc` — Cilium can't route to a Service IP using a datapath that isn't up yet, so it needs a static, always-reachable API-server address that doesn't depend on its own readiness, the VIP, or DNS. This is a harder requirement for Cilium than for plain kubelet traffic, not just the same convenience. Two more settings confirmed from that same file, worth carrying into this cluster's Cilium config: `cni.exclusive: false` (upstream's own comment: *"Required for pairing with Multus CNI"* — directly relevant given this cluster's IoT macvlan setup), and `gatewayAPI.enabled: false` (upstream deliberately leaves Cilium's own built-in Gateway API implementation off — worth keeping off here too, so it doesn't compete with the standalone Envoy Gateway install over the same CRDs/`GatewayClass`).
 - Cilium's containerd/CNI paths change from k3s's embedded layout to Talos's `/etc/cri/conf.d/hosts`, which also affects Spegel's path configuration (already tracked as a k3s-vs-Talos difference in `plans/05a-spegel.md`).
-- Standing shared infrastructure — the ingress layer, pihole, k8s-gateway, cloudflared, the Tailscale operator — runs concurrently on both clusters for the entire migration window (not just per-app cutover moments), which is exactly what the dedicated VLAN/CIDR is for.
+- Standing shared infrastructure — the ingress layer, cloudflared, the Tailscale operator — runs concurrently on both clusters for the entire migration window (not just per-app cutover moments), which is exactly what the dedicated VLAN/CIDR is for.
 - The `dedicated=storage` node taint that currently pins Longhorn's system pods to hcc/hcc2 no longer maps cleanly to six otherwise-identical NUC11-class nodes; whether it's still needed, and where Longhorn's `defaultDataPath: /storage01` disk lives on each new node, is a topology decision to make before Wave 1 bootstraps Longhorn (see Open Questions).
 
 ### How external traffic actually reaches an app
@@ -365,11 +366,72 @@ Three things follow for the new cluster:
 - **It needs its own alias**, `external-apollo.${SECRET_DOMAIN}`, published by its own `DNSEndpoint` and used as its cloudflared `originServerName`. One label deep, so the existing `*.${SECRET_DOMAIN}` wildcard `Certificate` already covers it as an origin server name — no new cert infrastructure. Each app's route carries `external-dns.alpha.kubernetes.io/target: external-apollo.${SECRET_DOMAIN}` when it's rebuilt. Recommendation: **keep this name permanently** rather than reclaiming plain `external` after decommission. It's self-documenting, it matches the per-cluster naming convention (the next cluster gets `external-boreas`), and reclaiming `external` would mean re-touching every app's route for cosmetics. (See Open Questions if that trade is worth revisiting.)
 - **The Gateway needs no hostname annotation of its own.** The old cluster's Service annotation was never doing that job; the `DNSEndpoint` is.
 
+### Internal DNS: UniFi, not pihole
+
+Internal DNS moves off the cluster and into the UCG Fiber. This is a deliberate layering fix, not a migration convenience: today the resolver for the entire house runs *inside* the cluster it serves, so a cluster outage takes down all DNS — internal names and general internet browsing alike. That fragility is why pihole is already out of service. Records belong in the router, which stays up when the cluster doesn't.
+
+The mechanism keeps the dynamism that made k8s-gateway worth having. UniFi's local DNS records are written by a second **external-dns** instance using the [UniFi webhook provider](https://github.com/kashalls/external-dns-unifi-webhook), so records are still derived from git-declared routes exactly the way Cloudflare records already are — but they persist in the router rather than being synthesized on the fly by a pod. Confirmed capabilities and limits, verified against [Ubiquiti's documentation](https://help.ui.com/hc/en-us/articles/15179064940439-UniFi-DNS-Records-and-Local-Hostnames) and the [DNSControl provider docs](https://docs.dnscontrol.org/provider/unifi):
+
+- Supported types: **A, AAAA, CNAME, MX, TXT, SRV**, plus Forward Domain records. TXT support is what matters most — external-dns's ownership registry works normally, so the `txtOwnerId` discipline below applies here too.
+- **No wildcards of any kind** (`*.${SECRET_DOMAIN}` fails for both A and CNAME, a dnsmasq backend limitation), and **one CNAME per hostname**. Neither constrains this design, since external-dns writes one record per route.
+- Records are stored flat, with no zone concept.
+
+The webhook requires **ExternalDNS v0.21.0+, UniFi OS 5.x+, and Network 10.3.58+**, authenticated with an API key generated under Settings → Control Plane → Integrations (username/password is not supported). Verify the UCG Fiber meets those versions before committing to this — it's the one hard prerequisite. Same "young tooling, eyes open" caveat that applies to `topf`: the webhook is a pre-1.0 community project, on the path that makes every internal name resolvable.
+
+pihole and k8s-gateway are both dropped rather than carried forward (see Platform component inventory). Ad-blocking is not replaced by this; if it's wanted later, UniFi's own content filtering or a pihole that is *not* the primary resolver are separate decisions, deliberately out of scope here.
+
+### The gateway split, and split-horizon for identity-bearing names
+
+Envoy Gateway is deployed as **two Gateways, internal and external**, and the split does more work than the old `internal`/`external` ingress classes did.
+
+The security argument is structural: cloudflared routes `*.${SECRET_DOMAIN}` to a single origin, so if internal and external apps shared one Gateway, every internal app would become publicly reachable the moment it had an `HTTPRoute`. Two Gateways makes that impossible rather than a matter of config discipline. The split is also the Gateway API replacement for `--ingress-class=external`: `parentRefs` is what tells each external-dns instance whether a hostname is public or private, which was an open question in earlier drafts.
+
+Scope the two instances by Gateway:
+
+| Instance | Watches | Produces |
+|---|---|---|
+| external-dns (Cloudflare) | **external Gateway only** | Proxied CNAME → `external-apollo.${SECRET_DOMAIN}` → tunnel |
+| external-dns (UniFi) | **both Gateways** | A record → that route's own parent Gateway's LAN IP |
+
+Because external-dns's Gateway API source takes its target from the parent Gateway's address, this yields the right answer in every case with no per-app annotations: a route on the internal Gateway gets a LAN record pointing at the internal Gateway, a route on the external Gateway gets a LAN record pointing at the external Gateway *and* a public record via the tunnel. **Split-horizon falls out of the configuration rather than being maintained per app.**
+
+That last case deserves a decision rather than a default, because **the repo already solves it a different way**. `sso.${SECRET_DOMAIN}` is exposed twice today: once from the Authentik HelmRelease's own `ingress` block (`ingressClassName: external`, with the external-dns target annotation) and once from a separate hand-written `internal-ingress.yaml` (`ingressClassName: internal`) carrying the same hostname. Longhorn, Grafana, and Hubble use the same dual-object shape for their internal-plus-tailnet exposure. So the pattern in question is the house style, not a hypothetical.
+
+Two coherent designs follow, and they differ in how the UniFi external-dns instance must be scoped:
+
+| | **Split-horizon** (try first) | **Dual-route** (today's pattern, ported) |
+|---|---|---|
+| Objects per dual-exposed host | One `HTTPRoute`, on the external Gateway | Two `HTTPRoute`s, one per Gateway, same hostname |
+| UniFi external-dns scope | **Both Gateways** | **Internal Gateway only** |
+| LAN path for a dual-exposed host | Direct to the external Gateway | Direct to the internal Gateway |
+| LAN path for an external-only host (`food.`) | Direct to the external Gateway | Hairpins out through Cloudflare and back |
+| Internal/external traffic separation | Shared listener and policy | Kept strictly apart |
+
+**This is deliberately left open, to settle by testing rather than upfront.** Authentik is the first app rebuilt (see App ordering), which makes its cutover the natural place to try this on the one hostname that exercises every part of it. Start with split-horizon; if it turns out awkward in practice — Authentik's proxy and trusted-header handling across the two paths, certificate or SNI behavior on the external Gateway, or anything else that makes it fiddly — fall back to the dual-object pattern, which is already proven in this repo and carries no risk. Don't spend long forcing it.
+
+Falling back has one consequence worth knowing in advance: the UniFi external-dns instance must then be rescoped to the internal Gateway only, and external-only apps like `food.${SECRET_DOMAIN}` lose their direct LAN record, hairpinning through Cloudflare instead. That's a rescope of one Deployment, not a redesign.
+
+Dual-route is not wrong — it's stricter about keeping internal traffic off the external Gateway, which matters if the two paths should ever carry different policy (rate limiting, a WAF, different proxy/trusted-header handling). The reasons to try split-horizon first:
+
+- **It halves the objects for dual-exposed hostnames, and the duplicates have already drifted.** Authentik's external ingress carries the external-dns target annotation and some commented-out nginx timeout annotations; the internal one carries neither. Under Gateway API the duplication gets more expensive, not less.
+- **It removes a latent DNS ambiguity.** With the same hostname on two Ingresses behind two different LB IPs, k8s-gateway can answer internal queries with either — so internal clients could land on the external ingress controller roughly half the time. It isn't biting today only because internal resolution is out of service; it would return the moment internal DNS came back. The same ambiguity would hit the UniFi instance if it watched both Gateways while dual routes existed, which is exactly why that pairing is unsupported.
+- **It gives LAN clients a direct path to external-only apps too**, instead of hairpinning them through Cloudflare.
+
+Whichever is chosen, the hostname itself must stay identical inside and out. A distinct internal hostname is the one option genuinely ruled out for an IdP: the OIDC `issuer` claim, registered redirect URIs, and session cookies are all bound to one canonical URL, and Mealie names `sso.${SECRET_DOMAIN}` explicitly in `OIDC_CONFIGURATION_URL`.
+
+Three consequences to carry into the build:
+
+- **The external Gateway needs a LAN `LoadBalancer` IP**, not just a ClusterIP. cloudflared reaches it in-cluster, so tunnel-only traffic wouldn't require one — but split-horizon does, since external-dns needs a LAN address to publish. This is a deliberate, modest exposure on a trusted VLAN; it does not make the Gateway public, and internal apps still aren't on it.
+- **Tailnet exposure keeps its own object regardless.** Because the Tailscale operator is Ingress-only, apps with tailnet access (Longhorn, Grafana, Hubble, and others) keep a `tailscale` `Ingress` alongside their `HTTPRoute`. Split-horizon collapses the internal/external pair, not the tailnet one.
+- **The app sees different client IPs per path.** LAN-direct traffic arrives with the real client address; tunnel traffic arrives from cloudflared with Cloudflare's forwarded headers. Relevant to Authentik's proxy/trusted-header configuration, and the same class of problem as Home Assistant's `HASS_HTTP_TRUSTED_PROXY_*` settings under Per-app config review.
+
 ### Preventing the two clusters' external-dns instances from fighting
+
+This concerns the **Cloudflare** instances specifically — the new cluster's UniFi instance has no counterpart on the old cluster, so it starts from an empty record set with nothing to contend over (give it a distinct `txtOwnerId` anyway, for hygiene).
 
 Both clusters run external-dns against the same Cloudflare zone. Today's config is `policy: sync` with `txtOwnerId: default`. `sync` deletes any record an instance *owns* (per its TXT registry marker) that no longer has a matching source in that instance's own cluster.
 
-If the new cluster is bootstrapped with the same `txtOwnerId: default`, then the moment it reconciles — in Wave 1 Phase B, long before any app has moved — every record owned by `default` with no local source looks orphaned to it. The severe case isn't the per-app records (only three Ingresses use `className: external`, so the blast radius there is Mealie, echo-server, and Authentik's webfinger); it's the **`external.${SECRET_DOMAIN}` DNSEndpoint record**, because the CRD source isn't filtered by ingress class at all. Deleting that one record takes down *every* externally-reachable app at once, on both clusters.
+If the new cluster is bootstrapped with the same `txtOwnerId: default`, then the moment it reconciles — in Wave 1 Phase B, long before any app has moved — every record owned by `default` with no local source looks orphaned to it. Five Ingresses currently use the `external` class, so the per-app blast radius is Mealie (`food.`), Authentik (`sso.` and the apex webfinger), echo-server, and the Flux GitHub webhook receiver (`flux-webhook.`). But the severe case is the **`external.${SECRET_DOMAIN}` DNSEndpoint record**, because the CRD source isn't filtered by ingress class at all. Deleting that one record takes down *every* externally-reachable app at once, on both clusters.
 
 Two fixes, applied together:
 
@@ -388,7 +450,7 @@ Today the whole cluster shares a VLAN with Home Assistant's actual IoT devices �
 
 - **Main (trusted) network → HCC VLAN: unrestricted.** No firewall changes needed for the operator's own devices to reach the cluster.
 - **New HCC VLAN → old cluster's network, port 5432: explicitly required for the migration window.** This one is easy to miss because it's the only rule the *migration itself* depends on rather than the steady state. CNPG's `bootstrap.initdb.import` runs `pg_dump` over a live connection, so each new `${app}-pg` cluster must reach the old cluster's `postgres-lb` Service (`192.168.6.21`) while the old cluster is still on the pre-VLAN network. Without it every CNPG-backed app's cutover fails at bootstrap. Temporary — drop it once teslamate, authentik, and paperless have all moved.
-- **Old cluster's network → HCC VLAN, port 53: also required for the migration window.** The old cluster's pihole needs to reach the new cluster's k8s-gateway to serve the per-app internal DNS overrides described under "Internal DNS during migration." Equally easy to miss, and it fails as "the app is up but nothing can resolve it."
+- **HCC VLAN → UCG Fiber management/API: required for the steady state**, not just the migration. The UniFi external-dns instance writes records through the Network Integration API, so the cluster must reach the controller. Scope it to the API endpoint rather than opening the management network generally.
 - **IoT VLAN ↔ HCC VLAN: isolated by default.** The goal is specifically to stop escalation between the two — a compromised IoT device shouldn't be able to reach cluster nodes or services, and the cluster shouldn't have blanket reach into IoT either.
 - **Home Assistant's multus macvlan interface is the one deliberate exception.** That pod is intentionally dual-homed — one interface in the cluster's own pod network, one with a real IP directly on the IoT VLAN, because that's how it discovers/talks to IoT devices at all. The VLAN/firewall boundary protects everything else; this one interface is a narrow, intended bridge, not a gap in it.
 - Because the node's primary interface no longer sits on the IoT VLAN by default, the macvlan interface needs actual 802.1q VLAN tagging to reach it now — `config.sample.yaml` already has a placeholder for this (`bootstrap_talos.vlan`, currently unset) and the multus NAD itself needs a `vlan` field added once an IoT VLAN ID is assigned on the UCG Fiber. This depends on a trunked switch port reaching whichever node carries the IoT NIC — hardware that isn't in place yet (see Per-app config review).
@@ -413,7 +475,7 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 
 - **`age.key`**: gitignored, exists only locally — every SOPS-encrypted secret in the repo, and the ability to seed the new cluster's `sops-age` Secret at all, depends on this one file. Confirm it has a durable, external backup (password manager, offline copy) before touching anything; losing it blocks the migration itself, not just one app's data.
 - **Every PVC-holding app** (chart-managed or explicit) has a currently-*succeeding* backup, verified live — not just declared in git. A wired-up `ReplicationSource` or `ScheduledBackup` that's been silently failing is as dangerous as no backup at all. Check restic snapshot lists / CNPG backup status for each of: Home Assistant, Mealie, Node-RED, Paperless (library + database), teslamate, authentik.
-- **Pihole and Dragonfly** have no PVC and no backup of any kind. Confirm Pihole's adlists/custom DNS/whitelist are fully GitOps-declared rather than partially UI-edited drift that only exists in the running pod, and confirm Dragonfly's data is intentionally cache-only and safe to lose — don't infer either from the absence of a PVC alone.
+- **Dragonfly** has no PVC and no backup of any kind. Confirm its data is intentionally cache-only and safe to lose — don't infer that from the absence of a PVC alone. (Pihole is being dropped rather than migrated, so its state needs no verification beyond confirming nothing still depends on it.)
 
 # Pre-Migration Checklist
 
@@ -429,7 +491,9 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 
 - [ ] Carve out the dedicated HCC VLAN/CIDR on the UCG Fiber, plus firewall rules: main network → HCC unrestricted, IoT ↔ HCC isolated
 - [ ] Open HCC VLAN → old cluster `postgres-lb` (`192.168.6.21:5432`) for the migration window — every CNPG-backed app's cutover fails at bootstrap without it; remove once teslamate, authentik, and paperless have moved
-- [ ] Open old cluster's network → new cluster's k8s-gateway LB IP (`:53`) for the migration window, so the old pihole can serve per-app internal DNS overrides
+- [ ] **Verify the UCG Fiber meets the UniFi webhook's requirements — UniFi OS 5.x+ and Network 10.3.58+.** This gates the whole internal-DNS design; if the controller is older, decide between upgrading it and falling back to manually-maintained UniFi records
+- [ ] Generate a UniFi API key (Settings → Control Plane → Integrations) and store it for the webhook — username/password auth is not supported
+- [ ] Allow HCC VLAN → UCG Fiber Network Integration API, scoped to the API endpoint rather than the whole management network
 - [ ] **Decide Home Assistant's IoT path**: provision a trunked port carrying the IoT VLAN to a Wave-1 node, or explicitly defer Home Assistant's rebuild until after Wave 2. This is cabling, not config — settle it before Wave 1
 - [ ] Assign an IoT VLAN ID and add it to the multus NAD's `vlan` field and `bootstrap_talos.vlan` in `config.sample.yaml`
 
@@ -445,10 +509,14 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 **Platform (Phase B):**
 
 - [ ] Create a **new** Cloudflare tunnel for the new cluster (new ID + credentials — do not reuse the old tunnel), with its own `DNSEndpoint` publishing `external-apollo.${SECRET_DOMAIN}` and matching `originServerName`
-- [ ] Set the new cluster's external-dns to `txtOwnerId: apollo` **and** `policy: upsert-only` before it first reconciles
-- [ ] Configure `external-dns` for Gateway API sources (e.g. `gateway-httproute`) instead of `["crd", "ingress"]`, and work out the Gateway API equivalent of `--ingress-class=external` scoping
+- [ ] Set the new cluster's **Cloudflare** external-dns to `txtOwnerId: apollo` **and** `policy: upsert-only` before it first reconciles; give the UniFi instance its own distinct owner ID
+- [ ] Configure both external-dns instances for Gateway API sources (e.g. `gateway-httproute`) instead of `["crd", "ingress"]`, scoping Cloudflare to the external Gateway and UniFi to both
+- [ ] Deploy the UniFi webhook as a sidecar on the second external-dns instance, and confirm it creates a record end-to-end before relying on it for any app
+- [ ] Stand up **two** Envoy Gateways (internal and external), and give the external one a LAN `LoadBalancer` IP so split-horizon records have an address to point at
+- [ ] Configure the UniFi external-dns instance to watch **both** Gateways initially — the split-horizon assumption. Rescoping it to the internal Gateway only is the fallback if Authentik's cutover goes the other way
 - [ ] Flesh out `plans/04-envoy-gateway.md` for this cluster's real topology (IPs/VLAN, cloudflared integration, raw-`LoadBalancer` apps, Tailscale-operator Ingress handling) before Wave 1
 - [ ] Give the new Tailscale operator a distinct hostname and its own OAuth client credentials
+- [ ] Stand up the new cluster's own Flux webhook receiver (distinct hostname + token) and add a second GitHub webhook, so the new cluster isn't stuck on 30m polling during bring-up
 - [ ] Stand up snapshot-controller **and** the `longhorn-snapclass` `VolumeSnapshotClass` before the first VolSync-backed app
 - [ ] Copy `templates/volsync` into `kubernetes/apollo/templates/volsync` during foundational bootstrap
 - [ ] Stand up External Secrets Operator + 1Password Connect early in Phase B
@@ -460,6 +528,8 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 
 **Per-app (Phase C):**
 
+- [ ] **At Authentik's cutover, settle split-horizon vs. dual-route by testing it** — try one `HTTPRoute` on the external Gateway with two DNS answers; fall back to porting both routes if it's fiddly, and rescope the UniFi instance to the internal Gateway if so. Record which one won, since later apps follow it
+- [ ] Verify external OIDC login to Mealie still works after Authentik's rebuild, whichever shape wins
 - [ ] Resolve `plans/11-cnpg-database-split.md`'s remaining open TODO (Cluster namespace placement) before the first CNPG-backed app is rebuilt
 - [ ] Per CNPG-backed app, immediately before *that app's* cutover (not upfront): check its supported PostgreSQL range against the target major, bump the app on the old cluster first if a newer version is needed, and confirm required extensions (`cube`/`earthdistance` for teslamate) ship in the CNPG image for that major
 - [ ] Parameterize Home Assistant's `HASS_HTTP_TRUSTED_PROXY_1/2` into `cluster-settings` vars
@@ -469,7 +539,7 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 **Wave 2 teardown:**
 
 - [ ] Revert the new cluster's external-dns to `policy: sync`
-- [ ] Repoint clients at the new pihole and delete the per-app dnsmasq overrides
+- [ ] Confirm nothing still resolves through the old cluster before deleting pihole's 10Gi volume with it
 - [ ] Remove `system-upgrade-controller` entirely (not just the `system-upgrade/k3s` Kustomization)
 - [ ] Delete `kubernetes/main`, `ansible/`, and the taskfiles that only drove ansible+k3s
 - [ ] Revoke the old tunnel credentials and old Tailscale OAuth client; wipe the old disks
@@ -488,4 +558,7 @@ Rollback is cheap by construction, because nothing is deleted from the old clust
 - Does the `iot` macvlan NIC stay on hcc3/hcc4 after Wave 2, or move to different nodes? (Related but separate: which node gets the trunked IoT port in Wave 1, if Home Assistant isn't deferred.)
 - Does the Longhorn `dedicated=storage` taint pattern still make sense once storage is spread across six similar NUC11 nodes instead of two dedicated Odroid boxes?
 - Is `external-apollo.${SECRET_DOMAIN}` kept permanently as the per-cluster tunnel alias (recommended), or reclaimed to plain `external.${SECRET_DOMAIN}` after the old cluster is deleted — at the cost of re-touching every app's route annotation for cosmetics?
+- **Split-horizon or dual-route for dual-exposed hostnames?** Deliberately unresolved — to be settled by trying split-horizon at Authentik's cutover and falling back to the existing dual-object pattern if it gets complicated. Whichever wins becomes the pattern for every later app, so record the outcome here.
+- Should in-cluster lookups of `sso.${SECRET_DOMAIN}` resolve internally instead of hairpinning out to the external Gateway's LAN IP and back? Doing so needs a CoreDNS rewrite — which is custom CoreDNS config, and therefore the exact condition `plans/05b-coredns-helm.md` names for taking CoreDNS off Talos management. Hairpinning works, so this is an optimization, but it's the first real trigger for that decision.
+- Is ad-blocking wanted back after pihole is dropped, via UniFi's own content filtering or a pihole that isn't the primary resolver? Deliberately deferred — it's a separate concern from internal name resolution.
 - **Future optimization, explicitly out of scope here**: a dedicated VLAN for Longhorn's inter-node replication traffic, once the cluster is stable post-migration.
