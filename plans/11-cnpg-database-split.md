@@ -2,8 +2,10 @@
 
 ## Overview
 
+**Status: folded into the Talos migration.** This split now happens *during* `plans/20260816-talos-migration.md`'s Wave 1, per-app, rather than as a standalone change on the current cluster: each new dedicated cluster (`teslamate-pg`, `paperless-pg`, `authentik-pg`) is created directly on the new Talos cluster, importing across the network from the old cluster's still-live `cnpg-cluster` instead of importing from a same-cluster source. This avoids splitting on the old cluster and then separately migrating three clusters to new infrastructure afterward. See that doc's "CNPG-backed apps" section for how this interleaves with the rest of the per-app cutover.
+
 TODO: Decide whether pg clusters should be located in the database namespace or the app namespace (leaning towards app namespace).
-TODO: figure out how secrets will be handled across namespaces. For example, how will the teslamate db secret be used by grafana? Maybe it's finally time for 1Password?
+~~TODO: figure out how secrets will be handled across namespaces. For example, how will the teslamate db secret be used by grafana? Maybe it's finally time for 1Password?~~ **Resolved**: External Secrets Operator + 1Password, adopted as part of the Talos migration (`plans/20260816-talos-migration.md`). Cross-namespace access becomes an `ExternalSecret` in each consuming namespace pointing at the same 1Password item, rather than a Secret-copying workaround.
 
 Migrate from a single shared CloudNativePG cluster (`cnpg-cluster`) serving multiple applications to dedicated per-app clusters. This improves backup isolation, simplifies upgrades, and follows the microservice database pattern.
 
@@ -83,7 +85,7 @@ flux suspend helmrelease teslamate -n default
 
 ### Step 2: Create New Cluster with Import
 
-Create `kubernetes/main/apps/database/cloudnative-pg/clusters/teslamate-pg/cluster.yaml`:
+Create `kubernetes/boreas/apps/database/cloudnative-pg/clusters/teslamate-pg/cluster.yaml`:
 
 ```yaml
 ---
@@ -124,7 +126,12 @@ spec:
   externalClusters:
     - name: cnpg-cluster-source
       connectionParameters:
-        host: cnpg-cluster-rw.database.svc.cluster.local
+        # During the Talos migration this cluster is created on the new
+        # cluster while the source is still on the old one, so this points
+        # at the old cluster's external postgres-lb hostname rather than an
+        # in-cluster DNS name. Reachable because the old cluster stays live
+        # and routable across the dedicated migration VLAN.
+        host: postgres.${SECRET_DOMAIN}
         user: postgres
         dbname: teslamate
       password:
@@ -171,7 +178,7 @@ The cluster will show `Cluster in healthy state` when import completes.
 
 Update teslamate's database connection to use the new cluster.
 
-In `kubernetes/main/apps/default/teslamate/app/helmrelease.yaml`, change:
+In `kubernetes/boreas/apps/default/teslamate/app/helmrelease.yaml`, change:
 ```yaml
 DATABASE_HOST: teslamate-pg-rw.database.svc.cluster.local
 ```
@@ -203,7 +210,7 @@ kubectl logs -n default deployment/teslamate | head -50
 
 ### Step 6: Add Scheduled Backup
 
-Create `kubernetes/main/apps/database/cloudnative-pg/clusters/teslamate-pg/scheduledbackup.yaml`:
+Create `kubernetes/boreas/apps/database/cloudnative-pg/clusters/teslamate-pg/scheduledbackup.yaml`:
 
 ```yaml
 ---
@@ -255,7 +262,7 @@ dependsOn:
 ## Directory Structure After Migration
 
 ```
-kubernetes/main/apps/database/cloudnative-pg/
+kubernetes/boreas/apps/database/cloudnative-pg/
 ├── operator/
 │   ├── helmrelease.yaml
 │   ├── kustomization.yaml
@@ -309,12 +316,12 @@ For each migrated app:
 ## Dependencies
 
 - CloudNativePG operator 1.20+ (import feature)
-- Source cluster must remain running during import
+- Source cluster must remain running during import — during the Talos migration, this is `kubernetes/apollo`'s `postgres-lb` Service, reachable across the dedicated migration VLAN
 - Sufficient Longhorn storage for new clusters
 
-## k3s Compatibility
+## k3s / Talos Compatibility
 
-Fully compatible - no k3s-specific considerations.
+Distribution-agnostic — no k3s or Talos-specific considerations. Executed during the Talos migration (see Overview), but the import mechanism itself doesn't care which distribution either cluster runs.
 
 ## Estimated Downtime
 
