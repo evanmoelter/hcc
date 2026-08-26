@@ -19,6 +19,8 @@ kubeconfig
 Brewfile.lock.json
 # intellij
 .idea
+# Claude Code
+.claude/settings.local.json
 # wiki
 wiki
 # Bootstrap
