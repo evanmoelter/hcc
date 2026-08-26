@@ -105,19 +105,15 @@ A one-off Barman restore into a throwaway cluster was also considered as a rehea
 
 ## Implementation Steps
 
-### Step 1: Prepare - Scale Down Apps
+### Step 1: Prepare - Disable the App on the Old Cluster
 
-Scale each app to 0 before importing its database to prevent writes during migration.
+The app must stop writing before its database is imported. During the Talos migration this is the **disable** step defined in `plans/20260816-talos-migration.md` — a commit merged to `kubernetes/main` that scales the workload to zero and removes the app's external and tailscale Ingresses, releasing its DNS and tailnet names. It is a merged change, not a `kubectl scale`, so the state is reconcilable and revertible.
 
-```bash
-# For teslamate
-kubectl scale deployment teslamate -n default --replicas=0
-flux suspend helmrelease teslamate -n default
-```
+The app's directory, PVC, and data stay in `kubernetes/main`, disabled but intact, until the old cluster is decommissioned in Wave 2.
 
 ### Step 2: Create New Cluster with Import
 
-Create `kubernetes/boreas/apps/database/cloudnative-pg/clusters/teslamate-pg/cluster.yaml`:
+Create `kubernetes/apollo/apps/database/cloudnative-pg/clusters/teslamate-pg/cluster.yaml`:
 
 ```yaml
 ---
@@ -163,10 +159,15 @@ spec:
       connectionParameters:
         # During the Talos migration this cluster is created on the new
         # cluster while the source is still on the old one, so this points
-        # at the old cluster's external postgres-lb hostname rather than an
+        # at the old cluster's postgres-lb LoadBalancer rather than an
         # in-cluster DNS name. Reachable because the old cluster stays live
         # and routable across the dedicated migration VLAN.
-        host: postgres.${SECRET_DOMAIN}
+        #
+        # Raw IP, not postgres.${SECRET_DOMAIN}: external-dns sources are
+        # ["crd", "ingress"] and never watch Services, so that hostname has
+        # no public record — it resolves only via the old cluster's
+        # k8s-gateway, which is exactly what's in flux during the migration.
+        host: 192.168.6.21
         user: postgres
         dbname: teslamate
       password:
@@ -213,7 +214,7 @@ The cluster will show `Cluster in healthy state` when import completes.
 
 Update teslamate's database connection to use the new cluster.
 
-In `kubernetes/boreas/apps/default/teslamate/app/helmrelease.yaml`, change:
+In `kubernetes/apollo/apps/default/teslamate/app/helmrelease.yaml`, change:
 ```yaml
 DATABASE_HOST: teslamate-pg-rw.database.svc.cluster.local
 ```
@@ -231,21 +232,18 @@ initContainers:
         value: teslamate-pg-rw.database.svc.cluster.local
 ```
 
-### Step 5: Resume App and Verify
+### Step 5: Bring the App Up on the New Cluster and Verify
 
-```bash
-flux resume helmrelease teslamate -n default
-kubectl scale deployment teslamate -n default --replicas=1
-```
+The app is authored fresh under `kubernetes/apollo`, so Flux brings it up on reconcile — there is nothing to resume. Verify it *before* attaching the routing that publishes its real hostname:
 
-Verify connectivity:
 ```bash
 kubectl logs -n default deployment/teslamate | head -50
+kubectl port-forward -n default deployment/teslamate 4000:4000  # spot-check data
 ```
 
 ### Step 6: Add Scheduled Backup
 
-Create `kubernetes/boreas/apps/database/cloudnative-pg/clusters/teslamate-pg/scheduledbackup.yaml`:
+Create `kubernetes/apollo/apps/database/cloudnative-pg/clusters/teslamate-pg/scheduledbackup.yaml`:
 
 ```yaml
 ---
@@ -270,18 +268,11 @@ Repeat steps 1-6 for:
 
 Adjust `max_connections` and `shared_buffers` based on each app's needs.
 
-### Step 8: Decommission Old Cluster
+### Step 8: Decommission the Old Cluster
 
-After all apps are migrated and verified:
+Executed as part of the Talos migration's Wave 2, not as a separate step here: `cnpg-cluster` is not deleted piecemeal — it goes away with the whole `kubernetes/main` tree once every app is verified on the new cluster. Keeping it running (and backing up) in the meantime is exactly the safety net rollback depends on.
 
-1. Keep old cluster running for 1-2 weeks as safety net
-2. Take final backup of old cluster
-3. Delete old cluster resources:
-
-```bash
-kubectl delete cluster cnpg-cluster -n database
-kubectl delete scheduledbackup cnpg-cluster-backup -n database
-```
+Take a final backup of the old cluster before the Wave 2 teardown, then delete the tree rather than issuing `kubectl delete` against individual resources.
 
 ### Step 9: Update Kustomization Dependencies
 
@@ -297,7 +288,7 @@ dependsOn:
 ## Directory Structure After Migration
 
 ```
-kubernetes/boreas/apps/database/cloudnative-pg/
+kubernetes/apollo/apps/database/cloudnative-pg/
 ├── operator/
 │   ├── helmrelease.yaml
 │   ├── kustomization.yaml
@@ -356,7 +347,7 @@ For each migrated app:
 ## Dependencies
 
 - CloudNativePG operator 1.20+ (import feature)
-- Source cluster must remain running during import — during the Talos migration, this is `kubernetes/apollo`'s `postgres-lb` Service, reachable across the dedicated migration VLAN
+- Source cluster must remain running during import — during the Talos migration, this is the **old** cluster's (`kubernetes/main`) `postgres-lb` Service, reachable across the dedicated migration VLAN
 - **Firewall rule: new HCC VLAN → `192.168.6.21:5432`**, open for the duration of the migration. `initdb.import` needs a live connection for `pg_dump`, and the new cluster sits on a different VLAN than the source. Without this, every import fails at bootstrap. Temporary — remove once all three apps have moved
 - Sufficient Longhorn storage for new clusters
 

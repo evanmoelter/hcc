@@ -2,7 +2,13 @@
 
 # Overview
 
-The cluster moves from ansible-managed k3s to Talos across a consolidated, all-x86_64 fleet: four new NUC11 nodes plus hcc3 and hcc4 (existing NUCs, wiped and rejoined), retiring hcc, hcc2 (Odroid HC2, ARM — unsupported by Talos), and hcc-tablet1. The clusters are named alphabetically and sequentially — Greek mythology, this one is Apollo — rather than reused generic names like "main," so no cluster is ever renamed again once created. The new Talos cluster is bootstrapped directly as `kubernetes/boreas`, on its own VLAN/CIDR, while the current cluster's repo tree stays exactly as it is today (`kubernetes/main`) through the bulk of the migration — untouched, not even renamed — so the production Flux root is never touched until most apps have already proven out on the new cluster. Only once most services have moved over does the now largely-empty old tree get renamed to `kubernetes/apollo` (see "Safe rename of the live Flux root," below), deliberately deferred rather than done as prep work, to avoid a self-referential rename operation on the production cluster before any confidence in the new tooling exists. This is the last time this particular rename dance happens: from here on, a new cluster just gets the next name in sequence, never reusing or reclaiming an old one. Each application migrates independently — disabled, backed up, then its resource definitions moved to `kubernetes/boreas` — so the two clusters never contend over the same IPs or DNS records. The new cluster also isn't constrained to match the old cluster's Kubernetes version; since data moves through version-agnostic backup mechanisms, it can jump straight to a current stable Talos/Kubernetes release.
+The cluster moves from ansible-managed k3s to Talos across a consolidated, all-x86_64 fleet: four new NUC11 nodes plus hcc3 and hcc4 (existing NUCs, wiped and rejoined), retiring hcc, hcc2 (Odroid HC2, ARM — unsupported by Talos), and hcc-tablet1.
+
+The new Talos cluster is bootstrapped as `kubernetes/apollo`, on its own VLAN/CIDR. Clusters are named alphabetically and sequentially from Greek mythology — this one is Apollo, the next will start with B — so no cluster is ever renamed once created and no name is ever reused. The existing k3s cluster keeps its generic `kubernetes/main` tree, untouched and un-renamed, for its entire remaining life; it is deleted outright at the end of Wave 2 rather than renamed into the new scheme. Retrofitting a mythology name onto a cluster that is being decommissioned would burn a name on something with weeks to live, and a rename of a live Flux root is a self-referential operation with real failure modes — neither cost buys anything, so `main` simply stays `main` until it's gone.
+
+Each application is **rebuilt** on the new cluster rather than moved: its manifests are authored fresh under `kubernetes/apollo` (mostly copied from the old tree, but not blindly — see "Per-app config review"), while the old cluster's copy is disabled in place and its data left intact until the whole cluster is decommissioned. Nothing is deleted from `kubernetes/main` during the migration. That keeps a working, re-enableable copy of every app — and its data — behind each cutover, and it means the two clusters never contend over the same IPs, DNS records, or tailnet hostnames, because an app is only ever *serving* from one of them at a time.
+
+The new cluster also isn't constrained to match the old cluster's Kubernetes version; since data moves through version-agnostic backup mechanisms, it can jump straight to a current stable Talos/Kubernetes release.
 
 # Problem Statement
 
@@ -10,9 +16,11 @@ hcc and hcc2 are Odroid HC2 boards with no supported Talos image, and hcc-tablet
 
 # Functionality
 
-Each hosted app (Home Assistant, Mealie, Node-RED, Paperless, and everything backed by the shared Postgres cluster) gets its own short maintenance window at its individual cutover point rather than one cluster-wide outage. This is a deliberate hard cutover, not a live/parallel one: each app goes fully offline for the few minutes its backup-and-restore takes, rather than staying reachable throughout via some kind of dual-serving or pre-verified staging copy. The trade is accepted deliberately — a bit of per-app downtime in exchange for never running backup/restore against a source that's still being written to, which is the actual data-loss risk being avoided, not just a nice-to-have. Ingress hostnames and Tailscale names are unchanged after migration — only the nodes and, briefly during transition, the backing cluster change. The GitOps workflow is identical post-migration: changes still land via Flux reconciliation, and the operator never SSHes into a node or hand-applies manifests to make routine changes.
+Each hosted app (Home Assistant, Mealie, Node-RED, Paperless, and everything backed by the shared Postgres cluster) gets its own short maintenance window at its individual cutover point rather than one cluster-wide outage. This is a deliberate hard cutover, not a live/parallel one: each app goes fully offline for the few minutes its backup-and-restore takes, rather than staying reachable throughout via some kind of dual-serving or pre-verified staging copy. The trade is accepted deliberately — a bit of per-app downtime in exchange for never running backup/restore against a source that's still being written to, which is the actual data-loss risk being avoided, not just a nice-to-have.
 
-After Wave 1, the operator has one working Talos cluster (`kubernetes/boreas`) and three devices (hcc, hcc2, hcc-tablet1) freed up for disposal or repurposing. After Wave 2, the fleet is fully consolidated to six Talos NUC11-class nodes on a single cluster and repo tree, `kubernetes/apollo` is deleted, and the ansible/k3s tooling in the repo becomes dead code ready for removal.
+Ingress hostnames and Tailscale names are unchanged after migration: an app is released from the old cluster and reclaims the *same* name on the new one at its cutover moment. The GitOps workflow is identical post-migration: changes still land via Flux reconciliation, and the operator never SSHes into a node or hand-applies manifests to make routine changes.
+
+After Wave 1, the operator has one working Talos cluster (`kubernetes/apollo`) and three devices (hcc, hcc2, hcc-tablet1) freed up for disposal or repurposing. After Wave 2, the fleet is fully consolidated to six Talos NUC11-class nodes on a single cluster and repo tree, `kubernetes/main` is deleted, and the ansible/k3s tooling in the repo becomes dead code ready for removal.
 
 # Design
 
@@ -32,24 +40,24 @@ End state: 6 nodes, 3 control-plane + 3 workers, satisfying Talos's odd-controll
 
 ```mermaid
 flowchart LR
-    subgraph old["kubernetes/main -> apollo (k3s, retiring)"]
-        hcc["hcc\n(storage)"]
-        hcc2["hcc2\n(storage)"]
+    subgraph old["kubernetes/main (k3s, retiring)"]
+        hcc["hcc<br/>(storage)"]
+        hcc2["hcc2<br/>(storage)"]
         tablet["hcc-tablet1"]
-        hcc3o["hcc3\n(multus enp1s0)"]
-        hcc4o["hcc4\n(multus enp1s0)"]
+        hcc3o["hcc3<br/>(multus enp1s0)"]
+        hcc4o["hcc4<br/>(multus enp1s0)"]
     end
 
-    subgraph w1["Wave 1: kubernetes/boreas (new, Talos, own VLAN/CIDR)"]
-        n1["hcc5\ncontrol-plane"]
-        n2["hcc6\ncontrol-plane"]
-        n3["hcc7\ncontrol-plane"]
-        n4["hcc8\nworker"]
+    subgraph w1["Wave 1: kubernetes/apollo (new, Talos, own VLAN/CIDR)"]
+        n1["hcc5<br/>control-plane"]
+        n2["hcc6<br/>control-plane"]
+        n3["hcc7<br/>control-plane"]
+        n4["hcc8<br/>worker"]
     end
 
-    subgraph w2["Wave 2: joins kubernetes/boreas"]
-        hcc3n["hcc3\nworker (wiped)"]
-        hcc4n["hcc4\nworker (wiped)"]
+    subgraph w2["Wave 2: joins kubernetes/apollo"]
+        hcc3n["hcc3<br/>worker (wiped)"]
+        hcc4n["hcc4<br/>worker (wiped)"]
     end
 
     hcc -.retire.-> X1(( ))
@@ -62,29 +70,22 @@ flowchart LR
 
 ## Cluster & repo structure
 
-The new cluster is bootstrapped directly as `kubernetes/boreas/` — `flux/`, `bootstrap/`, `apps/`, `templates/` — with its own `GitRepository`/`Kustomization` pair pointed at `./kubernetes/boreas`, and its own `cluster-settings` ConfigMap with a genuinely independent `NODE_CIDR`/`CLUSTER_CIDR`/control-plane VIP, living on a dedicated **HCC VLAN** carved out on the Ubiquiti gear (UCG Fiber) acquired since the original cluster was built. The existing live tree stays `kubernetes/main` — not renamed — until most apps have moved over (see "Safe rename of the live Flux root," below, for why this is deferred and how it's done safely once it happens). Because the two clusters sit on separate broadcast domains, Cilium's L2 announcements and BGP peering never collide on an IP regardless of numeric overlap. Unlike the old cluster's flat networking, the HCC VLAN is a permanent security boundary, not just a migration-scoped convenience — see Networking changes, below, for the isolation posture it enables.
+The new cluster is bootstrapped as `kubernetes/apollo/` — `flux/`, `bootstrap/`, `apps/`, `templates/` — with its own `GitRepository`/`Kustomization` pair pointed at `./kubernetes/apollo`, and its own `cluster-settings` ConfigMap with a genuinely independent `NODE_CIDR`/`CLUSTER_CIDR`/control-plane VIP, living on a dedicated **HCC VLAN** carved out on the Ubiquiti gear (UCG Fiber) acquired since the original cluster was built. The existing live tree stays `kubernetes/main`, never renamed, until it is deleted wholesale in Wave 2. Because the two clusters sit on separate broadcast domains, Cilium's L2 announcements and BGP peering never collide on an IP regardless of numeric overlap. Unlike the old cluster's flat networking, the HCC VLAN is a permanent security boundary, not just a migration-scoped convenience — see Networking changes, below, for the isolation posture it enables.
 
-This still means real duplication for the migration's duration: every app's manifests, plus `cluster-secrets.sops.yaml` (re-encrypted with the same age key — no new key material), exist in both the old cluster's tree (`kubernetes/main`, later renamed `kubernetes/apollo`) and (once migrated) `kubernetes/boreas` until that app's move lands. Renovate and manual changes touch whichever tree currently owns a given app. The old tree is deleted entirely once Wave 2 completes.
+This means real duplication for the migration's duration: every app's manifests, plus `cluster-secrets.sops.yaml` (re-encrypted with the same age key — no new key material), exist in both trees until the old one is deleted. That duplication is deliberate — it's what makes each cutover reversible (see Rollback). Renovate and manual changes touch whichever tree currently *serves* a given app; the disabled copy in `kubernetes/main` is frozen, not maintained.
 
-## Safe rename of the live Flux root
+Two repo-level things need per-cluster handling while both trees coexist:
 
-Deliberately deferred until most apps have already moved over, not done as Wave 1 prep work — this is a self-referential operation on the still-live production cluster's Flux root, and there's no reason to take it on before the new cluster and tooling have already proven themselves on the bulk of the migration. By the time it happens, the old tree mostly just contains whatever apps haven't moved yet plus foundational infra, so there's less left depending on it too.
-
-Flux's root `Kustomization` objects on the still-running k3s cluster are self-referential: `kubernetes/main/flux/config/cluster.yaml` currently has `spec.path: ./kubernetes/main/flux` (and `apps.yaml` similarly `./kubernetes/main/apps`), and that `spec.path` is whatever was last *applied* into etcd — it isn't re-derived from wherever the file happens to sit in a given commit. Renaming the directory and repointing those paths in a single commit breaks the very next reconcile: Flux builds against its *current* live path, which no longer exists in that commit, the build fails, and the Kustomization sticks at `Ready=False`. It fails safe — a failed build doesn't trigger `prune`, so nothing already running gets torn down — but it won't self-heal.
-
-The rename is done in two commits instead, with no manual `kubectl` needed:
-
-1. With directories still named `main`, edit only the `path:` fields inside `kubernetes/main/flux/config/cluster.yaml` and `apps.yaml` to already say `./kubernetes/apollo/...`. Flux builds this against the still-valid current path and applies it — which updates the live Kustomization objects' `spec.path` for the next reconcile cycle.
-2. Confirm that commit reconciled successfully (`flux get kustomization`).
-3. `git mv kubernetes/main kubernetes/apollo`. The next reconcile now looks for `./kubernetes/apollo/flux`, which exists, and succeeds cleanly.
-
-The root `Taskfile.yaml`'s `KUBERNETES_DIR: "{{.ROOT_DIR}}/kubernetes/main"` also needs repointing at this stage — worth a per-cluster task var while both trees coexist, rather than one hardcoded path.
+- The root `Taskfile.yaml`'s `KUBERNETES_DIR: "{{.ROOT_DIR}}/kubernetes/main"` is a single hardcoded path. It needs to become a per-cluster task var (defaulting to whichever cluster is being worked on) rather than being repointed once.
+- `.github/workflows/flux-diff.yaml` and `kubeconform.yaml` both reference `kubernetes/main` explicitly. They need `kubernetes/apollo` added **from the moment the tree is created**, not at the end — otherwise every app authored on the new cluster lands with no CI validation at all, which is exactly when validation is most useful.
 
 ## Kubernetes version
 
-The new cluster isn't required to match the old cluster's Kubernetes version. The current k3s cluster is pinned to `KUBE_VERSION: v1.29.1+k3s2` (`kubernetes/main/apps/system-upgrade/k3s/ks.yaml` today) — old enough that an in-place upgrade would normally have to step through several minor versions one at a time. Because data moves through version-agnostic mechanisms (VolSync/restic is file-level; CNPG/Barman recovery is keyed to the Postgres major version, not the k8s version), the new cluster can jump straight to whatever current stable Talos/Kubernetes release is available, in one step, rather than a staged upgrade path. The one thing worth checking as each app moves — a natural side effect of the per-app disable/backup/move flow, which forces a fresh Flux apply on the new cluster before cutover — is that no chart or manifest assumes an API surface removed between the two versions.
+The new cluster isn't required to match the old cluster's Kubernetes version. The current k3s cluster is pinned to `KUBE_VERSION: v1.29.1+k3s2` (`kubernetes/main/apps/system-upgrade/k3s/ks.yaml` today) — old enough that an in-place upgrade would normally have to step through several minor versions one at a time. Because data moves through version-agnostic mechanisms (VolSync/restic is file-level; CNPG/Barman recovery is keyed to the Postgres major version, not the k8s version), the new cluster can jump straight to whatever current stable Talos/Kubernetes release is available, in one step, rather than a staged upgrade path. The one thing worth checking as each app is rebuilt — a natural side effect of authoring it fresh on the new cluster before cutover — is that no chart or manifest assumes an API surface removed between the two versions.
 
-The `.private/bootstrap-121456` scaffold is not the target: it's pinned to `talosVersion: v1.6.5` / `kubernetesVersion: v1.29.2`, and checking upstream `cluster-template` directly shows it's now several major Talos releases ahead (`v1.13.7` / Kubernetes `v1.36.4` as of this writing). Those two numbers are Renovate-tracked upstream and move on their own — Kubernetes already went `v1.36.3` → `v1.36.4` between two readings of this doc. They're recorded here only to establish *how far* the stale scaffold has drifted, not as values to pin: read the current ones off upstream's `topf.yaml.j2` at the moment configs are actually generated. Upstream has also swapped machine-config generators since that scaffold used `talhelper`/`talconfig.yaml`: it now uses [`topf`](https://github.com/postfinance/topf) (a `postfinance` tool, created December 2025 — young, ~95 GitHub stars at the time of writing, versus talhelper's long-established adoption), driven by a `topf.yaml` plus a directory of strategic-merge patches split by scope (`all/`, `control-plane/`, `worker/`, `node/<host>/`), matching Talos's own documented patching model. This is a genuine, deliberate change for the new cluster: since this is a fresh bootstrap of new infrastructure rather than ongoing maintenance of an already-detemplated tree, adopting the current tool is the right call here, not the same "don't maintain the template machinery" concern that applies to the rest of this repo (`plans/README.md`) — that policy is about not re-running makejinja against upstream repeatedly, not about which one-time tool generates the initial bootstrap. Usefully, `topf` doesn't force adopting upstream's other toolchain changes: it's a standalone binary that just reads a plain YAML `topf.yaml` and patch files, so it slots into this repo's existing Task-based `.taskfiles/Talos/Taskfile.yaml` in place of talhelper, hand-authored the same way `talconfig.yaml` is today, with no need to adopt Just or TOML. The trade-off worth going in with eyes open: `topf` is new enough that its rough edges (6 open issues, small community) are still being found, on tooling that manages the actual Talos machine configuration of every node.
+The `.private/bootstrap-121456` scaffold is not the target: it's pinned to `talosVersion: v1.6.5` / `kubernetesVersion: v1.29.2`, and checking upstream `cluster-template` directly shows it's now several major Talos releases ahead (`v1.13.7` / Kubernetes `v1.36.4` as of this writing). Those two numbers are Renovate-tracked upstream and move on their own — Kubernetes already went `v1.36.3` → `v1.36.4` between two readings of this doc. They're recorded here only to establish *how far* the stale scaffold has drifted, not as values to pin: read the current ones off upstream's `topf.yaml.j2` at the moment configs are actually generated.
+
+Upstream has also swapped machine-config generators since that scaffold used `talhelper`/`talconfig.yaml`: it now uses [`topf`](https://github.com/postfinance/topf) (a `postfinance` tool, created December 2025 — young, ~95 GitHub stars at the time of writing, versus talhelper's long-established adoption), driven by a `topf.yaml` plus a directory of strategic-merge patches split by scope (`all/`, `control-plane/`, `worker/`, `node/<host>/`), matching Talos's own documented patching model. This is a genuine, deliberate change for the new cluster: since this is a fresh bootstrap of new infrastructure rather than ongoing maintenance of an already-detemplated tree, adopting the current tool is the right call here, not the same "don't maintain the template machinery" concern that applies to the rest of this repo (`plans/README.md`) — that policy is about not re-running makejinja against upstream repeatedly, not about which one-time tool generates the initial bootstrap. Usefully, `topf` doesn't force adopting upstream's other toolchain changes: it's a standalone binary that just reads a plain YAML `topf.yaml` and patch files, so it slots into this repo's existing Task-based `.taskfiles/Talos/Taskfile.yaml` in place of talhelper, hand-authored the same way `talconfig.yaml` is today, with no need to adopt Just or TOML. The trade-off worth going in with eyes open: `topf` is new enough that its rough edges (6 open issues, small community) are still being found, on tooling that manages the actual Talos machine configuration of every node.
 
 While hand-authoring `topf.yaml` and its patches, it's worth cross-checking upstream's current content for anything worth carrying over beyond the tool switch itself — notably its sysctls tuning (`net.core.rmem_max`/`wmem_max` for QUIC, relevant given this cluster runs cloudflared; ARP cache GC thresholds, relevant given how much this cluster leans on Cilium L2Announcements) and its current bootstrap-apps sequencing, which is `cilium → coredns → [spegel] → cert-manager → flux-operator → flux-instance`. Two things fall out of that ordering:
 
@@ -97,11 +98,83 @@ Two claims above have since been re-verified against upstream directly. `topf`'s
 
 ## Foundational bootstrap (before any app moves)
 
-Longhorn, the CloudNativePG *operator* (not a shared Cluster — see below), cert-manager, VolSync, Cilium, an ingress layer, and Authentik's dependencies need to exist on the new cluster before the first individual app migrates
+The platform layer needs to exist and be verified before the first individual app is rebuilt. The dependency graph below is the authoritative ordering; the notes after it cover the pieces that aren't a straight copy of the old cluster.
 
-> **Decided: Envoy Gateway, not ingress-nginx.** Avoids authoring every app's routing twice (`Ingress` now, `HTTPRoute` later) — write `HTTPRoute` once, during each app's move, instead of `Ingress` now and `HTTPRoute` again soon after. `plans/04-envoy-gateway.md` exists but still needs fleshing out for this cluster's actual topology (real IPs/VLAN, cloudflared integration, the raw-`LoadBalancer` apps like paperless-sftp and `postgres-lb` that stay unaffected either way) before Wave 1 — that prep work is unchanged by this decision, just no longer conditional on it. One new concrete thing that prep work needs to cover: `external-dns` currently sources from `["crd", "ingress"]` with `--ingress-class=external`, both Ingress-API concepts with no direct Gateway API equivalent — it needs a Gateway API source (e.g. `gateway-httproute`) and a different way to scope "external only" (Gateway API has no `ingressClassName`; that's normally done via which `Gateway` an `HTTPRoute`'s `parentRefs` points to). The external-dns hostname and `policy: upsert-only` fixes below still apply, just against whichever Gateway resource ends up carrying the external hostname instead of `ingress-nginx-external`'s Service.
+```mermaid
+flowchart TD
+    subgraph phaseA["Phase A — bootstrapped by hand (not Flux)"]
+        talos["Talos + etcd<br/>(native control-plane VIP, KubePrism)"]
+        cilium["Cilium<br/>(CNI, kube-proxy replacement, LB-IPAM)"]
+        coredns["CoreDNS<br/>(Talos-managed default)"]
+        flux["flux-operator / flux-instance"]
+        talos --> cilium --> coredns --> flux
+    end
 
-Later `ks.yaml` files reference the foundational apps via `dependsOn` (e.g. Mealie depends on `cloudnative-pg`, `longhorn`, `authentik`) and via the shared `storageClassName: longhorn` convention. This step also includes copying `templates/volsync` into the new tree (`kubernetes/boreas/templates/volsync`), since it's currently unused by any real app but the per-app move step below depends on it being present at the same relative path apps already reference (`../../../../templates/volsync`).
+    subgraph phaseB["Phase B — platform services (Flux, one at a time, wait: true)"]
+        spegel["Spegel"]
+        metrics["Metrics stack<br/>(kube-prometheus-stack or VictoriaMetrics)"]
+        eso["External Secrets Operator<br/>+ 1Password Connect"]
+        certmgr["cert-manager<br/>(wildcard Certificate)"]
+        longhorn["Longhorn"]
+        snapshot["snapshot-controller<br/>+ longhorn-snapclass"]
+        volsync["VolSync"]
+        cnpg["CloudNativePG operator<br/>(operator only, no shared Cluster)"]
+        multus["Multus<br/>(iot macvlan NAD)"]
+        envoy["Envoy Gateway"]
+        extdns["external-dns<br/>(txtOwnerId: apollo, upsert-only)"]
+        cflared["cloudflared<br/>(NEW tunnel + DNSEndpoint)"]
+        gateway["k8s-gateway + pihole"]
+        tailscale["Tailscale operator<br/>(distinct hostname)"]
+    end
+
+    flux --> spegel --> metrics --> eso
+    eso --> certmgr
+    eso --> longhorn
+    eso --> extdns
+    eso --> tailscale
+    longhorn --> snapshot --> volsync
+    longhorn --> cnpg
+    certmgr --> envoy
+    cilium --> gateway
+    envoy --> cflared
+    extdns --> cflared
+
+    subgraph phaseC["Phase C — apps (rebuilt one at a time)"]
+        authpg["authentik-pg"]
+        authentik["authentik"]
+        hass["home-assistant"]
+        mealie["mealie"]
+        nodered["node-red"]
+        paperlesspg["paperless-pg"]
+        paperless["paperless (+ sftp)"]
+        tmpg["teslamate-pg"]
+        teslamate["teslamate"]
+        grafana["grafana"]
+    end
+
+    cnpg --> authpg --> authentik
+    cnpg --> paperlesspg --> paperless
+    cnpg --> tmpg --> teslamate
+    volsync --> hass
+    volsync --> mealie
+    volsync --> nodered
+    volsync --> paperless
+    multus --> hass
+    authentik --> mealie
+    authentik --> paperless
+    tmpg --> grafana
+    envoy --> mealie
+```
+
+Notes on the pieces that are **not** a straight carry-forward:
+
+> **Decided: Envoy Gateway, not ingress-nginx.** Avoids authoring every app's routing twice (`Ingress` now, `HTTPRoute` later) — write `HTTPRoute` once, while each app is being rebuilt, instead of `Ingress` now and `HTTPRoute` again soon after. `plans/04-envoy-gateway.md` exists but still needs fleshing out for this cluster's actual topology (real IPs/VLAN, cloudflared integration, the raw-`LoadBalancer` apps like paperless-sftp and `postgres-lb` that stay unaffected either way) before Wave 1 — that prep work is unchanged by this decision, just no longer conditional on it. One new concrete thing that prep work needs to cover: `external-dns` currently sources from `["crd", "ingress"]` with `--ingress-class=external`, both Ingress-API concepts with no direct Gateway API equivalent — it needs a Gateway API source (e.g. `gateway-httproute`) and a different way to scope "external only" (Gateway API has no `ingressClassName`; that's normally done via which `Gateway` an `HTTPRoute`'s `parentRefs` points to).
+
+- **snapshot-controller is a hard prerequisite for VolSync, and is its own app** (`kubernetes/main/apps/storage/snapshot-controller`), not part of Longhorn's chart. Every `ReplicationSource`/`ReplicationDestination` in this repo uses `copyMethod: Snapshot` with `volumeSnapshotClassName: longhorn-snapclass`, so both the controller and that `VolumeSnapshotClass` must exist before the first VolSync-backed app is rebuilt — otherwise `${APP}-bootstrap` hydration hangs with no obvious cause.
+- **The Tailscale operator needs a distinct identity per cluster.** The old cluster's operator registers as `hostname: tailscale-operator`; a second operator joining the same tailnet with the same hostname gets silently suffixed (`tailscale-operator-1`), and the same is true for every per-app `className: tailscale` Ingress device. The new cluster's operator needs its own hostname (e.g. `tailscale-operator-apollo`) and its own OAuth client credentials. Per-app tailnet names are reclaimed the same way DNS names are — released on the old cluster at disable, recreated on the new one at cutover (see Per-app migration).
+- **cloudflared needs a genuinely new tunnel**, not the same credentials copied over. See Networking changes for why, and for the `external-apollo.${SECRET_DOMAIN}` alias that goes with it.
+- **Multus** is foundational rather than app-level, because Home Assistant's `iot` macvlan attachment depends on it — but see "Per-app config review" for the hardware prerequisite that gates Home Assistant specifically.
+- Copy `templates/volsync` into the new tree (`kubernetes/apollo/templates/volsync`), since the per-app rebuild step depends on it being present at the same relative path apps already reference (`../../../../templates/volsync`).
 
 CloudNativePG does *not* migrate as a shared unit: per `plans/11-cnpg-database-split.md`, the single `cnpg-cluster` (currently backing teslamate, paperless, and authentik) splits into per-app clusters (`teslamate-pg`, `paperless-pg`, `authentik-pg`) *during* this migration rather than before or after it — see "CNPG-backed apps," below. Only the operator itself is foundational; no shared Cluster CR is created on the new side at all.
 
@@ -111,106 +184,162 @@ A fresh cluster bootstrap is the point to reconsider each platform-layer choice 
 
 | Component | Status |
 |---|---|
-| Ingress (ingress-nginx vs. Envoy Gateway) | **Decided — Envoy Gateway.** See TODO above for what's still prep work vs. already settled |
+| Ingress (ingress-nginx vs. Envoy Gateway) | **Decided — Envoy Gateway.** See callout above for what's still prep work vs. already settled |
 | CNPG (shared vs. per-app clusters) | Already decided — splitting during migration |
 | kube-vip | Already decided — replaced by Talos-native VIP |
 | Ansible/SSH node management | Already decided — fully retired in Wave 2 |
-| CoreDNS | **Decided — keep Talos-managed, for now.** No serious alternative DNS provider exists in practice; CoreDNS is the Kubernetes project's own graduated-CNCF default across every distribution, so the earlier framing overstated the decision as bigger than it is. Correction to an earlier claim here: Talos *does* auto-deploy a default CoreDNS during bootstrap (same as it auto-deploys Flannel and kube-proxy) unless explicitly disabled via `cluster.coreDNS.disabled: true` — it isn't missing DNS entirely. Unlike Cilium (which replaces Flannel because a real CNI is needed), there's no equivalent forcing reason to take over CoreDNS from Talos right now — leave `cluster.coreDNS.disabled` unset and let Talos manage it. Revisit later if custom CoreDNS config is ever actually needed (`plans/05b-coredns-helm.md`'s original condition still applies) |
+| CoreDNS | **Decided — keep Talos-managed, for now.** No serious alternative DNS provider exists in practice; CoreDNS is the Kubernetes project's own graduated-CNCF default across every distribution. Talos *does* auto-deploy a default CoreDNS during bootstrap (same as it auto-deploys Flannel and kube-proxy) unless explicitly disabled via `cluster.coreDNS.disabled: true` — it isn't missing DNS entirely. Unlike Cilium (which replaces Flannel because a real CNI is needed), there's no equivalent forcing reason to take over CoreDNS from Talos right now — leave `cluster.coreDNS.disabled` unset. Revisit if custom CoreDNS config is ever actually needed (`plans/05b-coredns-helm.md`'s original condition still applies) |
 | **Spegel** (P2P image distribution) | **Decided — adopt.** Not yet in the repo (`plans/05a-spegel.md`), but Wave 1 means 4-6 nodes pulling every image fresh during platform/app bring-up — exactly the load Spegel is for |
+| **snapshot-controller** | Already in the repo, but **easy to miss as a VolSync prerequisite** — carry forward, and stand it up (with `longhorn-snapclass`) before the first VolSync-backed app |
+| **Tailscale operator** | Carry forward, but **needs a distinct per-cluster hostname and its own OAuth credentials** — two operators in one tailnet otherwise collide on device names |
+| **cloudflared** | Carry forward the component, but **the new cluster needs its own tunnel**, not the old tunnel's credentials — see Networking changes |
 | Longhorn backup target | Already flagged — no cluster-level S3 target configured (Pre-migration backup verification); worth deciding whether to add one as defense-in-depth while touching Longhorn's config anyway |
 | Longhorn `dedicated=storage` taint pattern | Already an Open Question — doesn't map cleanly to six similar NUC11s |
 | OpenEBS | **Resolved — cruft, not a real prior decision.** The `.private/bootstrap-121456/templates/kubernetes/apps/openebs-system` scaffold reference is leftover template noise, not something ever deliberately adopted here; no action needed beyond not carrying it forward |
 | **system-upgrade-controller** | **Decided — remove entirely in Wave 2, not just its k3s `Plan`.** It has exactly one `Plan` in this repo (`system-upgrade/k3s`). Talos OS upgrades go through `talosctl upgrade` (wrapped by `topf upgrade`) — an atomic A/B partition swap with automatic rollback on boot failure — and Kubernetes version upgrades go through `talosctl upgrade-k8s` directly (`topf` deliberately doesn't wrap this: *"topf intentionally does not manage Kubernetes upgrades"*). This isn't just a different mechanism for the same job — `system-upgrade-controller`'s design (a privileged pod that chroots into the node's host filesystem and runs an upgrade script) is structurally incompatible with Talos's immutable, API-only model regardless; there's no writable host filesystem or shell to chroot into |
 | Dragonfly | **Resolved — keep.** Needed by an app today and expected to be needed going forward |
 | **Secrets management (External Secrets Operator + 1Password)** | **Decided — adopt, for new use cases going forward, not a rip-and-replace of existing SOPS secrets.** Resolves `plans/11-cnpg-database-split.md`'s own open TODO ("Maybe it's finally time for 1Password?") — cross-namespace secret access (e.g. Grafana reading `teslamate-pg`'s credentials from another namespace) becomes an `ExternalSecret` in each namespace pointing at the same 1Password item, instead of a copy/replication workaround. Doesn't remove the `age.key` backup requirement from Pre-migration backup verification — Talos/cluster-bootstrap secrets (`topf.yaml`'s `secretsPath`, `cluster-secrets.sops.yaml`) still need SOPS+age at minimum, including to seed ESO's own 1Password Connect credential; ESO reduces `age.key`'s blast radius for future app secrets, it doesn't eliminate the need for it |
-| **Observability (metrics + alerting)** | **Decided — adopt.** Several components already emit `ServiceMonitor`/`PrometheusRule` resources assuming a compatible backend (Cilium, cert-manager, Authentik, echo-server, and VolSync's own `prometheusrule.yaml`) but none is deployed — that wiring is currently dead, and Grafana's Prometheus datasource sits commented out. Stack choice (kube-prometheus-stack vs. the lighter VictoriaMetrics k8s stack) still open |
-| VolSync/restic/R2, cloudflared/external-dns/cert-manager, Authentik, Multus, Cilium | No signal to reconsider — carrying forward as-is |
+| **Observability (metrics + alerting)** | **Decided — adopt.** Several components already emit `ServiceMonitor`/`PrometheusRule` resources assuming a compatible backend (Cilium, cert-manager, Authentik, echo-server, external-dns, and VolSync's own `prometheusrule.yaml`) but none is deployed — that wiring is currently dead, and Grafana's Prometheus datasource sits commented out. Stack choice (kube-prometheus-stack vs. the lighter VictoriaMetrics k8s stack) still open |
+| VolSync/restic/R2, external-dns/cert-manager, Authentik, Multus, Cilium, pihole/k8s-gateway, reloader, metrics-server | No signal to reconsider — carrying forward as-is |
 
-## Per-app migration: disable → back up → move
+## Per-app migration: disable → back up → rebuild
 
-**VolSync-backed apps** (Home Assistant, Mealie, Node-RED, and Paperless's document library) follow the same three-step cutover, executed as a single change. The old cluster's tree is `kubernetes/main` for the bulk of these moves and `kubernetes/apollo` for any that happen after the deferred rename (see "Safe rename of the live Flux root," above) — same steps either way, just the source path:
+The unit of work is a **rebuild on the new cluster plus a disable on the old one**, not a `git mv`. The app's directory under `kubernetes/main` is never deleted during the migration — it is only disabled, so it can be re-enabled by reverting one commit, with its Longhorn volume still intact.
 
-1. **Disable** — suspend the app (scale to zero / suspend its Flux `Kustomization`) on the old cluster so it stops writing.
-2. **Back up** — trigger one final `ReplicationSource` sync so R2 holds the exact post-disable state.
-3. **Move** — `git mv` the app's directory from the old cluster's `apps/...` to `kubernetes/boreas/apps/...` in the same commit. While moving, swap the app's bespoke `pvc.yaml` for the shared `templates/volsync` component (`claim.yaml` + `r2.yaml`): its `claim.yaml` creates the PVC with `dataSourceRef: kind: ReplicationDestination, name: ${APP}-bootstrap`, so VolSync's CSI populator auto-hydrates the new PVC from the restic repository the moment it's created — no separate manual restore step. Add the one-time `${APP}-bootstrap` `ReplicationDestination`, reusing the app's existing (already-encrypted) R2 credentials. Post-move, the app is left on the shared template's `r2.yaml` for ongoing backups instead of its old one-off copy.
+### What "disable" means, precisely
 
-**CNPG-backed apps** (teslamate, authentik) follow the same disable-first shape, but "back up" and "move" happen together via CNPG's own database-import feature instead of VolSync. CNPG's `bootstrap.initdb.import` can technically run against a *live* source database — the app doesn't strictly have to be disabled first for the import itself to succeed — but disabling first is done anyway, deliberately, so the import captures a database no longer being written to rather than one mid-transaction. This isn't a step to relax later to shave time off the migration window; it's the same accepted-downtime-over-data-risk trade the whole migration is built on (see Functionality, above).
+Disable is a **commit merged to the old cluster's tree** that does three things at once, plus a manual final backup afterward. Suspending a Flux `Kustomization` is *not* sufficient on its own: a suspended Kustomization stops reconciling, but every object it already applied — Ingresses included — stays in the cluster, which means the app keeps holding its DNS and tailnet names.
 
-1. **Disable** — suspend the app on the old cluster.
-2. **Back up + move, combined** — create the app's dedicated cluster (`teslamate-pg`, `authentik-pg`) directly on `kubernetes/boreas`, using CNPG's `bootstrap.initdb.import` (microservice `pg_dump`/restore) with `externalCluster.connectionParameters.host` pointed at the old cluster's `postgres-lb` Service (`postgres.${SECRET_DOMAIN}`) rather than an in-cluster DNS name — reachable because the old cluster stays live and routable across the dedicated VLAN for the whole migration window, regardless of what its tree is currently named. This produces a split, already-on-Talos cluster in one step, rather than splitting the old cluster first and migrating the result afterward. Then `git mv` the app's manifests, repointing its database host from `cnpg-cluster-rw...` to `${app}-pg-rw.database.svc.cluster.local`.
-3. Grafana's TeslaMate datasource (`kubernetes/boreas/apps/monitoring/grafana/app/helmrelease.yaml`) needs its `url` updated from `cnpg-cluster-r...` to `teslamate-pg-r...` at the same time — it's a consumer of teslamate's database, not a database of its own.
+1. **Scale the workload to zero** (`replicas: 0` in the HelmRelease values, or suspend the HelmRelease and scale down) so nothing is writing to the PVC or the database.
+2. **Remove the app's `className: external` Ingress**, if it has one. This is what makes the old cluster's external-dns (`policy: sync`) delete both the app's CNAME and its TXT ownership record — releasing the name so the new cluster can claim it. Without this step the record stays owned by the old cluster and the new cluster silently refuses to touch it.
+3. **Remove the app's `className: tailscale` Ingress**, if it has one, so the tailnet device is deregistered and the hostname is free for the new cluster's operator to claim.
 
-Logical import is the mechanism here rather than Barman/WAL recovery from R2, and the reason is structural, not a preference: Barman recovery is *physical* and restores a whole instance, so it cannot select one database out of the shared `cnpg-cluster` — it would land all three databases in each new cluster, to be dropped twice over. The split is a logical reorganization, so it needs a logical mechanism. A useful side effect is that `pg_dump`/restore crosses PostgreSQL major versions, making this the moment to get off the current `16.2` image (a February 2024 patch release) — though unlike the Kubernetes jump, this one isn't automatically free: each app supports its own range of PostgreSQL versions and may need bumping first, which is a per-app pre-flight check run before that app's cutover rather than a decision made once upfront. Because each app now gets its own cluster, they don't all have to land on the same major, and staying on 16.x for a lagging app is always a valid answer. The cost is the cross-VLAN dependency on the old cluster noted under HCC VLAN isolation. See `plans/11-cnpg-database-split.md` for the full comparison.
+What deliberately stays: the app's `pvc.yaml` and its data, its `ReplicationSource`, its secrets, and its directory in `kubernetes/main`. The internal (`className: internal`) Ingress can stay too — internal resolution is handled separately, below.
 
-**Paperless is a hybrid**: it needs both flows — the VolSync steps above for its document library PVC, and the CNPG steps for `paperless-pg` — ideally executed together so the app moves once, fully working, rather than twice.
+Then, with the app confirmed stopped:
 
-`plans/11-cnpg-database-split.md`'s two open TODOs (Cluster namespace placement, and cross-namespace secret sharing — e.g. Grafana reading the teslamate database's credentials from another namespace) need resolving before this step, regardless of the source-host change above.
+4. **Back up** — trigger one final `ReplicationSource` sync so R2 holds the exact post-disable state, and confirm the snapshot landed before going any further.
 
-Because an app's manifests only ever exist in one cluster's tree at a time, its Ingress never exists on both clusters simultaneously — for an app that *has already moved*, external-dns naturally converges its DNS record to whichever cluster currently owns it (verified: `external-dns` sources from `crd`+`ingress` with `--ingress-class=external`, so each app gets its own record from its own Ingress rather than a shared wildcard). That covers the steady state, but not the transition: see Networking changes, below, for a real risk this alone misses — the new cluster's external-dns can start deleting *not-yet-moved* apps' records the moment it's bootstrapped, long before any app has actually moved. Internally-routed apps resolved via pihole/k8s-gateway follow the same per-app logic, but pihole/k8s-gateway are themselves standing infrastructure present on both clusters for the whole migration.
+### Rebuild (VolSync-backed apps)
 
-A `.new.${SECRET_DOMAIN}` staging hostname — restore and verify an app on the new cluster via its own temporary URL before disabling the old copy — was considered and declined: its only benefit is minimizing downtime, which isn't a goal here (see Functionality, above), and its cost (a second wildcard `Certificate`, temporary Ingresses, per-app cleanup) isn't worth paying for a benefit not being pursued. Verification instead happens with the app already disabled and down, checked internally (port-forward, logs, health checks) before the `git mv` ever exposes it at its real hostname.
+Home Assistant, Mealie, Node-RED, and Paperless's document library. Author the app fresh under `kubernetes/apollo/apps/...`, copying from the old tree and changing:
+
+- Swap the app's bespoke `pvc.yaml` for the shared `templates/volsync` component (`claim.yaml` + `r2.yaml`). Its `claim.yaml` creates the PVC with `dataSourceRef: kind: ReplicationDestination, name: ${APP}-bootstrap`, so VolSync's CSI populator auto-hydrates the new PVC from the restic repository the moment it's created — no separate manual restore step. Add the one-time `${APP}-bootstrap` `ReplicationDestination`, reusing the app's existing (already-encrypted) R2 credentials. Post-cutover the app is left on the shared template's `r2.yaml` for ongoing backups instead of its old one-off copy.
+- Replace `Ingress` with `HTTPRoute` against the appropriate Gateway.
+- For externally-exposed apps, point the external-dns target at the new cluster's tunnel alias (`external-apollo.${SECRET_DOMAIN}`) rather than `external.${SECRET_DOMAIN}` — see Networking changes.
+- Apply anything from "Per-app config review," below.
+
+Verify with the app running but not yet named: port-forward, check logs, confirm the hydrated data is actually there. Only then attach the routing that publishes its real hostname. A `.new.${SECRET_DOMAIN}` staging hostname was considered and declined: its only benefit is minimizing downtime, which isn't a goal here, and its cost (a second wildcard `Certificate`, temporary routes, per-app cleanup) isn't worth paying for a benefit not being pursued.
+
+### Rebuild (CNPG-backed apps)
+
+teslamate, authentik, and paperless's database. Same disable-first shape, but "back up" and "rebuild" happen together via CNPG's own database-import feature instead of VolSync. CNPG's `bootstrap.initdb.import` can technically run against a *live* source database — the app doesn't strictly have to be disabled first for the import itself to succeed — but disabling first is done anyway, deliberately, so the import captures a database no longer being written to rather than one mid-transaction. This isn't a step to relax later to shave time off the migration window; it's the same accepted-downtime-over-data-risk trade the whole migration is built on.
+
+Create the app's dedicated cluster (`teslamate-pg`, `authentik-pg`, `paperless-pg`) directly on `kubernetes/apollo`, using `bootstrap.initdb.import` (microservice `pg_dump`/restore) with `externalCluster.connectionParameters.host` pointed at the old cluster's `postgres-lb` Service. **Use the raw IP `192.168.6.21`, not `postgres.${SECRET_DOMAIN}`** — that hostname is published by the old cluster's k8s-gateway for *internal* resolution only (external-dns doesn't watch Services at all, see Networking changes), so it isn't reliably resolvable from the new cluster during exactly the window when internal DNS is in flux. This produces a split, already-on-Talos cluster in one step, rather than splitting the old cluster first and migrating the result afterward. Then point the rebuilt app's database host at `${app}-pg-rw.database.svc.cluster.local`.
+
+Grafana's TeslaMate datasource (`kubernetes/apollo/apps/monitoring/grafana/app/helmrelease.yaml`) needs its `url` updated from `cnpg-cluster-r...` to `teslamate-pg-r...` at the same time — it's a consumer of teslamate's database, not a database of its own.
+
+Logical import is the mechanism here rather than Barman/WAL recovery from R2, and the reason is structural, not a preference: Barman recovery is *physical* and restores a whole instance, so it cannot select one database out of the shared `cnpg-cluster` — it would land all three databases in each new cluster, to be dropped twice over. The split is a logical reorganization, so it needs a logical mechanism. A useful side effect is that `pg_dump`/restore crosses PostgreSQL major versions, making this the moment to get off the current `16.2` image (a February 2024 patch release) — though unlike the Kubernetes jump, this one isn't automatically free: each app supports its own range of PostgreSQL versions and may need bumping first, which is a per-app pre-flight check run before that app's cutover rather than a decision made once upfront. Because each app now gets its own cluster, they don't all have to land on the same major, and staying on 16.x for a lagging app is always a valid answer. See `plans/11-cnpg-database-split.md` for the full comparison.
+
+**Paperless is a hybrid**: it needs both flows — the VolSync steps for its document library PVC, and the CNPG steps for `paperless-pg` — executed together so the app is rebuilt once, fully working, rather than twice.
+
+`plans/11-cnpg-database-split.md`'s remaining open TODO (Cluster namespace placement) needs resolving before the first CNPG-backed app is rebuilt.
+
+### App ordering
+
+Not arbitrary — `dependsOn` edges in the existing `ks.yaml` files force part of it:
+
+1. **authentik first** (with `authentik-pg`). Mealie and Paperless both declare `dependsOn: authentik`, and it's the SSO front door for everything else. Migrating it first means every later app is authored against its final identity provider rather than being re-pointed afterward.
+2. **Mealie or Node-RED second** — small, VolSync-only, externally-exposed (Mealie) and internal-only (Node-RED) respectively. Between them they exercise every mechanism in this doc (VolSync hydration, DNS release/reclaim, tailnet reclaim, internal resolution override) on an app where a mistake is cheap.
+3. **Paperless** — the hybrid, once both mechanisms are proven separately.
+4. **teslamate + Grafana** together, since Grafana's datasource follows teslamate's database.
+5. **Home Assistant last**, or after Wave 2 — it's gated on IoT VLAN hardware that doesn't exist yet (see Per-app config review).
 
 ```mermaid
 sequenceDiagram
-    participant Old as Old cluster (kubernetes/main, later apollo)
-    participant New as New cluster (kubernetes/boreas)
+    participant Old as Old cluster (kubernetes/main)
+    participant New as New cluster (kubernetes/apollo)
+    participant DNS as Cloudflare / pihole
     participant R2 as Cloudflare R2
 
-    Old->>Old: suspend app / scale to 0
+    Note over Old: commit: replicas 0,<br/>remove external + tailscale Ingress
+    Old->>DNS: external-dns (sync) deletes CNAME + TXT — name released
     Old->>R2: final ReplicationSource sync
-    Note over Old,New: git mv app dir, old -> boreas,<br/>swap pvc.yaml for templates/volsync claim
-    New->>R2: PVC auto-hydrates via ${APP}-bootstrap ReplicationDestination
-    New->>New: app reconciles healthy
-    Note over Old: app dir pruned on next reconcile (no longer in path)
+    Note over New: author app fresh in kubernetes/apollo,<br/>volsync claim + ${APP}-bootstrap RD
+    R2-->>New: PVC auto-hydrates via CSI populator
+    New->>New: verify via port-forward / logs (not yet named)
+    New->>DNS: external-dns (apollo) creates CNAME -> external-apollo
+    Note over Old: app dir + PVC RETAINED, disabled,<br/>re-enableable until Wave 2 decommission
 ```
+
+### Internal DNS during migration
+
+This is the piece that per-app DNS release doesn't cover, and it affects most apps: **the majority of apps here are internal-only** (`className: internal` — Paperless, Node-RED, Home Assistant, TeslaMate, kube-ops-view, Capacitor). Only Mealie, echo-server, and Authentik's webfinger use `className: external`.
+
+Internal names don't resolve through external-dns at all. Pihole forwards the whole zone to a single k8s-gateway instance (`server=/${SECRET_DOMAIN}/${LB_K8S_GATEWAY}`), and that instance only knows about its own cluster's Ingresses and LoadBalancer Services. So the moment an internal app is rebuilt on the new cluster, clients still resolve its name to the old cluster's internal ingress IP, where the app no longer runs — and repointing the whole zone at the new k8s-gateway would break every app that hasn't moved yet.
+
+The fix is a per-app override on the old cluster's pihole, added in the same change as that app's cutover. dnsmasq resolves the most specific match first, so a per-host entry wins over the zone-wide forward:
+
+```
+server=/paperless.${SECRET_DOMAIN}/${LB_K8S_GATEWAY_APOLLO}
+```
+
+The override list grows by one per internal app cutover and is deleted wholesale at the end, when clients are repointed at the new cluster's pihole and the old zone-wide forward goes away with the old cluster. Two consequences worth stating: the old cluster's pihole must be able to reach the new cluster's k8s-gateway LB IP (a firewall rule on the HCC VLAN, port 53 — see HCC VLAN isolation), and pihole's config must be GitOps-declared for these overrides to be reviewable rather than UI drift, which is already a pre-migration checklist item.
 
 ## Per-app config review (not a blind move)
 
-`git mv` alone is not sufficient — a few apps bind directly to IPs or node identities that only make sense on the old cluster's topology. Confirmed by inspection, not every app needs this; most (Mealie, Node-RED, teslamate) are clean moves. Two need real editing:
+Copying manifests forward is not sufficient — a few apps bind directly to IPs or node identities that only make sense on the old cluster's topology. Confirmed by inspection, not every app needs this; most (Mealie, Node-RED, teslamate) are clean copies. What needs real editing:
 
 | App | What's bound | Change needed |
 |---|---|---|
 | Home Assistant | Static multus IP `192.168.4.100/24` for the `iot` macvlan network (`k8s.v1.cni.cncf.io/networks` annotation) | Reassign to a free address in whatever IoT VLAN/subnet the new node ends up on |
-| Home Assistant | `nodeSelector: kubernetes.io/hostname: hcc3` | Repoint at whichever of `hcc5`–`hcc8` (or `hcc3`/`hcc4` post-Wave-2) takes over this role; reserve a free USB port on that node — the pin's comment mentions USB device access, currently unused but earmarked for a future Thread border-router antenna, not an active dependency to physically relocate today |
+| Home Assistant | `nodeSelector: kubernetes.io/hostname: hcc3` | Repoint at whichever node ends up carrying the IoT NIC; reserve a free USB port on it — the pin's comment mentions USB device access, currently unused but earmarked for a future Thread border-router antenna, not an active dependency to physically relocate today |
 | Home Assistant | `HASS_HTTP_TRUSTED_PROXY_1/2` hardcoded as raw CIDRs (`10.69.0.0/16`, `10.96.0.0/12`) instead of `cluster-settings` vars | Parameterize while touching the file, so they track the new cluster's actual pod/service CIDR instead of silently going stale |
 | Paperless (sftp) | Dedicated `LoadBalancer` Service with hardcoded `io.cilium/lb-ipam-ips: 192.168.6.22` | Reassign to an address in the new cluster's LB pool |
+| Mealie, echo-server, Authentik (webfinger) | `external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}` — the old cluster's tunnel alias | Repoint at `external-apollo.${SECRET_DOMAIN}` (see Networking changes) |
+| All apps | `className: internal` / `external` / `tailscale` Ingresses | Rewrite as `HTTPRoute` against the appropriate Gateway (Tailscale ingress handling to confirm during plan 04 prep — the Tailscale operator is Ingress-based today) |
 
-(CloudNativePG's `postgres-lb` Service, `io.cilium/lb-ipam-ips: 192.168.6.21`, isn't decommissioned early — it's the cross-cluster import source the CNPG split reads from during migration, per "CNPG-backed apps" below. Once every app's import is done, decide whether per-app equivalents are worth keeping for external Postgres access or whether it's retired entirely along with `kubernetes/apollo`.)
+**Home Assistant is blocked on hardware that doesn't exist yet.** The `iot` macvlan's parent interface (`enp1s0`) is physically cabled on hcc3/hcc4, which don't join the new cluster until Wave 2, and no Wave-1 node has IoT VLAN reachability today. There is no config-only workaround: this is a cabling and switch-port question (a trunked port carrying the IoT VLAN to whichever node takes the pin), not a manifest edit. Either provision that as explicit Wave-1 prep, or sequence Home Assistant's rebuild after Wave 2. Decide which before Wave 1 starts rather than discovering it at Home Assistant's cutover.
+
+(CloudNativePG's `postgres-lb` Service, `io.cilium/lb-ipam-ips: 192.168.6.21`, isn't decommissioned early — it's the cross-cluster import source the CNPG split reads from during migration. Once every app's import is done, decide whether per-app equivalents are worth keeping for external Postgres access or whether it's retired entirely along with the old cluster.)
 
 ## Wave 1 — stand up the new cluster, migrate apps, retire the Odroids and tablet
 
-Three distinct phases, deliberately sequenced by how atomically each one can be done: cluster infrastructure comes up as a single unit (a Kubernetes API doesn't exist in a partial state), platform services are stood up and verified individually before the next one starts, and apps migrate one at a time exactly as already detailed above.
+Three distinct phases, deliberately sequenced by how atomically each one can be done: cluster infrastructure comes up as a single unit (a Kubernetes API doesn't exist in a partial state), platform services are stood up and verified individually before the next one starts, and apps are rebuilt one at a time exactly as already detailed above.
 
 **Phase A — cluster infrastructure (all at once, by definition):**
 
-1. Flip `bootstrap_distribution` to `talos` in `config.sample.yaml`, generate a Talos factory schematic with the system extensions Longhorn needs (`iscsi-tools`, `util-linux-tools`), and lay out the new `kubernetes/boreas/` tree (`bootstrap/`, `flux/`, `apps/`, `templates/`) on its own VLAN. Use the scaffold at `.private/bootstrap-121456/templates/kubernetes/bootstrap/talos/` as a structural reference only, not a direct promotion — hand-author `topf.yaml` plus its `all/`/`control-plane/`/`worker/`/`node/${hostname}/` patch directories against current Talos/Kubernetes versions (see Kubernetes version, above), cross-checking upstream `cluster-template`'s current machine-config patches for anything worth carrying over. The existing `kubernetes/main` tree is untouched at this point — see "Safe rename of the live Flux root," above, for why that's deliberate.
+1. Flip `bootstrap_distribution` to `talos` in `config.sample.yaml`, generate a Talos factory schematic with the system extensions Longhorn needs (`iscsi-tools`, `util-linux-tools`), and lay out the new `kubernetes/apollo/` tree (`bootstrap/`, `flux/`, `apps/`, `templates/`) on its own VLAN. Use the scaffold at `.private/bootstrap-121456/templates/kubernetes/bootstrap/talos/` as a structural reference only, not a direct promotion — hand-author `topf.yaml` plus its `all/`/`control-plane/`/`worker/`/`node/${hostname}/` patch directories against current Talos/Kubernetes versions (see Kubernetes version, above). Add `kubernetes/apollo` to the CI workflows at this point, not later.
 2. Boot the four new NUC11s — continuing the existing `hcc` naming rather than a generic scheme, so they become `hcc5`–`hcc8` — into Talos maintenance mode and apply machine configs (`hcc5`–`hcc7` as control-plane, `hcc8` as worker) using `.taskfiles/Talos/Taskfile.yaml` (adapted to shell out to `topf apply`/`topf upgrade` in place of talhelper), bootstrap etcd, fetch kubeconfig.
-3. Install what a working Kubernetes API depends on and nothing more: Cilium as CNI (`cluster.network.cni.name: none` in `topf.yaml`, replacing Talos's built-in Flannel), kubelet-csr-approver if still needed (TODO — see Kubernetes version, above), and Flux itself (`flux-operator`/`flux-instance`). CoreDNS is left as Talos's own default rather than taken over (see "Platform component inventory," above) — nothing to do here. This is the boundary of "infra" — everything after this point is something Flux reconciles, not something bootstrapped by hand.
+3. Install what a working Kubernetes API depends on and nothing more: Cilium as CNI (`cluster.network.cni.name: none` in `topf.yaml`, replacing Talos's built-in Flannel), kubelet-csr-approver if still needed (TODO — see Kubernetes version, above), and Flux itself (`flux-operator`/`flux-instance`). CoreDNS is left as Talos's own default rather than taken over — nothing to do here. This is the boundary of "infra" — everything after this point is something Flux reconciles, not something bootstrapped by hand.
 
 **Phase B — platform services (one by one, each verified before the next):**
 
-4. Bring up each shared/foundational service as its own Flux `Kustomization` with `wait: true`, confirming healthy before moving to the next, rather than applying them all at once: Spegel (early — it speeds up every image pull after it), the metrics stack (early — so every subsequent service's `ServiceMonitor` gets picked up as it's deployed, rather than backfilled later), External Secrets Operator + 1Password Connect, Longhorn, the CloudNativePG operator, VolSync, cert-manager, Envoy Gateway, external-dns (configured for Gateway API sources, with `policy: upsert-only`, see Networking changes), Authentik's dependencies. See "Platform component inventory," above, for which of these are being reconsidered rather than carried forward as-is.
+4. Bring up each shared/foundational service as its own Flux `Kustomization` with `wait: true`, confirming healthy before moving to the next, in the order given by the dependency graph in "Foundational bootstrap": Spegel (early — it speeds up every image pull after it), the metrics stack (early — so every subsequent service's `ServiceMonitor` gets picked up as it's deployed, rather than backfilled later), External Secrets Operator + 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, the CloudNativePG operator, Multus, Envoy Gateway, external-dns (Gateway API sources, `txtOwnerId: apollo`, `policy: upsert-only`), cloudflared (new tunnel), pihole/k8s-gateway, the Tailscale operator (distinct hostname).
 
 **Phase C — app migration (one by one, as already detailed above):**
 
-5. Migrate each stateful app in turn via disable → back up → move — VolSync-backed apps via `ReplicationDestination` restore, CNPG-backed apps (teslamate, authentik, and paperless's database) via cross-cluster database import against the old cluster's `postgres-lb`, per "CNPG-backed apps" above — verifying and cutting over one at a time.
-6. Once most apps have moved over, rename the old cluster's now largely-empty tree using the two-commit safe sequence above: `kubernetes/main` → `kubernetes/apollo`, then update `Taskfile.yaml`'s `KUBERNETES_DIR`. Any apps still mid-migration at this point simply move from `kubernetes/apollo/apps/...` instead of `kubernetes/main/apps/...` from here on — same steps, new source path.
-7. Once every app is verified and Longhorn on the old cluster reports no remaining replicas on hcc/hcc2, cordon and drain hcc, hcc2, and hcc-tablet1, then power them off.
+5. Rebuild each stateful app in turn via disable → back up → rebuild, in the order given under "App ordering" — VolSync-backed apps hydrating via `${APP}-bootstrap` `ReplicationDestination`, CNPG-backed apps via cross-cluster database import against the old cluster's `postgres-lb` at `192.168.6.21` — verifying and cutting over one at a time, adding each internal app's pihole override as it goes.
+6. Once every app is verified and Longhorn on the old cluster reports no remaining replicas on hcc/hcc2, cordon and drain hcc, hcc2, and hcc-tablet1, then power them off. The old cluster keeps running on hcc3/hcc4 with every app disabled-but-intact until Wave 2.
 
 ## Wave 2 — absorb hcc3 and hcc4
 
-1. Cordon and drain hcc3/hcc4 from the now-empty `kubernetes/apollo` cluster.
-2. Wipe and reinstall them with Talos, join as workers to the `kubernetes/boreas` cluster — keeping their existing names, so the final six nodes are `hcc3`, `hcc4`, `hcc5`, `hcc6`, `hcc7`, `hcc8` (control-plane: `hcc5`–`hcc7`; workers: `hcc3`, `hcc4`, `hcc8`).
-3. Re-verify the `iot` multus `NetworkAttachmentDefinition` (currently macvlan on `enp1s0`, physically cabled to hcc3/hcc4) against the new OS — interface naming and driver availability can differ under Talos, and this is a physical-cabling dependency, not just config. It also needs an actual VLAN tag added now (see HCC VLAN isolation, above) — under the old flat networking the cluster and IoT devices shared a broadcast domain, so no tagging was needed; on the new cluster they don't.
-4. Delete `kubernetes/apollo` entirely, and remove the now-dead ansible/k3s tooling: `ansible/inventory/hosts.yaml`, the `system-upgrade/k3s` Flux Kustomization, and any taskfiles that only existed to drive ansible+k3s.
+1. Confirm every app is healthy on the new cluster and no rollback is pending — this is the point of no return for the old cluster's data.
+2. Cordon and drain hcc3/hcc4 from the now-idle old cluster.
+3. Wipe and reinstall them with Talos, join as workers to the `kubernetes/apollo` cluster — keeping their existing names, so the final six nodes are `hcc3`, `hcc4`, `hcc5`, `hcc6`, `hcc7`, `hcc8` (control-plane: `hcc5`–`hcc7`; workers: `hcc3`, `hcc4`, `hcc8`).
+4. Re-verify the `iot` multus `NetworkAttachmentDefinition` (currently macvlan on `enp1s0`, physically cabled to hcc3/hcc4) against the new OS — interface naming and driver availability can differ under Talos, and this is a physical-cabling dependency, not just config. It also needs an actual VLAN tag added now (see HCC VLAN isolation) — under the old flat networking the cluster and IoT devices shared a broadcast domain, so no tagging was needed; on the new cluster they don't. If Home Assistant was deferred, this is where it gets rebuilt.
+5. Repoint clients at the new cluster's pihole, and delete the accumulated per-app dnsmasq overrides along with the old cluster.
+6. Revert the new cluster's external-dns to `policy: sync` — normal pruning is safe again once no other cluster owns records in the zone.
+7. Delete `kubernetes/main` entirely, and remove the now-dead ansible/k3s tooling: `ansible/inventory/hosts.yaml`, the `system-upgrade/k3s` Flux Kustomization, `system-upgrade-controller` itself, and any taskfiles that only existed to drive ansible+k3s.
+8. Wipe the old disks (see Security).
 
 ## Data migration by class
 
 | Data | Current store | Migration method |
 |---|---|---|
-| Home Assistant config, Mealie data, Node-RED flows, Paperless library | Longhorn PVC, already VolSync→R2 backed | Disable → final sync → move, hydrated via `templates/volsync`'s `${APP}-bootstrap` `ReplicationDestination` |
-| Postgres: teslamate, authentik, paperless | Shared `cnpg-cluster`, Barman Cloud → R2 | Split during migration: each app's database imported directly from the old cluster's live `postgres-lb` into its own new `${app}-pg` cluster on `kubernetes/boreas`, via CNPG's database-import feature — see `plans/11-cnpg-database-split.md` and "CNPG-backed apps," above |
-| Grafana | `persistence.enabled: false` (verified) — dashboards provisioned declaratively from ConfigMaps/URLs in `helmrelease.yaml` | Recreated fresh by Flux reconciliation; TeslaMate datasource URL updated alongside teslamate's move |
+| Home Assistant config, Mealie data, Node-RED flows, Paperless library | Longhorn PVC, already VolSync→R2 backed | Disable → final sync → rebuild on new cluster, hydrated via `templates/volsync`'s `${APP}-bootstrap` `ReplicationDestination`. Source PVC retained on the old cluster until Wave 2 |
+| Postgres: teslamate, authentik, paperless | Shared `cnpg-cluster`, Barman Cloud → R2 | Split during migration: each app's database imported directly from the old cluster's live `postgres-lb` (`192.168.6.21`) into its own new `${app}-pg` cluster — see `plans/11-cnpg-database-split.md`. Source cluster never modified by an import |
+| Grafana | `persistence.enabled: false` (verified) — dashboards provisioned declaratively from ConfigMaps/URLs in `helmrelease.yaml` | Recreated fresh by Flux reconciliation; TeslaMate datasource URL updated alongside teslamate's rebuild |
 | Authentik | No PVC (verified) — all state in the `authentik` database, now `authentik-pg` | Recreated fresh; data already covered by the CNPG split above |
 | Pihole, Dragonfly | No PVC, no VolSync/backup coverage of any kind | **Verify before migrating, don't assume**: confirm Pihole's adlists/custom DNS/whitelist are fully GitOps-declared (not UI-edited drift that only lives in the running pod) before treating it as stateless; confirm Dragonfly is intentionally cache-only and safe to lose |
 | Teslamate's `teslamate-backup-pvc` | 1Gi PVC holding a one-time historical SQL import artifact, not live data | Not migrated — live data is already in CNPG/Barman; recreated empty |
@@ -221,20 +350,48 @@ Three distinct phases, deliberately sequenced by how atomically each one can be 
 - **KubePrism** (no k3s equivalent) splits internal from external API-server traffic: kubelet and, on control-plane nodes, the static pods (`kube-scheduler`/`kube-controller-manager`) talk to a local per-node proxy (port 7445, confirmed against upstream's current values below) instead of riding on the same VIP `kubectl`/`talosctl` use from outside the cluster. On by default in current Talos — nothing to build, just don't let it get disabled while hand-authoring `topf.yaml`'s `all/` machine-config patches from the stale scaffold.
 - **Cilium depends on KubePrism directly, not just incidentally.** Pulled upstream `cluster-template`'s actual current Cilium `HelmRelease` to confirm: `k8sServiceHost: 127.0.0.1` / `k8sServicePort: 7445`, alongside `kubeProxyReplacement: true`. With kube-proxy fully replaced by Cilium's own eBPF datapath, there's no iptables/ipvs fallback for resolving `kubernetes.default.svc` — Cilium can't route to a Service IP using a datapath that isn't up yet, so it needs a static, always-reachable API-server address that doesn't depend on its own readiness, the VIP, or DNS. This is a harder requirement for Cilium than for plain kubelet traffic, not just the same convenience. Two more settings confirmed from that same file, worth carrying into this cluster's Cilium config: `cni.exclusive: false` (upstream's own comment: *"Required for pairing with Multus CNI"* — directly relevant given this cluster's IoT macvlan setup), and `gatewayAPI.enabled: false` (upstream deliberately leaves Cilium's own built-in Gateway API implementation off — worth keeping off here too, so it doesn't compete with the standalone Envoy Gateway install over the same CRDs/`GatewayClass`).
 - Cilium's containerd/CNI paths change from k3s's embedded layout to Talos's `/etc/cri/conf.d/hosts`, which also affects Spegel's path configuration (already tracked as a k3s-vs-Talos difference in `plans/05a-spegel.md`).
-- Standing shared infrastructure — the ingress controllers, pihole, k8s-gateway — runs concurrently on both clusters for the entire migration window (not just per-app cutover moments), which is exactly what the dedicated VLAN/CIDR is for. Internal DNS resolution (pihole/k8s-gateway) still needs one explicit "flip the resolver" step once all internally-routed apps have moved, since that's about which pihole instance clients are actually configured to query, not something GitOps alone resolves.
-- On the old cluster, `ingress-nginx-external`'s own Service carries `external-dns.alpha.kubernetes.io/hostname: "external.${SECRET_DOMAIN}"` — a hostname for the controller itself, not a per-app record. The new cluster's external Gateway (Envoy Gateway, decided above) needs the equivalent annotation on whichever resource carries it (the `Gateway` object, or a dedicated Service depending on how Envoy Gateway's LB IP is exposed — to work out during the plan 04 prep). Because this is foundational infrastructure present on both clusters for the whole migration (not something that gets `git mv`'d per-app), this one record would otherwise be contested by both clusters' external-dns instances for the entire migration, not just at a cutover moment. Fix: give the new cluster's external Gateway a distinct flat hostname during the migration — `external-new.${SECRET_DOMAIN}` — still one label deep, so it's covered by the existing `*.${SECRET_DOMAIN}` wildcard `Certificate` with no new cert infrastructure needed. Internal ingress has no equivalent annotation on the old cluster (internal routing resolves via pihole/k8s-gateway, not external-dns), so this is specific to the external side.
-- A sharper version of the same problem, not fixed by the point above: `external-dns` runs `policy: sync` with `txtOwnerId: default` on both clusters. `sync` deletes any record an instance owns (per its TXT registry marker) that no longer has a matching source in *that instance's own cluster*. The new cluster's external-dns is foundational — it starts running in Wave 1 Phase B, long before any individual app has moved — so the moment it reconciles, every not-yet-moved app's hostname looks orphaned to it (owned by `default`, no local Ingress) and `sync` would delete it: a cascading DNS outage across every still-live app, immediately, well before any real cutover. Fix: set the new cluster's external-dns to `policy: upsert-only` for the duration of the migration — it can still create/update records for apps that have moved, but structurally cannot delete anything, so it can't touch a not-yet-moved app's record no matter what its TXT marker claims. Revert to `policy: sync` once `kubernetes/apollo` is deleted at the end of Wave 2, when normal pruning becomes safe again. `kubernetes/apollo`'s own external-dns doesn't need to change — it correctly deleting a just-moved app's now-locally-orphaned record, moments before the new cluster (re-)creates it, is the expected brief flap at that app's own cutover, not a new risk.
+- Standing shared infrastructure — the ingress layer, pihole, k8s-gateway, cloudflared, the Tailscale operator — runs concurrently on both clusters for the entire migration window (not just per-app cutover moments), which is exactly what the dedicated VLAN/CIDR is for.
 - The `dedicated=storage` node taint that currently pins Longhorn's system pods to hcc/hcc2 no longer maps cleanly to six otherwise-identical NUC11-class nodes; whether it's still needed, and where Longhorn's `defaultDataPath: /storage01` disk lives on each new node, is a topology decision to make before Wave 1 bootstraps Longhorn (see Open Questions).
+
+### How external traffic actually reaches an app
+
+Worth stating explicitly, because the obvious-looking mechanism is not the real one and the migration plan depends on the difference:
+
+`external-dns` sources are `["crd", "ingress"]` — **Services are not watched at all**. So `ingress-nginx-external`'s Service annotation (`external-dns.alpha.kubernetes.io/hostname: external.${SECRET_DOMAIN}`) and `postgres-lb`'s (`postgres.${SECRET_DOMAIN}`) produce **no public DNS records**; they're effectively inert as far as external-dns is concerned, and resolve internally only because k8s-gateway serves the zone from LoadBalancer Services. The record that actually matters externally is created from the **`DNSEndpoint` CRD in cloudflared's app directory**: `external.${SECRET_DOMAIN}` → `${SECRET_CLOUDFLARE_TUNNEL_ID}.cfargotunnel.com`. Each app's own Ingress then contributes a proxied CNAME → `external.${SECRET_DOMAIN}`, and cloudflared routes `*.${SECRET_DOMAIN}` to the ingress controller with `originServerName: external.${SECRET_DOMAIN}` for origin TLS verification.
+
+Three things follow for the new cluster:
+
+- **It needs its own Cloudflare tunnel**, with its own tunnel ID and credentials. If `SECRET_CLOUDFLARE_TUNNEL_ID` is copied unchanged and both clusters run connectors for the same tunnel, Cloudflare load-balances requests across both — every app breaks intermittently, in a way that looks like a routing bug rather than a config one.
+- **It needs its own alias**, `external-apollo.${SECRET_DOMAIN}`, published by its own `DNSEndpoint` and used as its cloudflared `originServerName`. One label deep, so the existing `*.${SECRET_DOMAIN}` wildcard `Certificate` already covers it as an origin server name — no new cert infrastructure. Each app's route carries `external-dns.alpha.kubernetes.io/target: external-apollo.${SECRET_DOMAIN}` when it's rebuilt. Recommendation: **keep this name permanently** rather than reclaiming plain `external` after decommission. It's self-documenting, it matches the per-cluster naming convention (the next cluster gets `external-boreas`), and reclaiming `external` would mean re-touching every app's route for cosmetics. (See Open Questions if that trade is worth revisiting.)
+- **The Gateway needs no hostname annotation of its own.** The old cluster's Service annotation was never doing that job; the `DNSEndpoint` is.
+
+### Preventing the two clusters' external-dns instances from fighting
+
+Both clusters run external-dns against the same Cloudflare zone. Today's config is `policy: sync` with `txtOwnerId: default`. `sync` deletes any record an instance *owns* (per its TXT registry marker) that no longer has a matching source in that instance's own cluster.
+
+If the new cluster is bootstrapped with the same `txtOwnerId: default`, then the moment it reconciles — in Wave 1 Phase B, long before any app has moved — every record owned by `default` with no local source looks orphaned to it. The severe case isn't the per-app records (only three Ingresses use `className: external`, so the blast radius there is Mealie, echo-server, and Authentik's webfinger); it's the **`external.${SECRET_DOMAIN}` DNSEndpoint record**, because the CRD source isn't filtered by ingress class at all. Deleting that one record takes down *every* externally-reachable app at once, on both clusters.
+
+Two fixes, applied together:
+
+1. **Give the new cluster a distinct `txtOwnerId` (`apollo`).** This is the primary fix. Each instance then only ever considers its own records deletable, so neither can touch the other's — during the migration or at a cutover moment. It also makes the per-app handoff clean rather than a permanent flap: with a shared owner ID, the old cluster would re-delete each just-recreated record on every reconcile, forever, because it still owns it and still has no local source.
+2. **Set the new cluster's external-dns to `policy: upsert-only` for the duration.** Defense in depth: it structurally cannot delete anything regardless of what any TXT marker claims. Revert to `sync` in Wave 2 once the old cluster is gone.
+
+The old cluster's external-dns is left exactly as it is. Its deletion of an app's record at that app's disable step is not a hazard — it's the mechanism that releases the name so the new cluster can claim it.
+
+### Certificate issuance across two clusters
+
+Both clusters run cert-manager issuing the same `*.${SECRET_DOMAIN}` wildcard via DNS-01. Two notes, neither blocking: Let's Encrypt's duplicate-certificate limit (5 per week for an identical name set) is not a problem at two clusters' normal renewal cadence, but is worth remembering if the new cluster is torn down and rebuilt repeatedly during bring-up — use the staging issuer while iterating. More subtly, concurrent DNS-01 challenges for the same identifier both write `_acme-challenge.${SECRET_DOMAIN}` TXT records and can clean up each other's, so avoid forcing simultaneous renewals on both clusters.
 
 ## HCC VLAN isolation
 
 Today the whole cluster shares a VLAN with Home Assistant's actual IoT devices — the multus `NetworkAttachmentDefinition`'s own comment says *"since the cluster is already on the IoT VLAN, no VLAN tagging is needed."* That's an accident of the old gear's flat networking, not a deliberate choice. On the new cluster:
 
 - **Main (trusted) network → HCC VLAN: unrestricted.** No firewall changes needed for the operator's own devices to reach the cluster.
-- **New HCC VLAN → old cluster's network, port 5432: explicitly required for the migration window.** This one is easy to miss because it's the only rule the *migration itself* depends on rather than the steady state. CNPG's `bootstrap.initdb.import` runs `pg_dump` over a live connection, so each new `${app}-pg` cluster must reach the old cluster's `postgres-lb` Service (`192.168.6.21`, `postgres.${SECRET_DOMAIN}`) while the old cluster is still on the pre-VLAN network. Without it every CNPG-backed app's cutover fails at bootstrap. It's temporary — drop it once teslamate, authentik, and paperless have all moved.
+- **New HCC VLAN → old cluster's network, port 5432: explicitly required for the migration window.** This one is easy to miss because it's the only rule the *migration itself* depends on rather than the steady state. CNPG's `bootstrap.initdb.import` runs `pg_dump` over a live connection, so each new `${app}-pg` cluster must reach the old cluster's `postgres-lb` Service (`192.168.6.21`) while the old cluster is still on the pre-VLAN network. Without it every CNPG-backed app's cutover fails at bootstrap. Temporary — drop it once teslamate, authentik, and paperless have all moved.
+- **Old cluster's network → HCC VLAN, port 53: also required for the migration window.** The old cluster's pihole needs to reach the new cluster's k8s-gateway to serve the per-app internal DNS overrides described under "Internal DNS during migration." Equally easy to miss, and it fails as "the app is up but nothing can resolve it."
 - **IoT VLAN ↔ HCC VLAN: isolated by default.** The goal is specifically to stop escalation between the two — a compromised IoT device shouldn't be able to reach cluster nodes or services, and the cluster shouldn't have blanket reach into IoT either.
 - **Home Assistant's multus macvlan interface is the one deliberate exception.** That pod is intentionally dual-homed — one interface in the cluster's own pod network, one with a real IP directly on the IoT VLAN, because that's how it discovers/talks to IoT devices at all. The VLAN/firewall boundary protects everything else; this one interface is a narrow, intended bridge, not a gap in it.
-- Because the node's primary interface no longer sits on the IoT VLAN by default, the macvlan interface needs actual 802.1q VLAN tagging to reach it now — `config.sample.yaml` already has a placeholder for this (`bootstrap_talos.vlan`, currently unset) and the multus NAD itself needs a `vlan` field added once an IoT VLAN ID is assigned on the UCG Fiber.
+- Because the node's primary interface no longer sits on the IoT VLAN by default, the macvlan interface needs actual 802.1q VLAN tagging to reach it now — `config.sample.yaml` already has a placeholder for this (`bootstrap_talos.vlan`, currently unset) and the multus NAD itself needs a `vlan` field added once an IoT VLAN ID is assigned on the UCG Fiber. This depends on a trunked switch port reaching whichever node carries the IoT NIC — hardware that isn't in place yet (see Per-app config review).
 - A dedicated VLAN for Longhorn's inter-node replication traffic (keeping it off the same path as ingress/app traffic — a genuine Longhorn best practice) is deliberately **out of scope for this migration** — noted as a future optimization once the cluster is stable, not something to build now.
 - BGP for LoadBalancer IP announcement (replacing Cilium's L2Announcements, and giving the currently-inert `CiliumBGPPeeringPolicy` a real config) is possible in principle on a UCG Fiber, but its Advanced Routing/BGP feature support is worth checking directly in the UniFi controller before committing to it — not assumed here, and not a priority at this scale regardless.
 
@@ -246,7 +403,9 @@ Today the whole cluster shares a VLAN with Home Assistant's actual IoT devices �
 
 - Talos removes SSH entirely: nodes are administered only through the mTLS-authenticated `talosctl` API, cutting the SSH-key/`authorized_keys` surface currently spread across five boxes.
 - Each CNPG-backed app's backup writer is single-owner by construction: the old cluster's `cnpg-cluster` keeps writing scheduled backups for an app until that app's own disable/import step, at which point its new dedicated cluster takes over — never two primaries pushing WAL for the same database at once. Because the split happens per-app rather than all at once, this now applies three times (teslamate, authentik, paperless) instead of once.
-- Old disks (hcc, hcc2, hcc-tablet1) hold the same application secrets now restored onto the new cluster. Wipe them, not just power them off, before disposal or repurposing.
+- Because app data is deliberately **retained** on the old cluster until Wave 2, the old disks hold live copies of application data and secrets for the whole migration, not just stale ones. That's the intended safety net, but it means the old cluster stays in scope for access control until it's decommissioned — it isn't "already retired" once its apps are disabled.
+- Old disks (hcc, hcc2, hcc-tablet1, and later hcc3/hcc4) hold the same application secrets now restored onto the new cluster. Wipe them, not just power them off, before disposal or repurposing.
+- Retire the old Cloudflare tunnel's credentials and the old Tailscale operator's OAuth client once the old cluster is deleted; they remain valid until explicitly revoked.
 
 ## Pre-migration backup verification
 
@@ -266,43 +425,67 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 - [ ] Confirm Pihole's configuration is fully GitOps-declared (no UI-only drift) or export/commit anything that isn't
 - [ ] Confirm Dragonfly's data is intentionally cache-only and safe to lose
 
-**Everything else:**
+**Network and hardware:**
 
-- [ ] Generate a Talos factory schematic ID with `iscsi-tools` and `util-linux-tools` extensions, targeting a current Talos/Kubernetes release (not the stale scaffold's v1.6.5/v1.29.2)
 - [ ] Carve out the dedicated HCC VLAN/CIDR on the UCG Fiber, plus firewall rules: main network → HCC unrestricted, IoT ↔ HCC isolated
 - [ ] Open HCC VLAN → old cluster `postgres-lb` (`192.168.6.21:5432`) for the migration window — every CNPG-backed app's cutover fails at bootstrap without it; remove once teslamate, authentik, and paperless have moved
-- [ ] Per CNPG-backed app, immediately before *that app's* cutover (not upfront): check its supported PostgreSQL range against the target major, bump the app on the old cluster first if a newer version is needed, and confirm required extensions (`cube`/`earthdistance` for teslamate) ship in the CNPG image for that major — see `plans/11-cnpg-database-split.md`
+- [ ] Open old cluster's network → new cluster's k8s-gateway LB IP (`:53`) for the migration window, so the old pihole can serve per-app internal DNS overrides
+- [ ] **Decide Home Assistant's IoT path**: provision a trunked port carrying the IoT VLAN to a Wave-1 node, or explicitly defer Home Assistant's rebuild until after Wave 2. This is cabling, not config — settle it before Wave 1
 - [ ] Assign an IoT VLAN ID and add it to the multus NAD's `vlan` field and `bootstrap_talos.vlan` in `config.sample.yaml`
-- [ ] Hand-author `kubernetes/boreas/bootstrap/talos/topf.yaml` plus its scoped patch directories against current versions, using `.private/bootstrap-121456/` and upstream `cluster-template`'s current machine-config patches as reference, not a direct promotion
+
+**Cluster bootstrap:**
+
+- [ ] Generate a Talos factory schematic ID with `iscsi-tools` and `util-linux-tools` extensions, targeting a current Talos/Kubernetes release (not the stale scaffold's v1.6.5/v1.29.2)
+- [ ] Hand-author `kubernetes/apollo/bootstrap/talos/topf.yaml` plus its scoped patch directories against current versions, using `.private/bootstrap-121456/` and upstream `cluster-template`'s current machine-config patches as reference, not a direct promotion
 - [ ] Adapt `.taskfiles/Talos/Taskfile.yaml` from talhelper's `gencommand` flow to shell out to `topf`
+- [ ] Make root `Taskfile.yaml`'s `KUBERNETES_DIR` a per-cluster var rather than a single hardcoded path
+- [ ] Add `kubernetes/apollo` to `.github/workflows/flux-diff.yaml` and `kubeconform.yaml` when the tree is created, not at the end
 - [ ] Verify whether kubelet-csr-approver is still needed on the target Talos/Kubernetes version (absent from upstream's current bootstrap-apps list, present in the stale scaffold)
-- [ ] Copy `templates/volsync` into the new `kubernetes/boreas/templates/volsync` during foundational bootstrap
-- [ ] Confirm current Longhorn replica placement (don't assume hcc/hcc2 hold all replica data just because they're taint-dedicated to storage)
-- [ ] Decide the new nodes' Longhorn disk layout / whether the storage-node taint pattern is still needed
-- [ ] Verify `teslamate_db_2024-03-18.sql` in `teslamate-backup-pvc` isn't needed for anything before letting it drop
-- [ ] Decide which new node inherits Home Assistant's `nodeSelector` pin and reserve a free USB port on it for the future Thread antenna
-- [ ] Parameterize Home Assistant's `HASS_HTTP_TRUSTED_PROXY_1/2` into `cluster-settings` vars
-- [ ] Resolve `plans/11-cnpg-database-split.md`'s remaining open TODO (Cluster namespace placement) before the first CNPG-backed app migrates — its cross-namespace secret sharing TODO is now resolved via ESO/1Password, see Platform component inventory
+
+**Platform (Phase B):**
+
+- [ ] Create a **new** Cloudflare tunnel for the new cluster (new ID + credentials — do not reuse the old tunnel), with its own `DNSEndpoint` publishing `external-apollo.${SECRET_DOMAIN}` and matching `originServerName`
+- [ ] Set the new cluster's external-dns to `txtOwnerId: apollo` **and** `policy: upsert-only` before it first reconciles
+- [ ] Configure `external-dns` for Gateway API sources (e.g. `gateway-httproute`) instead of `["crd", "ingress"]`, and work out the Gateway API equivalent of `--ingress-class=external` scoping
+- [ ] Flesh out `plans/04-envoy-gateway.md` for this cluster's real topology (IPs/VLAN, cloudflared integration, raw-`LoadBalancer` apps, Tailscale-operator Ingress handling) before Wave 1
+- [ ] Give the new Tailscale operator a distinct hostname and its own OAuth client credentials
+- [ ] Stand up snapshot-controller **and** the `longhorn-snapclass` `VolumeSnapshotClass` before the first VolSync-backed app
+- [ ] Copy `templates/volsync` into `kubernetes/apollo/templates/volsync` during foundational bootstrap
 - [ ] Stand up External Secrets Operator + 1Password Connect early in Phase B
 - [ ] Stand up the metrics stack (kube-prometheus-stack or VictoriaMetrics — TBD) early in Phase B, before other platform services so their `ServiceMonitor`s get picked up as deployed
-- [ ] Set the new cluster's external-dns to `policy: upsert-only` before it's bootstrapped in Wave 1 Phase B (before any app moves, not after)
-- [ ] Flesh out `plans/04-envoy-gateway.md` for this cluster's real topology (IPs/VLAN, cloudflared integration, raw-`LoadBalancer` apps) before Wave 1 — see TODO in Foundational bootstrap
-- [ ] Configure `external-dns` for Gateway API sources (e.g. `gateway-httproute`) instead of `["crd", "ingress"]`, and work out the Gateway API equivalent of `--ingress-class=external` scoping
-- [ ] Set the new cluster's external Gateway's hostname annotation to `external-new.${SECRET_DOMAIN}` as part of foundational bootstrap
 - [ ] Add Spegel as a Phase B platform service (`plans/05a-spegel.md`, adapted for Talos's containerd paths)
-- [ ] Remove `system-upgrade-controller` entirely in Wave 2 (not just the `system-upgrade/k3s` Kustomization)
+- [ ] Use cert-manager's staging issuer while iterating on bring-up, to avoid Let's Encrypt duplicate-certificate limits
+- [ ] Confirm current Longhorn replica placement (don't assume hcc/hcc2 hold all replica data just because they're taint-dedicated to storage)
+- [ ] Decide the new nodes' Longhorn disk layout / whether the storage-node taint pattern is still needed
 
-**Mid-Wave-1 (once most apps have moved, not upfront):**
+**Per-app (Phase C):**
 
-- [ ] Rename `kubernetes/main` → `kubernetes/apollo` using the two-commit safe sequence (repoint Flux paths first, verify reconcile, then `git mv`)
-- [ ] Update root `Taskfile.yaml`'s `KUBERNETES_DIR` var
+- [ ] Resolve `plans/11-cnpg-database-split.md`'s remaining open TODO (Cluster namespace placement) before the first CNPG-backed app is rebuilt
+- [ ] Per CNPG-backed app, immediately before *that app's* cutover (not upfront): check its supported PostgreSQL range against the target major, bump the app on the old cluster first if a newer version is needed, and confirm required extensions (`cube`/`earthdistance` for teslamate) ship in the CNPG image for that major
+- [ ] Parameterize Home Assistant's `HASS_HTTP_TRUSTED_PROXY_1/2` into `cluster-settings` vars
+- [ ] Decide which new node inherits Home Assistant's `nodeSelector` pin and reserve a free USB port on it for the future Thread antenna
+- [ ] Verify `teslamate_db_2024-03-18.sql` in `teslamate-backup-pvc` isn't needed for anything before letting it drop
+
+**Wave 2 teardown:**
+
+- [ ] Revert the new cluster's external-dns to `policy: sync`
+- [ ] Repoint clients at the new pihole and delete the per-app dnsmasq overrides
+- [ ] Remove `system-upgrade-controller` entirely (not just the `system-upgrade/k3s` Kustomization)
+- [ ] Delete `kubernetes/main`, `ansible/`, and the taskfiles that only drove ansible+k3s
+- [ ] Revoke the old tunnel credentials and old Tailscale OAuth client; wipe the old disks
 
 # Rollback
 
-Because the old cluster's copy of an app is only disabled, never deleted, until the moved copy is verified healthy on `kubernetes/boreas`, rollback per app is: re-enable the old Kustomization/scale back up, `git mv` the directory back to the old cluster's tree (`kubernetes/main` or `kubernetes/apollo`, whichever it currently is). For CNPG-backed apps, rollback is repointing the app's database host back to `cnpg-cluster-rw...` on the old cluster and deleting the partial `${app}-pg` cluster on `kubernetes/boreas` — the source cluster is never modified by an import, so this is safe at any point. Before the Wave 1 decommission step, cluster-wide rollback is simply not cordoning/draining/powering off hcc, hcc2, and hcc-tablet1.
+Rollback is cheap by construction, because nothing is deleted from the old cluster until Wave 2. The old copy of every app — manifests, PVC, and data — stays in `kubernetes/main`, disabled but intact.
+
+- **Per app**: revert the disable commit. That restores `replicas`, the external Ingress (whose record external-dns re-creates), and the tailscale Ingress. On the new cluster, remove the app's route so its name is released first, or the two will contend at the DNS layer. Data written on the new cluster since cutover is lost — that's the real cost of rolling back, and it grows the longer an app runs on the new side, so verify promptly rather than leaving cutovers half-trusted for weeks.
+- **CNPG-backed apps**: additionally repoint the app's database host back to `cnpg-cluster-rw...` and delete the partial `${app}-pg` cluster. The source cluster is never modified by an import, so this is safe at any point.
+- **Cluster-wide, before the Wave 1 decommission step**: simply don't cordon/drain/power off hcc, hcc2, and hcc-tablet1.
+- **After Wave 2 begins, there is no rollback** — wiping hcc3/hcc4 destroys the retained copies. Step 1 of Wave 2 exists to make that boundary explicit.
 
 # Open Questions
 
-- Does the `iot` macvlan NIC stay on hcc3/hcc4 after Wave 2, or move to different nodes?
+- Does the `iot` macvlan NIC stay on hcc3/hcc4 after Wave 2, or move to different nodes? (Related but separate: which node gets the trunked IoT port in Wave 1, if Home Assistant isn't deferred.)
 - Does the Longhorn `dedicated=storage` taint pattern still make sense once storage is spread across six similar NUC11 nodes instead of two dedicated Odroid boxes?
+- Is `external-apollo.${SECRET_DOMAIN}` kept permanently as the per-cluster tunnel alias (recommended), or reclaimed to plain `external.${SECRET_DOMAIN}` after the old cluster is deleted — at the cost of re-touching every app's route annotation for cosmetics?
 - **Future optimization, explicitly out of scope here**: a dedicated VLAN for Longhorn's inter-node replication traffic, once the cluster is stable post-migration.
