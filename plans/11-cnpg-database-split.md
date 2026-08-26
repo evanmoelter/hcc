@@ -68,8 +68,40 @@ Use CNPG's [database import](https://cloudnative-pg.io/docs/1.28/database_import
 |--------|------|------|
 | **CNPG Import (chosen)** | Declarative, handles orchestration, optimized performance | Requires app downtime during import |
 | Manual pg_dump/restore | Simple, well-understood | Manual process, more error-prone |
+| Barman/WAL recovery from R2 | Fast, no source connection needed, PITR-capable | **Physical — whole-instance only, cannot split** (see below) |
 | pg_basebackup | Fast for large DBs | Copies entire cluster, not per-database |
 | Logical replication | Minimal downtime | Complex setup, overkill for this size |
+
+### Why not Barman/WAL recovery
+
+This deserves calling out separately, because the commented-out scaffold in `cluster.yaml` already shows the `bootstrap.recovery` + `externalClusters.barmanObjectStore` pattern, and daily backups to R2 already exist — so recovery looks like the obvious path until you notice it can't do this job.
+
+Barman recovery is **physical**: it replays a base backup plus WAL into a data directory, reproducing the instance byte-for-byte. There is no way to select one database out of it. Recovering `cnpg-cluster` into `teslamate-pg` would produce an instance containing teslamate *and* paperless *and* authentik, requiring two `DROP DATABASE` statements afterward — three times over, once per app, each transiently carrying the full 20Gi footprint. Splitting is a *logical* reorganization, so it needs a logical mechanism. That's decisive on its own.
+
+Two secondary differences reinforce it:
+
+- **Major version.** `pg_dump`/restore crosses PostgreSQL major versions; physical recovery does not — it pins the new cluster to 16.x and requires a matching image. Since the current image is `16.2-10` (a February 2024 patch release), import makes the major-version upgrade available here, whereas recovery defers it to a later logical dump/restore — paying the same cost twice. See "PostgreSQL version compatibility is a per-app gate" below: the upgrade is cheap in *mechanism*, not automatically free in practice.
+- **Bloat.** Import rebuilds indexes and leaves no accumulated bloat; physical recovery carries the existing on-disk state over exactly.
+
+What Barman recovery would have bought — independence from the source cluster, and no cross-VLAN network path — is real but not needed: the source cluster stays live throughout the migration by design, and the firewall rule is a one-line addition (see Dependencies).
+
+### PostgreSQL version compatibility is a per-app gate
+
+The major-version jump is not automatically free: TeslaMate, Paperless-ngx, and Authentik each support a specific range of PostgreSQL versions, and landing on a current major may require bumping the app itself. That app bump is its own change with its own schema migrations, not a version-string edit.
+
+**Deliberately not resolved now.** Supported ranges move with every app release, so any answer written here would be stale by the time the app actually migrates. This is a **pre-flight check performed immediately before each app's cutover**, against that app's release notes at that moment — not a decision made once for all three upfront.
+
+Three things make this cheaper than it sounds:
+
+- **The apps don't have to agree.** Each app now gets its own cluster, so `teslamate-pg`, `paperless-pg`, and `authentik-pg` can land on different majors. Under the shared `cnpg-cluster` a single lagging app would have held all three back; after the split it holds back only itself. One app being stuck is not a reason to keep the others on 16.
+- **The app bump can be decoupled.** If an app needs a newer version to support the target major, bump it **on the old cluster first**, against the existing PG 16 — then the migration changes only PG major and cluster, with the app version already proven in place. Otherwise the cutover changes app version, PostgreSQL major, and Kubernetes cluster simultaneously, and any failure is hard to attribute.
+- **Staying on 16 is always a valid answer.** If an app's compatibility is unclear or its bump looks disruptive, import into a 16.x cluster and treat the major upgrade as separate later work. The split still succeeds; only the free-upgrade side benefit is deferred.
+
+Independently of the app, confirm `cube` and `earthdistance` (teslamate's extensions; `earthdistance` depends on `cube`) ship in the CNPG image for whichever major is chosen.
+
+### Backup-chain rehearsal (declined)
+
+A one-off Barman restore into a throwaway cluster was also considered as a rehearsal of the R2 backup chain, and **declined**: during the migration the old cluster is itself the fallback, still running and never modified by an import, which is a stronger safety net than a restore test. Worth noting the residual: this leaves the R2 recovery path unexercised, so the first real use of those backups would also be the first proof they work. That matters only after the old cluster is decommissioned (Step 8), not during the migration.
 
 ## Implementation Steps
 
@@ -96,6 +128,9 @@ metadata:
   namespace: database
 spec:
   instances: 1
+  # Carried over from cnpg-cluster for illustration. Because logical import
+  # crosses major versions, this is the point to move to a current major
+  # instead of reproducing 16.2 — see "Why not Barman/WAL recovery".
   imageName: ghcr.io/cloudnative-pg/postgresql:16.2-10
   primaryUpdateStrategy: unsupervised
 
@@ -306,6 +341,11 @@ The old cluster remains untouched during migration, so rollback is safe.
 
 ## Testing Checklist
 
+Before each app's cutover (pre-flight):
+- [ ] Check that app version's supported PostgreSQL range against the target major, in its current release notes
+- [ ] If a newer app version is required, bump it on the old cluster against PG 16 first, so the migration changes only PG major and cluster
+- [ ] Confirm required extensions exist in the CNPG image for the chosen major (`cube`, `earthdistance` for teslamate)
+
 For each migrated app:
 - [ ] App connects successfully to new cluster
 - [ ] Data integrity verified (spot check records)
@@ -317,6 +357,7 @@ For each migrated app:
 
 - CloudNativePG operator 1.20+ (import feature)
 - Source cluster must remain running during import — during the Talos migration, this is `kubernetes/apollo`'s `postgres-lb` Service, reachable across the dedicated migration VLAN
+- **Firewall rule: new HCC VLAN → `192.168.6.21:5432`**, open for the duration of the migration. `initdb.import` needs a live connection for `pg_dump`, and the new cluster sits on a different VLAN than the source. Without this, every import fails at bootstrap. Temporary — remove once all three apps have moved
 - Sufficient Longhorn storage for new clusters
 
 ## k3s / Talos Compatibility
