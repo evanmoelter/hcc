@@ -404,18 +404,18 @@ Two coherent designs follow, and they differ in how the UniFi external-dns insta
 | Objects per dual-exposed host | One `HTTPRoute`, on the external Gateway | Two `HTTPRoute`s, one per Gateway, same hostname |
 | UniFi external-dns scope | **Both Gateways** | **Internal Gateway only** |
 | LAN path for a dual-exposed host | Direct to the external Gateway | Direct to the internal Gateway |
-| LAN path for an external-only host (`food.`) | Direct to the external Gateway | Hairpins out through Cloudflare and back |
+| LAN path for an external-only host (`food.`) | Direct to the external Gateway, no extra object | Direct to the internal Gateway — but only once a second route is authored for it |
 | Internal/external traffic separation | Shared listener and policy | Kept strictly apart |
 
 **This is deliberately left open, to settle by testing rather than upfront.** Authentik is the first app rebuilt (see App ordering), which makes its cutover the natural place to try this on the one hostname that exercises every part of it. Start with split-horizon; if it turns out awkward in practice — Authentik's proxy and trusted-header handling across the two paths, certificate or SNI behavior on the external Gateway, or anything else that makes it fiddly — fall back to the dual-object pattern, which is already proven in this repo and carries no risk. Don't spend long forcing it.
 
-Falling back has one consequence worth knowing in advance: the UniFi external-dns instance must then be rescoped to the internal Gateway only, and external-only apps like `food.${SECRET_DOMAIN}` lose their direct LAN record, hairpinning through Cloudflare instead. That's a rescope of one Deployment, not a redesign.
+Falling back costs objects, not network paths. The UniFi external-dns instance gets rescoped to the internal Gateway only, and from then on any app that should stay reachable directly on the LAN needs an internal route authored alongside its external one — including apps like `food.${SECRET_DOMAIN}` that carry only an external ingress today. Author those routes and the LAN path is direct, exactly as under split-horizon; skip them and those apps hairpin out through Cloudflare and back. Worth knowing that today's k8s-gateway already answers `food.` with the external controller's LAN IP from its single Ingress, so the fallback is a mild regression on that specific point unless the extra routes are written.
 
 Dual-route is not wrong — it's stricter about keeping internal traffic off the external Gateway, which matters if the two paths should ever carry different policy (rate limiting, a WAF, different proxy/trusted-header handling). The reasons to try split-horizon first:
 
 - **It halves the objects for dual-exposed hostnames, and the duplicates have already drifted.** Authentik's external ingress carries the external-dns target annotation and some commented-out nginx timeout annotations; the internal one carries neither. Under Gateway API the duplication gets more expensive, not less.
 - **It removes a latent DNS ambiguity.** With the same hostname on two Ingresses behind two different LB IPs, k8s-gateway can answer internal queries with either — so internal clients could land on the external ingress controller roughly half the time. It isn't biting today only because internal resolution is out of service; it would return the moment internal DNS came back. The same ambiguity would hit the UniFi instance if it watched both Gateways while dual routes existed, which is exactly why that pairing is unsupported.
-- **It gives LAN clients a direct path to external-only apps too**, instead of hairpinning them through Cloudflare.
+- **Every app gets a direct LAN path for free**, including externally-published ones. Dual-route reaches the same destination, but only by authoring an internal route for each app that needs one.
 
 Whichever is chosen, the hostname itself must stay identical inside and out. A distinct internal hostname is the one option genuinely ruled out for an IdP: the OIDC `issuer` claim, registered redirect URIs, and session cookies are all bound to one canonical URL, and Mealie names `sso.${SECRET_DOMAIN}` explicitly in `OIDC_CONFIGURATION_URL`.
 
@@ -513,7 +513,7 @@ Longhorn has no cluster-level backup target configured (`defaultSettings` has no
 - [ ] Configure both external-dns instances for Gateway API sources (e.g. `gateway-httproute`) instead of `["crd", "ingress"]`, scoping Cloudflare to the external Gateway and UniFi to both
 - [ ] Deploy the UniFi webhook as a sidecar on the second external-dns instance, and confirm it creates a record end-to-end before relying on it for any app
 - [ ] Stand up **two** Envoy Gateways (internal and external), and give the external one a LAN `LoadBalancer` IP so split-horizon records have an address to point at
-- [ ] Configure the UniFi external-dns instance to watch **both** Gateways initially — the split-horizon assumption. Rescoping it to the internal Gateway only is the fallback if Authentik's cutover goes the other way
+- [ ] Configure the UniFi external-dns instance to watch **both** Gateways initially — the split-horizon assumption. The fallback rescopes it to the internal Gateway only, which then requires an internal route per app that should stay LAN-reachable
 - [ ] Flesh out `plans/04-envoy-gateway.md` for this cluster's real topology (IPs/VLAN, cloudflared integration, raw-`LoadBalancer` apps, Tailscale-operator Ingress handling) before Wave 1
 - [ ] Give the new Tailscale operator a distinct hostname and its own OAuth client credentials
 - [ ] Stand up the new cluster's own Flux webhook receiver (distinct hostname + token) and add a second GitHub webhook, so the new cluster isn't stuck on 30m polling during bring-up
