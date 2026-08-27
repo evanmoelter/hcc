@@ -2,7 +2,7 @@
 
 # Overview
 
-The cluster moves from ansible-managed k3s to Talos on a consolidated, all-x86_64 fleet: four new NUC11 nodes, plus hcc3 and hcc4, which are existing NUCs that get wiped and rejoined. Three machines leave the fleet: hcc and hcc2, which are Odroid HC2 boards that Talos has no image for, and hcc-tablet1.
+The cluster moves from ansible-managed k3s to Talos on a consolidated, all-x86_64 fleet: four new NUC11 nodes, plus hcc3 and hcc4, which are existing NUCs that get wiped and rejoined. Two machines leave the fleet, both Odroid HC2 boards that Talos has no image for: hcc and hcc2. A third, hcc-tablet1, is in the ansible inventory but has already left the live cluster.
 
 The new Talos cluster is bootstrapped as `kubernetes/apollo`, on its own VLAN and CIDR. Clusters take names from Greek mythology in alphabetical order (this one is Apollo, the next starts with B), so a cluster is never renamed after it is created and a name is never reused.
 
@@ -14,11 +14,11 @@ The new cluster does not have to match the old cluster's Kubernetes version. Dat
 
 # Problem statement
 
-hcc and hcc2 are Odroid HC2 boards with no supported Talos image, and hcc-tablet1 is a tablet the operator no longer wants hosting workloads on any OS. All three need to leave the fleet.
+hcc and hcc2 are Odroid HC2 boards with no supported Talos image, so both need to leave the fleet. hcc-tablet1, a tablet the operator no longer wanted hosting workloads on any OS, has already left: the ansible inventory still lists it as a controller, but the live cluster reports only four nodes.
 
 Separately, the ansible and SSH-managed k3s nodes carry ongoing config-drift risk. This repo has already had to fix problems caused by manual intervention outside GitOps. The upstream project this repo is based on, `cluster-template`, has also moved to Talos only. Talos's API-only, immutable model removes that whole class of drift.
 
-The migration must not lose data. Home Assistant history, Mealie recipes, Node-RED flows, Paperless documents, and the Postgres databases behind CloudNativePG all need to land on the new cluster intact.
+The migration must not lose data. Home Assistant history, Mealie recipes, Node-RED flows, Paperless documents, and the Postgres databases behind CloudNativePG all need to land on the new cluster intact. Note that most of that data is now in Postgres rather than on a PVC: Home Assistant's recorder history and Mealie's recipes both live in per-app CNPG clusters, so treating either app as VolSync-only would preserve its config and lose its contents.
 
 # Functionality
 
@@ -28,7 +28,7 @@ This is a hard cutover rather than a live or parallel one. Each app goes fully o
 
 Ingress hostnames and Tailscale names survive the migration unchanged. An app is released from the old cluster and reclaims the same name on the new one at its cutover moment. The GitOps workflow is identical afterward: changes still land through Flux reconciliation, and the operator never SSHes into a node or hand-applies manifests for routine work.
 
-After Wave 1, the operator has one working Talos cluster (`kubernetes/apollo`) and three devices (hcc, hcc2, hcc-tablet1) freed up for disposal or repurposing. After Wave 2, the fleet is consolidated onto six Talos NUC11-class nodes with a single cluster and repo tree, `kubernetes/main` is deleted, and the ansible and k3s tooling in the repo becomes dead code ready for removal.
+After Wave 1, every app runs on the new Talos cluster (`kubernetes/apollo`) while the old cluster still stands, whole and untouched, as the rollback environment. No hardware is freed yet, which is deliberate; see No node leaves the old cluster during Wave 1. After Wave 2, the fleet is consolidated onto six Talos NUC11-class nodes with a single cluster and repo tree, hcc and hcc2 are free for disposal, `kubernetes/main` is deleted, and the ansible and k3s tooling in the repo becomes dead code ready for removal.
 
 # Design
 
@@ -36,9 +36,9 @@ After Wave 1, the operator has one working Talos cluster (`kubernetes/apollo`) a
 
 | Node | Today | After migration | Wave |
 |---|---|---|---|
-| hcc | k3s controller, Longhorn storage node (tainted `dedicated=storage`) | retired | 1 |
-| hcc2 | same | retired | 1 |
-| hcc-tablet1 | k3s controller | retired | 1 |
+| hcc | k3s controller + etcd, Longhorn storage node (tainted `dedicated=storage`) | retired | 2 |
+| hcc2 | same | retired | 2 |
+| hcc-tablet1 | listed as a controller in the ansible inventory, but not a member of the live cluster | already gone; confirm the machine is decommissioned and drop the stale inventory entry | n/a |
 | hcc5, hcc6, hcc7 (new NUC11s) | not provisioned | Talos control-plane | 1 |
 | hcc8 (new NUC11) | not provisioned | Talos worker | 1 |
 | hcc3 | k3s controller, multus `enp1s0` host | wiped, joins as Talos worker | 2 |
@@ -48,10 +48,9 @@ End state: 6 nodes, 3 control-plane and 3 workers. That satisfies Talos's odd-co
 
 ```mermaid
 flowchart LR
-    subgraph old["kubernetes/main (k3s, retiring)"]
+    subgraph old["kubernetes/main (k3s, 4 nodes, intact until Wave 2)"]
         hcc["hcc<br/>(storage)"]
         hcc2["hcc2<br/>(storage)"]
-        tablet["hcc-tablet1"]
         hcc3o["hcc3<br/>(multus enp1s0)"]
         hcc4o["hcc4<br/>(multus enp1s0)"]
     end
@@ -68,9 +67,8 @@ flowchart LR
         hcc4n["hcc4<br/>worker (wiped)"]
     end
 
-    hcc -.retire.-> X1(( ))
-    hcc2 -.retire.-> X1
-    tablet -.retire.-> X1
+    hcc -."retire (Wave 2)".-> X1(( ))
+    hcc2 -."retire (Wave 2)".-> X1
     hcc3o == wipe + rejoin ==> hcc3n
     hcc4o == wipe + rejoin ==> hcc4n
     w1 --> w2
@@ -91,7 +89,9 @@ Two repo-level things need per-cluster handling while both trees coexist:
 
 ## Kubernetes version
 
-The new cluster does not have to match the old cluster's Kubernetes version. The current k3s cluster is pinned to `KUBE_VERSION: v1.29.1+k3s2` in `kubernetes/main/apps/system-upgrade/k3s/ks.yaml`, old enough that an in-place upgrade would normally step through several minor versions one at a time. Data moves through version-agnostic mechanisms instead: VolSync and restic work at the file level, and CNPG and Barman recovery are keyed to the Postgres major version rather than the Kubernetes one. So the new cluster can jump straight to whatever current stable Talos and Kubernetes release is available, in one step. The thing worth checking as each app is rebuilt, which authoring it fresh forces anyway, is that no chart or manifest assumes an API surface that was removed between the two versions.
+The new cluster does not have to match the old cluster's Kubernetes version. The old cluster runs k3s `v1.32.4+k3s1`, confirmed live against all four nodes and matching what `ansible/inventory/group_vars/kubernetes/main.yaml` provisions, so 1.32 is the baseline for any removed-API analysis. Data moves through version-agnostic mechanisms anyway: VolSync and restic work at the file level, and CNPG and Barman recovery are keyed to the Postgres major version rather than the Kubernetes one. So the new cluster can jump straight to whatever current stable Talos and Kubernetes release is available, in one step. The thing worth checking as each app is rebuilt, which authoring it fresh forces anyway, is that no chart or manifest assumes an API surface removed between 1.32 and the target.
+
+Note the repo currently disagrees with itself about this version. `kubernetes/main/apps/system-upgrade/k3s/ks.yaml` pins `KUBE_VERSION: v1.29.1+k3s2`, three minor versions behind what ansible installs, and that Kustomization is live rather than suspended (`kubernetes/main/apps/system-upgrade/kustomization.yaml` includes it). Worth understanding before Wave 2 removes system-upgrade-controller, since a `Plan` pinned below the running version is at best inert and at worst a downgrade waiting to happen. It does not change this migration's conclusion, but do not use that file as the version baseline.
 
 The `.private/bootstrap-121456` scaffold is not the target. It pins `talosVersion: v1.6.5` and `kubernetesVersion: v1.29.2`, while upstream `cluster-template` is now several major Talos releases ahead, at `v1.13.7` with Kubernetes `v1.36.4` as of this writing. Those two numbers are Renovate-tracked upstream and move on their own; Kubernetes went from `v1.36.3` to `v1.36.4` between two readings of this doc. They are recorded here to show how far the stale scaffold has drifted, not as values to pin. Read the current ones off upstream's `topf.yaml.j2` at the moment configs are actually generated.
 
@@ -156,14 +156,16 @@ flowchart TD
     extdnscf --> cflared
 
     subgraph phaseC["Phase C: apps (rebuilt one at a time)"]
-        authpg["authentik-pg"]
+        authpg["authentik-pg<br/>(logical import)"]
         authentik["authentik"]
+        hasspg["home-assistant-pg<br/>(Barman recovery)"]
         hass["home-assistant"]
+        mealiepg["mealie-pg<br/>(Barman recovery)"]
         mealie["mealie"]
         nodered["node-red"]
-        paperlesspg["paperless-pg"]
+        paperlesspg["paperless-pg<br/>(logical import)"]
         paperless["paperless (+ sftp)"]
-        tmpg["teslamate-pg"]
+        tmpg["teslamate-pg<br/>(logical import)"]
         teslamate["teslamate"]
         grafana["grafana"]
     end
@@ -171,6 +173,8 @@ flowchart TD
     cnpg --> authpg --> authentik
     cnpg --> paperlesspg --> paperless
     cnpg --> tmpg --> teslamate
+    cnpg --> mealiepg --> mealie
+    cnpg --> hasspg --> hass
     volsync --> hass
     volsync --> mealie
     volsync --> nodered
@@ -235,15 +239,16 @@ Disable is a commit merged to the old cluster's tree that does three things at o
 2. Remove the app's `className: external` Ingress, if it has one. This is what makes the old cluster's external-dns, running `policy: sync`, delete both the app's CNAME and its TXT ownership record, releasing the name so the new cluster can claim it. Without this step the record stays owned by the old cluster and the new cluster silently refuses to touch it.
 3. Remove the app's `className: tailscale` Ingress, if it has one, so the tailnet device is deregistered and the hostname is free for the new cluster's operator to claim.
 
-Several things deliberately stay: the app's `pvc.yaml` and its data, its `ReplicationSource`, its secrets, and its directory in `kubernetes/main`. The internal (`className: internal`) Ingress can stay too, since internal resolution is handled separately, below.
+Several things deliberately stay: the app's `pvc.yaml` and its data, its secrets, and its directory in `kubernetes/main`. The internal (`className: internal`) Ingress can stay too, since internal resolution is handled separately, below.
 
 Then, with the app confirmed stopped:
 
-4. Back up. Trigger one final `ReplicationSource` sync so R2 holds the exact post-disable state, and confirm the snapshot landed before going any further.
+4. Back up. Trigger one final `ReplicationSource` sync so R2 holds the exact post-disable state, and for a database-backed app an on-demand CNPG `Backup` as well. Confirm both landed before going any further.
+5. Suspend the old `ReplicationSource` once that final sync completes. It would otherwise keep firing against a frozen PVC and, more importantly, keep pruning a restic repository the new cluster is also using. See Shared external state for why that matters.
 
 ### Rebuild (VolSync-backed apps)
 
-This covers Home Assistant, Mealie, Node-RED, and Paperless's document library. Author the app fresh under `kubernetes/apollo/apps/...`, copying from the old tree and changing four things:
+This covers Node-RED, plus the PVC half of Home Assistant, Mealie, and Paperless. Those three are hybrids that also need the database flow below, executed in the same cutover so each app is rebuilt once and fully working. Author the app fresh under `kubernetes/apollo/apps/...`, copying from the old tree and changing four things:
 
 - Swap the app's bespoke `pvc.yaml` for the shared `templates/volsync` component, which is `claim.yaml` plus `r2.yaml`. Its `claim.yaml` creates the PVC with `dataSourceRef: kind: ReplicationDestination, name: ${APP}-bootstrap`, so VolSync's CSI populator auto-hydrates the new PVC from the restic repository the moment it is created. There is no separate manual restore step. Add the one-time `${APP}-bootstrap` `ReplicationDestination`, reusing the app's existing and already-encrypted R2 credentials. After cutover the app is left on the shared template's `r2.yaml` for ongoing backups instead of its old one-off copy.
 - Replace `internal` and `external` `Ingress` resources with `HTTPRoute`s whose `parentRefs` name the internal or external Gateway. `className: tailscale` Ingresses stay as `Ingress`.
@@ -252,9 +257,23 @@ This covers Home Assistant, Mealie, Node-RED, and Paperless's document library. 
 
 Verify with the app running but not yet named: port-forward, check logs, confirm the hydrated data is actually there. Only then attach the routing that publishes its real hostname. A `.new.${SECRET_DOMAIN}` staging hostname was considered and declined. Its only benefit is minimizing downtime, which is not a goal here, and its cost (a second wildcard `Certificate`, temporary routes, per-app cleanup) is not worth paying for a benefit nobody is pursuing.
 
-### Rebuild (CNPG-backed apps)
+### Rebuild (database-backed apps)
 
-This covers teslamate, authentik, and paperless's database. The disable-first shape is the same, but backing up and rebuilding happen together through CNPG's own database-import feature instead of VolSync.
+Five apps have a Postgres database, in two different situations that need two different mechanisms. Getting the wrong one silently produces an empty database, so check which group an app is in before copying anything.
+
+Teslamate, authentik, and paperless still share the single `cnpg-cluster` in the `database` namespace, on PG 16.2. They need the logical import described below, because the split has not happened for them yet.
+
+Mealie and home-assistant have already been split. Each has its own `Cluster` in the `default` namespace alongside its app manifests (`mealie-pg`, `home-assistant-pg`), already on PG 18.1, with its own Barman backup to R2 under a distinct `serverName` and its own `ScheduledBackup`. For these two the split is done, and what remains is moving the data.
+
+The trap is that both of those manifests bootstrap with `initdb`. Copying them to the new cluster unchanged creates a brand new empty database and Flux reports success, because an empty cluster is a healthy cluster. Home Assistant's recorder history lives in `home-assistant-pg`, so this failure mode silently discards exactly the data the problem statement promises to preserve, and it does so quietly. The `bootstrap` block must be changed to `recovery` before either app is rebuilt.
+
+Use Barman recovery from R2 for these two rather than logical import. Physical whole-instance recovery could not select one database out of the shared cluster, which is why the other three need a logical mechanism, but that objection does not apply here: each of these instances already holds exactly one database, so restoring the whole instance restores precisely the right thing. Recovery also reads from R2 rather than from the old cluster, so it needs no cross-VLAN path and no firewall rule, and it does not care that `enableSuperuserAccess: false` on both clusters.
+
+Both are on `@weekly` schedules, so the most recent scheduled backup can be up to seven days old. Trigger an on-demand `Backup` at disable time and confirm it completes before rebuilding, exactly as the VolSync flow triggers a final `ReplicationSource` sync. Skipping that step is how a week of Home Assistant history goes missing.
+
+Neither of these two needs the PostgreSQL major-version pre-flight check below, since both already run 18.1.
+
+The remaining three apps, teslamate, authentik, and paperless, follow the disable-first shape, with backing up and rebuilding happening together through CNPG's database-import feature instead of VolSync.
 
 CNPG's `bootstrap.initdb.import` can technically run against a live source database, so the app does not strictly have to be disabled first for the import to succeed. Disabling first is done anyway, deliberately, so the import captures a database that is no longer being written to rather than one mid-transaction. This is not a step to relax later to shave time off the migration window. It is the same accepted-downtime-over-data-risk trade the whole migration is built on.
 
@@ -266,19 +285,20 @@ Logical import is the mechanism here rather than Barman or WAL recovery from R2,
 
 A useful side effect is that `pg_dump` and restore cross PostgreSQL major versions, which makes this the moment to get off the current `16.2` image, a February 2024 patch release. Unlike the Kubernetes jump, this one is not automatically free: each app supports its own range of PostgreSQL versions and may need bumping first. That is a per-app pre-flight check run before that app's cutover rather than a decision made once upfront. Because each app now gets its own cluster, they do not all have to land on the same major, and staying on 16.x for a lagging app is always a valid answer. See `plans/11-cnpg-database-split.md` for the full comparison.
 
-Paperless is a hybrid. It needs both flows, the VolSync steps for its document library PVC and the CNPG steps for `paperless-pg`, executed together so the app is rebuilt once and fully working instead of twice.
+Three apps are hybrids that need both flows in the same cutover: Paperless (document library PVC plus `paperless-pg`), Mealie (data PVC plus `mealie-pg`), and Home Assistant (config PVC plus `home-assistant-pg`). Rebuild each once, fully working, instead of twice.
 
-The remaining open TODO in `plans/11-cnpg-database-split.md`, Cluster namespace placement, needs resolving before the first CNPG-backed app is rebuilt.
+The open TODO in `plans/11-cnpg-database-split.md` about Cluster namespace placement is answered by what the repo already does: `mealie-pg` and `home-assistant-pg` both live in the app's own namespace rather than in `database`. Follow that for the three remaining clusters unless there is a reason not to.
 
 ### App ordering
 
 The order is not arbitrary. `dependsOn` edges in the existing `ks.yaml` files force part of it:
 
-1. authentik first, with `authentik-pg`. Mealie and Paperless both declare `dependsOn: authentik`, and it is the SSO front door for everything else, so migrating it first means every later app is authored against its final identity provider rather than being re-pointed afterward. It is also where the split-horizon question gets settled by testing (see Networking changes), and that answer shapes how every later app's routing is authored, which is another reason it goes first rather than in the middle.
-2. Mealie or Node-RED second. Both are small and VolSync-only, one externally exposed and one internal, and between them they exercise every mechanism in this doc (VolSync hydration, DNS release and reclaim, tailnet reclaim, LAN records) on an app where a mistake is cheap.
-3. Paperless, the hybrid, once both mechanisms are proven separately.
-4. teslamate and Grafana together, since Grafana's datasource follows teslamate's database.
-5. Home Assistant last, or after Wave 2, since it is gated on IoT VLAN hardware that does not exist yet (see Per-app config review).
+1. authentik first, with `authentik-pg`. Mealie and Paperless both declare `dependsOn: authentik`, and it is the SSO front door for everything else, so migrating it first means every later app is authored against its final identity provider rather than being re-pointed afterward. Its routing shape should already be settled by then, since the split-horizon question is decided on echo-server back in Phase B (see Networking changes) rather than during this cutover.
+2. Node-RED second. It is the only app left that is genuinely VolSync-only, which makes it the cheapest place to prove PVC hydration, DNS release and reclaim, and tailnet reclaim without a database in the way.
+3. Mealie third. It is a hybrid (PVC plus `mealie-pg`), and the smallest of the three, so it is where Barman recovery gets proven on a database whose loss would be annoying rather than serious.
+4. Paperless, the other logical-import hybrid, once both mechanisms are proven separately.
+5. teslamate and Grafana together, since Grafana's datasource follows teslamate's database.
+6. Home Assistant last, or after Wave 2, since it is gated on IoT VLAN hardware that does not exist yet (see Per-app config review). Being last also suits it: it is a hybrid carrying the most irreplaceable data in the fleet, so it benefits from every mechanism having been proven on something cheaper first.
 
 ```mermaid
 sequenceDiagram
@@ -305,7 +325,7 @@ The practical consequence for a cutover is that an internal app's LAN name simpl
 
 ## Per-app config review (not a blind copy)
 
-Copying manifests forward is not sufficient, because a few apps bind directly to IPs or node identities that only make sense on the old cluster's topology. Inspection confirms most apps do not need this; Mealie, Node-RED, and teslamate are clean copies. What needs real editing:
+Copying manifests forward is not sufficient, because a few apps bind directly to IPs or node identities that only make sense on the old cluster's topology, and two carry a database manifest that would quietly recreate itself empty. Node-RED is the only app that is a genuinely clean copy. What needs real editing:
 
 | App | What's bound | Change needed |
 |---|---|---|
@@ -318,6 +338,7 @@ Copying manifests forward is not sufficient, because a few apps bind directly to
 | Authentik | `sso.${SECRET_DOMAIN}` declared twice, as an `external` ingress in the HelmRelease and a separate `internal` Ingress CRD with the same host. The two have already drifted, since only the external one carries annotations | Open item, settled by testing at this cutover. Try collapsing to a single `HTTPRoute` on the external Gateway with split-horizon DNS, and fall back to porting both routes if it gets fiddly. See Networking changes for the trade and what fallback costs |
 | All apps | `className: internal` and `external` Ingresses | Rewrite as `HTTPRoute` with `parentRefs` at the internal or external Gateway. Which Gateway a route names is what scopes external-dns |
 | All apps | `className: tailscale` Ingresses | Keep as `Ingress`. The Tailscale operator has no Gateway API support and is its own ingress controller, so these do not become `HTTPRoute`s and need no Gateway |
+| Mealie, Home Assistant | `cluster.yaml` bootstraps with `initdb`, which creates an empty database | Change to `bootstrap.recovery` against the app's existing R2 Barman backup. Copying either file unchanged loses the data and still reports healthy, which for Home Assistant means losing the recorder history this migration exists to preserve |
 
 Home Assistant is blocked on hardware that does not exist yet. The `iot` macvlan's parent interface, `enp1s0`, is physically cabled on hcc3 and hcc4, which do not join the new cluster until Wave 2, and no Wave-1 node has IoT VLAN reachability today. There is no config-only workaround, because this is a cabling and switch-port question: a trunked port carrying the IoT VLAN to whichever node takes the pin. Either provision that as explicit Wave-1 prep, or sequence Home Assistant's rebuild after Wave 2. Decide before Wave 1 starts rather than discovering it at Home Assistant's cutover.
 
@@ -337,27 +358,66 @@ Phase B, platform services, one by one with each verified before the next:
 
 4. Bring up each shared service as its own Flux `Kustomization` with `wait: true`, confirming healthy before moving to the next, in the order given by the dependency graph under Foundational bootstrap. Spegel goes early, because it speeds up every image pull after it. The metrics stack goes early too, so every subsequent service's `ServiceMonitor` gets picked up as it is deployed rather than backfilled later. Then External Secrets Operator with 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, the CloudNativePG operator, Multus, Envoy Gateway with both internal and external Gateways, both external-dns instances (Cloudflare with `txtOwnerId: apollo` and `policy: upsert-only`, UniFi webhook watching both Gateways), cloudflared with its new tunnel, and the Tailscale operator with its distinct hostname. pihole and k8s-gateway are not deployed.
 
+5. Bring up echo-server as the last Phase B step, before any stateful app. It is the cheapest end-to-end proof the platform works: it exercises the external Gateway and tunnel, the internal Gateway and UniFi records, cert issuance, and the tailnet path, all on a workload that holds nothing and that nothing depends on. It is also where the split-horizon question gets settled (see The gateway split). Leave it running afterward as a standing health check on the routing layer.
+
 Phase C, app migration, one by one as detailed above:
 
-5. Rebuild each stateful app in turn through disable, back up, rebuild, in the order given under App ordering. VolSync-backed apps hydrate through the `${APP}-bootstrap` `ReplicationDestination`, and CNPG-backed apps come across through a cross-cluster database import against the old cluster's `postgres-lb` at `192.168.6.21`. Verify and cut over one at a time. Internal names need no coordination, since the UniFi external-dns instance creates each app's LAN record as it is rebuilt.
-6. Once every app is verified and Longhorn on the old cluster reports no remaining replicas on hcc or hcc2, cordon and drain hcc, hcc2, and hcc-tablet1, then power them off. The old cluster keeps running on hcc3 and hcc4, with every app disabled but intact, until Wave 2.
+6. Rebuild each stateful app in turn through disable, back up, rebuild, in the order given under App ordering. VolSync-backed apps hydrate through the `${APP}-bootstrap` `ReplicationDestination`. Teslamate, authentik, and paperless come across through a cross-cluster database import against the old cluster's `postgres-lb` at `192.168.6.21`, while mealie and home-assistant recover their databases from R2. Verify and cut over one at a time. Internal names need no coordination, since the UniFi external-dns instance creates each app's LAN record as it is rebuilt.
+
+Wave 1 ends there. The old cluster is still running, whole, with every app disabled but intact.
+
+### No node leaves the old cluster during Wave 1
+
+The old cluster keeps all four of its nodes, untouched, until it is shut down as a unit in Wave 2. Nothing is cordoned, drained, or powered off while apps are still migrating.
+
+This is a deliberate choice rather than an oversight, because partial retirement is surprisingly expensive. All four nodes are k3s controllers running embedded etcd (`k3s_etcd_datastore: true`), so the cluster currently has four etcd members and a quorum of three. Retiring the two Odroids mid-migration would leave two members against a quorum that is still three until membership is formally contracted, and doing that contraction correctly means snapshotting, removing members one at a time, and verifying health between each step. Longhorn adds a second constraint on top: `defaultReplicaCount: 3` cannot be satisfied on two nodes, so every retained rollback volume would sit degraded for the rest of the migration.
+
+None of that work buys anything, because the four new NUC11s comfortably carry the entire workload on their own. hcc3 and hcc4 are not needed to run anything during Wave 1, and the Odroids are only a noise and power nuisance for a few more weeks. Leaving the old cluster whole keeps the rollback environment at full strength precisely while rollback is most likely to be needed, which is the opposite of what staged retirement would do.
+
+The corollary is that no device is freed until Wave 2. That is the trade, and it is worth it.
+
+One note on the fleet inventory: `ansible/inventory/hosts.yaml` lists hcc-tablet1 as a controller, but it is not a member of the live cluster, which reports exactly four nodes. The tablet has already left, so it needs no retirement procedure. Confirm the machine itself is actually decommissioned rather than idling, and clean up the stale inventory entry when the ansible tree is deleted in Wave 2.
 
 ## Wave 2: absorb hcc3 and hcc4
 
 1. Confirm every app is healthy on the new cluster and no rollback is pending. This is the point of no return for the old cluster's data.
-2. Cordon and drain hcc3 and hcc4 from the now-idle old cluster.
+2. Shut the old cluster down as a unit. Because it is being dismantled rather than kept serviceable, there is no need to contract etcd membership gracefully or evacuate Longhorn replicas: all four nodes go together. Power off hcc and hcc2 for disposal.
 3. Wipe and reinstall them with Talos, and join them as workers to the `kubernetes/apollo` cluster, keeping their existing names. The final six nodes are hcc3, hcc4, hcc5, hcc6, hcc7, and hcc8, with hcc5 through hcc7 as control-plane and hcc3, hcc4, and hcc8 as workers.
 4. Re-verify the `iot` multus `NetworkAttachmentDefinition`, currently macvlan on `enp1s0` and physically cabled to hcc3 and hcc4, against the new OS. Interface naming and driver availability can differ under Talos, and this is a physical-cabling dependency rather than pure config. It also needs an actual VLAN tag added now (see HCC VLAN isolation): under the old flat networking the cluster and IoT devices shared a broadcast domain, so no tagging was needed, and on the new cluster they do not. If Home Assistant was deferred, this is where it gets rebuilt.
 5. Revert the new cluster's Cloudflare external-dns to `policy: sync`. Normal pruning is safe again once no other cluster owns records in the zone.
 6. Delete `kubernetes/main` entirely, and remove the now-dead ansible and k3s tooling: `ansible/inventory/hosts.yaml`, the `system-upgrade/k3s` Flux Kustomization, `system-upgrade-controller` itself, and any taskfiles that only existed to drive ansible and k3s.
 7. Wipe the old disks (see Security).
 
+## Shared external state: keep the two clusters off each other's paths
+
+Both clusters talk to the same external services with the same credentials for the whole migration. Anywhere the path or identity is keyed only by app name, the two clusters land on the same object and can corrupt each other. The rule is that the new cluster reads from the old cluster's backup paths and writes to its own, so a backup that might still be needed for rollback is never written into by the thing that would need to restore from it.
+
+| Shared resource | Keyed by today | Collides? | Handling |
+|---|---|---|---|
+| VolSync restic | `s3://tf-hcc-volsync/<app>`, app name only | Yes | Hydrate `${APP}-bootstrap` from the existing path, then point the ongoing `ReplicationSource` at `s3://tf-hcc-volsync/apollo/<app>` |
+| CNPG Barman | `s3://tf-hcc-cloudnativepg/` plus `serverName` | Yes for `mealie-pg` and `home-assistant-pg`, which keep their names | Recover from the existing `serverName`, then give the rebuilt cluster `<app>-pg-apollo-v1`. The three shared-cluster apps get new names anyway |
+| Cloudflare tunnel | tunnel ID | Yes | New tunnel for the new cluster (see Networking changes) |
+| Cloudflare DNS | `txtOwnerId` | Yes | Distinct `txtOwnerId: apollo` |
+| UniFi DNS | `txtOwnerId` | No, the old cluster has no UniFi instance | Distinct owner ID anyway, for hygiene |
+| Tailscale | device hostname | Yes | Distinct operator hostname and its own OAuth client |
+| Longhorn backup target | not configured | No | Nothing to separate |
+
+The restic case is the one that bites quietly, because the design deliberately reads and writes the same repository. Two hazards follow from that:
+
+- A scaled-to-zero app still has a PVC, and its `ReplicationSource` keeps firing on schedule. If the old app's `ReplicationSource` is left in place while the new cluster backs up the same app, two writers share one restic repository. Ordinary snapshots tolerate that through locking, but `pruneIntervalDays: 7` means both sides will eventually try to prune, and prune wants exclusive access. That is how a repository gets damaged.
+- The same thing happens during a rollback, when the old app comes back up alongside a new cluster that has not been torn down yet.
+
+Suspending the old `ReplicationSource` at disable handles the first case, and is now part of what disable means. Giving the new cluster its own write path handles both, and has the further benefit that the pre-migration backups stay frozen exactly as they were at cutover. The cost is that the new cluster's first backup is a full one rather than an incremental, which at this data size is a non-issue.
+
+The discriminator is the cluster name, inserted as a path prefix rather than a suffix on the app name: `s3://tf-hcc-volsync/apollo/<app>`. That keeps every one of a cluster's repositories under a single prefix, so the whole cluster's backups can be listed, lifecycled, or deleted as a unit, which a suffix scheme scatters across the bucket. It matches the convention already used for `external-apollo.${SECRET_DOMAIN}`, and the next cluster gets `boreas/` for free. CNPG follows the same idea in the only place Barman allows it, the `serverName`, which becomes `<app>-pg-apollo-v1`.
+
 ## Data migration by class
 
 | Data | Current store | Migration method |
 |---|---|---|
-| Home Assistant config, Mealie data, Node-RED flows, Paperless library | Longhorn PVC, already VolSync→R2 backed | Disable, final sync, rebuild on the new cluster, hydrated through `templates/volsync`'s `${APP}-bootstrap` `ReplicationDestination`. Source PVC retained on the old cluster until Wave 2 |
-| Postgres: teslamate, authentik, paperless | Shared `cnpg-cluster`, Barman Cloud → R2 | Split during migration. Each app's database is imported directly from the old cluster's live `postgres-lb` (`192.168.6.21`) into its own new `${app}-pg` cluster; see `plans/11-cnpg-database-split.md`. An import never modifies the source cluster |
+| Home Assistant config, Mealie data, Node-RED flows, Paperless library | Longhorn PVC, already VolSync→R2 backed | Disable, final sync, rebuild on the new cluster, hydrated through `templates/volsync`'s `${APP}-bootstrap` `ReplicationDestination`. Source PVC retained on the old cluster until Wave 2. Note this covers only the PVC half for Home Assistant, Mealie, and Paperless; their databases are separate rows below |
+| Postgres: teslamate, authentik, paperless | Shared `cnpg-cluster` in the `database` namespace, PG 16.2, Barman Cloud → R2 daily | Split during migration. Each app's database is imported directly from the old cluster's live `postgres-lb` (`192.168.6.21`) into its own new `${app}-pg` cluster; see `plans/11-cnpg-database-split.md`. An import never modifies the source cluster |
+| Postgres: mealie (`mealie-pg`), home-assistant (`home-assistant-pg`) | Already independent per-app clusters in the app's own namespace, PG 18.1, Barman Cloud → R2 weekly under distinct `serverName`s | Barman recovery from R2. Change `bootstrap.initdb` to `bootstrap.recovery` when copying the manifest, or the rebuild silently creates an empty database and reports healthy. Trigger an on-demand `Backup` at disable first, since the weekly schedule can otherwise be up to seven days stale. No cross-VLAN path or firewall rule needed |
 | Grafana | `persistence.enabled: false` (verified). Dashboards are provisioned declaratively from ConfigMaps and URLs in `helmrelease.yaml` | Recreated fresh by Flux reconciliation. TeslaMate datasource URL updated alongside teslamate's rebuild |
 | Authentik | No PVC (verified). All state lives in the `authentik` database, now `authentik-pg` | Recreated fresh; data is already covered by the CNPG split above |
 | Pihole | 10Gi RWX Longhorn PVC, no backup coverage of any kind | Not migrated, dropped. Already out of service, and internal DNS moves to UniFi. Confirm nothing still depends on it before deleting the volume with the old cluster |
@@ -428,7 +488,13 @@ Two coherent designs follow, and they differ in how the UniFi external-dns insta
 | Objects across the whole external app set | One route each | Two routes each |
 | Internal/external traffic separation | Shared listener and policy | Kept strictly apart |
 
-This is deliberately left open, to settle by testing rather than upfront. Authentik is the first app rebuilt (see App ordering), which makes its cutover the natural place to try this on the one hostname that exercises every part of it. Start with split-horizon. If it turns out awkward in practice, whether through Authentik's proxy and trusted-header handling across the two paths, certificate or SNI behavior on the external Gateway, or anything else that makes it fiddly, fall back to the dual-object pattern, which is already proven in this repo and carries no risk. Don't spend long forcing it.
+This is deliberately left open, to settle by testing rather than upfront. Settle it in Phase B, on echo-server, before any stateful app is rebuilt.
+
+echo-server is the right subject for it. It already carries external, internal, and tailscale ingresses, so it exercises every path the question touches, and it holds no data and nothing depends on it, so getting it wrong costs a re-apply. Stand up both shapes against it, confirm the resulting DNS answers from inside and outside the LAN, then record the chosen external-dns scope and route convention before Phase C starts.
+
+An earlier draft had Authentik's cutover settle this instead, since Authentik is the first app rebuilt. That was the wrong place. It puts architecture experimentation inside a stateful outage window for the identity service that every later app depends on, and if the experiment goes badly the fallback has to be executed under time pressure with logins down. Deciding on a disposable hostname first costs one extra Phase B step and removes that risk entirely.
+
+Start with split-horizon. If it turns out awkward in practice, whether through proxy and trusted-header handling across the two paths, certificate or SNI behavior on the external Gateway, or anything else that makes it fiddly, fall back to the dual-object pattern, which is already proven in this repo and carries no risk. Don't spend long forcing it.
 
 Falling back costs objects rather than network paths. The UniFi external-dns instance gets rescoped to the internal Gateway only, and every externally-published app then needs an internal route authored alongside its external one to satisfy the policy above. Both shapes deliver the same direct LAN path. The difference is that split-horizon gets it from the DNS answer while dual-route gets it from a second object. Skip that second object and the app hairpins out through Cloudflare and back, which is what `food.${SECRET_DOMAIN}` would do today, since it never got an internal ingress (see Per-app config review).
 
@@ -470,7 +536,7 @@ Both clusters run cert-manager issuing the same `*.${SECRET_DOMAIN}` wildcard th
 Today the whole cluster shares a VLAN with Home Assistant's actual IoT devices. The multus `NetworkAttachmentDefinition`'s own comment says *"since the cluster is already on the IoT VLAN, no VLAN tagging is needed."* That is an accident of the old gear's flat networking rather than a deliberate choice. On the new cluster:
 
 - Main (trusted) network to HCC VLAN: unrestricted. No firewall changes are needed for the operator's own devices to reach the cluster.
-- New HCC VLAN to the old cluster's network on port 5432: explicitly required for the migration window. This one is easy to miss, because it is the only rule the migration itself depends on rather than the steady state. CNPG's `bootstrap.initdb.import` runs `pg_dump` over a live connection, so each new `${app}-pg` cluster must reach the old cluster's `postgres-lb` Service at `192.168.6.21` while the old cluster is still on the pre-VLAN network. Without it, every CNPG-backed app's cutover fails at bootstrap. It is temporary: drop it once teslamate, authentik, and paperless have all moved.
+- New HCC VLAN to the old cluster's network on port 5432: explicitly required for the migration window. This one is easy to miss, because it is the only rule the migration itself depends on rather than the steady state. CNPG's `bootstrap.initdb.import` runs `pg_dump` over a live connection, so each new `${app}-pg` cluster must reach the old cluster's `postgres-lb` Service at `192.168.6.21` while the old cluster is still on the pre-VLAN network. Without it, those cutovers fail at bootstrap. It applies only to the three apps still on the shared cluster, since Mealie and Home Assistant recover from R2 rather than from the old cluster. It is temporary: drop it once teslamate, authentik, and paperless have all moved.
 - HCC VLAN to the UCG Fiber management API: required for the steady state, not just the migration. The UniFi external-dns instance writes records through the Network Integration API, so the cluster must reach the controller. Scope it to the API endpoint rather than opening the management network generally.
 - IoT VLAN and HCC VLAN: isolated from each other by default. The goal is specifically to stop escalation between the two. A compromised IoT device should not be able to reach cluster nodes or services, and the cluster should not have blanket reach into IoT either.
 - Home Assistant's multus macvlan interface is the one deliberate exception. That pod is intentionally dual-homed, with one interface in the cluster's own pod network and one holding a real IP directly on the IoT VLAN, because that is how it discovers and talks to IoT devices at all. The VLAN and firewall boundary protects everything else, and this one interface is a narrow, intended bridge rather than a gap in it.
@@ -486,8 +552,9 @@ This deliberately does not pull in upstream `cluster-template`'s Just and TOML t
 
 # Security
 
-- Talos removes SSH entirely. Nodes are administered only through the mTLS-authenticated `talosctl` API, which cuts the SSH-key and `authorized_keys` surface currently spread across five boxes.
-- Each CNPG-backed app's backup writer is single-owner by construction. The old cluster's `cnpg-cluster` keeps writing scheduled backups for an app until that app's own disable and import step, at which point its new dedicated cluster takes over. Two primaries never push WAL for the same database at once. Because the split happens per app rather than all at once, this now applies three times, for teslamate, authentik, and paperless, instead of once.
+- Talos removes SSH entirely. Nodes are administered only through the mTLS-authenticated `talosctl` API, which cuts the SSH-key and `authorized_keys` surface currently spread across the four old cluster nodes.
+- Each database-backed app's backup writer is single-owner by construction. For teslamate, authentik, and paperless, the old cluster's `cnpg-cluster` keeps writing scheduled backups until that app's own disable and import step, at which point its new dedicated cluster takes over. Two primaries never push WAL for the same database at once, and because the split happens per app this applies three times rather than once.
+- Backup paths are shared between the two clusters wherever they are keyed by app name rather than by cluster, which is most of them. Two clusters writing one restic repository or one Barman `serverName` can damage the backup that rollback depends on. Shared external state covers the full audit and the read-old, write-new rule that resolves it.
 - Because app data is deliberately retained on the old cluster until Wave 2, the old disks hold live copies of application data and secrets for the whole migration rather than stale ones. That is the intended safety net, but it means the old cluster stays in scope for access control until it is decommissioned. It is not "already retired" once its apps are disabled.
 - Old disks, on hcc, hcc2, hcc-tablet1, and later hcc3 and hcc4, hold the same application secrets now restored onto the new cluster. Wipe them before disposal or repurposing rather than just powering them off.
 - Retire the old Cloudflare tunnel's credentials and the old Tailscale operator's OAuth client once the old cluster is deleted. They remain valid until explicitly revoked.
@@ -497,7 +564,8 @@ This deliberately does not pull in upstream `cluster-template`'s Just and TOML t
 Longhorn has no cluster-level backup target configured, since `defaultSettings` has no `backupTarget`. There is no storage-layer safety net underneath the per-app VolSync and CNPG jobs. If an app's backup is not wired up, working, and current, it has zero recovery path rather than a slower one. Before Wave 1 starts:
 
 - `age.key` is gitignored and exists only locally. Every SOPS-encrypted secret in the repo, and the ability to seed the new cluster's `sops-age` Secret at all, depends on this one file. Confirm it has a durable, external backup in a password manager or offline copy before touching anything. Losing it blocks the migration itself, not just one app's data.
-- Every PVC-holding app, chart-managed or explicit, needs a currently succeeding backup verified live rather than just declared in git. A wired-up `ReplicationSource` or `ScheduledBackup` that has been silently failing is as dangerous as no backup at all. Check restic snapshot lists and CNPG backup status for each of Home Assistant, Mealie, Node-RED, Paperless (library and database), teslamate, and authentik.
+- Every app holding a PVC or a database, chart-managed or explicit, needs a currently succeeding backup verified live rather than just declared in git. A wired-up `ReplicationSource` or `ScheduledBackup` that has been silently failing is as dangerous as no backup at all. Check restic snapshot lists and CNPG backup status for Home Assistant (config PVC and `home-assistant-pg`), Mealie (data PVC and `mealie-pg`), Node-RED, Paperless (library and database), teslamate, and authentik.
+- `mealie-pg` and `home-assistant-pg` deserve particular attention, because Barman recovery from R2 is their actual migration mechanism rather than a fallback. The first real use of those two backup chains would otherwise be the moment the data has to come back, and both run on a weekly schedule.
 - Dragonfly has no PVC and no backup of any kind. Confirm its data is intentionally cache-only and safe to lose, rather than inferring that from the absence of a PVC. Pihole is being dropped rather than migrated, so its state needs no verification beyond confirming nothing still depends on it.
 
 # Pre-migration checklist
@@ -506,7 +574,8 @@ Backups, a gate: don't proceed until these are confirmed.
 
 - [ ] Confirm `age.key` has a durable external backup outside this machine
 - [ ] Verify every VolSync `ReplicationSource` (Home Assistant, Mealie, Node-RED, Paperless) has a recent, successful snapshot in R2, not just that the resource exists
-- [ ] Verify CNPG's `ScheduledBackup` has a recent, successful backup in R2
+- [ ] Verify a recent, successful backup in R2 for every CNPG cluster, not just the shared one: `cnpg-cluster` (daily), plus `mealie-pg` and `home-assistant-pg` (both weekly, so more likely to be stale)
+- [ ] Verify the `mealie-pg` and `home-assistant-pg` Barman backups are actually restorable, since Barman recovery is the migration path for both and this would be the first real use of those two backup chains
 - [ ] Confirm Dragonfly's data is intentionally cache-only and safe to lose
 
 Network and hardware:
@@ -536,6 +605,7 @@ Platform (Phase B):
 - [ ] Deploy the UniFi webhook as a sidecar on the second external-dns instance, and confirm it creates a record end to end before relying on it for any app
 - [ ] Stand up two Envoy Gateways, internal and external, and give the external one a LAN `LoadBalancer` IP so split-horizon records have an address to point at
 - [ ] Configure the UniFi external-dns instance to watch both Gateways initially, which is the split-horizon assumption. The fallback rescopes it to the internal Gateway only, which then requires an internal route per app that should stay LAN-reachable
+- [ ] Settle split-horizon against dual-route on echo-server, before any stateful app is rebuilt. Stand up both shapes, check the DNS answers from inside and outside the LAN, and record the chosen external-dns scope and route convention so Phase C follows it
 - [ ] Flesh out `plans/04-envoy-gateway.md` for this cluster's real topology (IPs and VLAN, cloudflared integration, raw `LoadBalancer` apps, Tailscale-operator Ingress handling) before Wave 1
 - [ ] Give the new Tailscale operator a distinct hostname and its own OAuth client credentials
 - [ ] Stand up the new cluster's own Flux webhook receiver, with a distinct hostname and token, and add a second GitHub webhook so the new cluster is not stuck on 30m polling during bring-up
@@ -545,15 +615,19 @@ Platform (Phase B):
 - [ ] Stand up the metrics stack, kube-prometheus-stack or VictoriaMetrics, early in Phase B and before other platform services, so their `ServiceMonitor`s get picked up as they deploy
 - [ ] Add Spegel as a Phase B platform service (`plans/05a-spegel.md`, adapted for Talos's containerd paths)
 - [ ] Use cert-manager's staging issuer while iterating on bring-up, to avoid Let's Encrypt duplicate-certificate limits
-- [ ] Confirm current Longhorn replica placement before draining anything. Don't assume hcc and hcc2 hold all replica data: the taint repelled other workloads from those nodes rather than confining Longhorn to them, so replicas may sit anywhere with a `/storage01` disk
+- [ ] Give the new cluster its own write paths before the first backup runs: `s3://tf-hcc-volsync/apollo/<app>` for each `ReplicationSource`, and `serverName: <app>-pg-apollo-v1` for `mealie-pg` and `home-assistant-pg`. Hydration and recovery still read the old, unprefixed paths
+- [ ] Confirm hcc-tablet1 is genuinely decommissioned rather than idling, since it is in the ansible inventory but not in the live cluster
 - [ ] Decide where `defaultDataPath: /storage01` lives on each of the six new nodes, now that all of them can hold replicas
 - [ ] Drop the `dedicated=storage` taint and Longhorn's matching `taintToleration` when authoring the new cluster, rather than reproducing them
 
 Per-app (Phase C):
 
-- [ ] At Authentik's cutover, settle split-horizon against dual-route by testing it. Try one `HTTPRoute` on the external Gateway with two DNS answers, and fall back to porting both routes if it is fiddly, rescoping the UniFi instance to the internal Gateway if so. Record which one won, since later apps follow it
-- [ ] Verify external OIDC login to Mealie still works after Authentik's rebuild, whichever shape wins
-- [ ] Resolve the remaining open TODO in `plans/11-cnpg-database-split.md` (Cluster namespace placement) before the first CNPG-backed app is rebuilt
+- [ ] Verify external OIDC login to Mealie still works after Authentik's rebuild, whichever routing shape won in Phase B
+- [ ] Change `bootstrap.initdb` to `bootstrap.recovery` when copying `mealie-pg` and `home-assistant-pg`. Copying either manifest unchanged creates an empty database and still reports healthy
+- [ ] Trigger an on-demand CNPG `Backup` for `mealie-pg` and `home-assistant-pg` at their disable step and confirm it completes. Both are on `@weekly` schedules, so the last scheduled backup can be a week stale
+- [ ] Suspend each app's old `ReplicationSource` once its final sync lands, so the two clusters never prune the same restic repository
+- [ ] After rebuilding Home Assistant, confirm recorder history actually came across, not just that the app starts and the database is reachable
+- [ ] Place `teslamate-pg`, `paperless-pg`, and `authentik-pg` in their app's own namespace, matching what `mealie-pg` and `home-assistant-pg` already do
 - [ ] Per CNPG-backed app, immediately before that app's cutover rather than upfront: check its supported PostgreSQL range against the target major, bump the app on the old cluster first if a newer version is needed, and confirm required extensions (`cube` and `earthdistance` for teslamate) ship in the CNPG image for that major
 - [ ] Parameterize Home Assistant's `HASS_HTTP_TRUSTED_PROXY_1/2` into `cluster-settings` vars
 - [ ] Decide which new node inherits Home Assistant's `nodeSelector` pin, and reserve a free USB port on it for the future Thread antenna
@@ -571,9 +645,13 @@ Wave 2 teardown:
 
 Rollback is cheap by construction, because nothing is deleted from the old cluster until Wave 2. The old copy of every app, including manifests, PVC, and data, stays in `kubernetes/main`, disabled but intact.
 
+That holds only as long as the old cluster's API still serves, which is not automatic once nodes start leaving it. Retiring etcd members carelessly takes the rollback path down along with the cluster, so treat Retiring old nodes without breaking the old cluster as part of the rollback guarantee rather than a separate operational detail.
+
 - Per app: revert the disable commit. That restores `replicas`, the external Ingress whose record external-dns re-creates, and the tailscale Ingress. On the new cluster, remove the app's route first so its name is released, or the two will contend at the DNS layer. Data written on the new cluster since cutover is lost. That is the real cost of rolling back, and it grows the longer an app runs on the new side, so verify promptly instead of leaving cutovers half-trusted for weeks.
-- CNPG-backed apps: additionally repoint the app's database host back to `cnpg-cluster-rw...` and delete the partial `${app}-pg` cluster. An import never modifies the source cluster, so this is safe at any point.
-- Cluster-wide, before the Wave 1 decommission step: simply don't cordon, drain, or power off hcc, hcc2, and hcc-tablet1.
+- Apps still on the shared cluster (teslamate, authentik, paperless): additionally repoint the app's database host back to `cnpg-cluster-rw...` and delete the partial `${app}-pg` cluster. An import never modifies the source cluster, so this is safe at any point.
+- Mealie and Home Assistant: rollback is simpler, since Barman recovery reads from R2 and never touches the source. The old `mealie-pg` and `home-assistant-pg` clusters sit untouched on the old cluster, so reverting the disable commit brings the app back on its original database. Delete the half-recovered cluster on the new side.
+- Cluster-wide, before the Wave 1 retirement step: simply don't cordon, drain, or retire hcc and hcc2. Nothing about the old cluster has changed at that point.
+- After the Wave 1 retirement step, rollback still works but on a smaller and less redundant cluster. Three etcd members remain, and Longhorn has three nodes to place `defaultReplicaCount: 3` on, so verify each retained volume is still attachable rather than assuming it.
 - After Wave 2 begins there is no rollback, because wiping hcc3 and hcc4 destroys the retained copies. Step 1 of Wave 2 exists to make that boundary explicit.
 
 # Open questions
@@ -581,7 +659,7 @@ Rollback is cheap by construction, because nothing is deleted from the old clust
 - Does the `iot` macvlan NIC stay on hcc3 and hcc4 after Wave 2, or move to different nodes? Related but separate: which node gets the trunked IoT port in Wave 1, if Home Assistant is not deferred.
 - Where does Longhorn's `defaultDataPath: /storage01` live on each of the six new nodes, now that every node can hold replicas instead of a dedicated pair? Needs answering before Wave 1 bootstraps Longhorn. (The related question about the `dedicated=storage` taint is resolved: it is retired, see Platform component inventory.)
 - Is `external-apollo.${SECRET_DOMAIN}` kept permanently as the per-cluster tunnel alias, which is the recommendation, or reclaimed to plain `external.${SECRET_DOMAIN}` after the old cluster is deleted, at the cost of re-touching every app's route annotation for cosmetics?
-- Split-horizon or dual-route for dual-exposed hostnames? Deliberately unresolved, to be settled by trying split-horizon at Authentik's cutover and falling back to the existing dual-object pattern if it gets complicated. Whichever wins becomes the pattern for every later app, so record the outcome here.
+- Split-horizon or dual-route for dual-exposed hostnames? Deliberately unresolved, to be settled in Phase B by trying split-horizon on echo-server and falling back to the existing dual-object pattern if it gets complicated. Whichever wins becomes the pattern for every later app, so record the outcome here before Phase C starts.
 - Should in-cluster lookups of `sso.${SECRET_DOMAIN}` resolve internally instead of hairpinning out to the external Gateway's LAN IP and back? Doing so needs a CoreDNS rewrite, which is custom CoreDNS config, and therefore the exact condition `plans/05b-coredns-helm.md` names for taking CoreDNS off Talos management. Hairpinning works, so this is an optimization, but it is the first real trigger for that decision.
 - Is ad-blocking wanted back after pihole is dropped, through UniFi's own content filtering or a pihole that is not the primary resolver? Deliberately deferred, since it is a separate concern from internal name resolution.
 - Future optimization, explicitly out of scope here: a dedicated VLAN for Longhorn's inter-node replication traffic, once the cluster is stable after the migration.

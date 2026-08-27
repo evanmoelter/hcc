@@ -2,9 +2,11 @@
 
 ## Overview
 
-**Status: folded into the Talos migration.** This split now happens *during* `plans/20260816-talos-migration.md`'s Wave 1, per-app, rather than as a standalone change on the current cluster: each new dedicated cluster (`teslamate-pg`, `paperless-pg`, `authentik-pg`) is created directly on the new Talos cluster, importing across the network from the old cluster's still-live `cnpg-cluster` instead of importing from a same-cluster source. This avoids splitting on the old cluster and then separately migrating three clusters to new infrastructure afterward. See that doc's "CNPG-backed apps" section for how this interleaves with the rest of the per-app cutover.
+**Status: folded into the Talos migration, and partly already done.** This split now happens *during* `plans/20260816-talos-migration.md`'s Wave 1, per-app, rather than as a standalone change on the current cluster: each new dedicated cluster (`teslamate-pg`, `paperless-pg`, `authentik-pg`) is created directly on the new Talos cluster, importing across the network from the old cluster's still-live `cnpg-cluster` instead of importing from a same-cluster source. This avoids splitting on the old cluster and then separately migrating three clusters to new infrastructure afterward. See that doc's "Rebuild (database-backed apps)" section for how this interleaves with the rest of the per-app cutover.
 
-TODO: Decide whether pg clusters should be located in the database namespace or the app namespace (leaning towards app namespace).
+**Two apps have already been split ahead of this plan.** `mealie-pg` and `home-assistant-pg` now exist as independent clusters on PG 18.1, defined alongside their apps in `kubernetes/main/apps/default/{mealie,home-assistant}/app/cluster.yaml`, each with its own Barman backup to R2 and its own `ScheduledBackup`. They are not part of the remaining split work. Their migration is a Barman recovery rather than a logical import, since each instance already holds exactly one database; the Talos migration doc covers that path and the empty-database trap that comes with copying their `bootstrap.initdb` manifests forward.
+
+~~TODO: Decide whether pg clusters should be located in the database namespace or the app namespace (leaning towards app namespace).~~ **Resolved**: app namespace. `mealie-pg` and `home-assistant-pg` are both defined in the app's own directory and namespace, which settles the question by precedent. Follow that for `teslamate-pg`, `paperless-pg`, and `authentik-pg` unless a specific reason argues otherwise. Note this makes ESO the mechanism for cross-namespace access (Grafana reading teslamate's credentials), which is the resolution recorded below.
 ~~TODO: figure out how secrets will be handled across namespaces. For example, how will the teslamate db secret be used by grafana? Maybe it's finally time for 1Password?~~ **Resolved**: External Secrets Operator + 1Password, adopted as part of the Talos migration (`plans/20260816-talos-migration.md`). Cross-namespace access becomes an `ExternalSecret` in each consuming namespace pointing at the same 1Password item, rather than a Secret-copying workaround.
 
 Migrate from a single shared CloudNativePG cluster (`cnpg-cluster`) serving multiple applications to dedicated per-app clusters. This improves backup isolation, simplifies upgrades, and follows the microservice database pattern.
@@ -42,13 +44,13 @@ cnpg-cluster (database namespace)
 ## Target State
 
 ```
-teslamate-pg (database namespace)
+teslamate-pg (default namespace, alongside the app)
 └── teslamate database
 
-paperless-pg (database namespace)
+paperless-pg (default namespace, alongside the app)
 └── paperless database
 
-authentik-pg (database namespace)
+authentik-pg (security namespace, alongside the app)
 └── authentik database
 ```
 
