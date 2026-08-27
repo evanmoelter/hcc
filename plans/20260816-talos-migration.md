@@ -74,6 +74,70 @@ flowchart LR
     w1 --> w2
 ```
 
+## Disk layout and Longhorn
+
+| Node | Disks | In Longhorn |
+|---|---|---|
+| hcc5 | 256GB NVMe, 1TB HDD (WD10SPSX) | NVMe only |
+| hcc6 | 256GB NVMe, 1TB HDD (WD10SPSX) | NVMe only |
+| hcc7 | 256GB NVMe, 256GB SATA SSD | both |
+| hcc8 | 256GB NVMe, no expansion bay | NVMe only |
+| hcc3, hcc4 | existing drives, about 360Gi schedulable each today | both, on rejoin in Wave 2 |
+
+One untagged Longhorn pool holds every flash disk. The two HDDs stay out of Longhorn entirely.
+
+### Why one tier, not a fast and bulk split
+
+The boundary that matters is flash versus platter, not NVMe versus SATA. A SATA SSD and an NVMe SSD differ in sequential bandwidth, roughly 550 MB/s against 3000 or more, but both land around 50 to 100 µs on random access, and inside a Longhorn volume that gap disappears under the iSCSI engine hop and the synchronous write to peer replicas. The existing cluster already demonstrates this: hcc and hcc2 are SATA SSDs, hcc3 and hcc4 are NVMe, all four sit in one untagged pool, and nothing has ever needed separating.
+
+The WD10SPSX is a different class. It is a 7200 RPM 2.5 inch drive, so the SATA 6Gb/s interface is not the constraint, the platter is: roughly 8 ms average random access and on the order of 150 random IOPS, against tens of thousands for either SSD. Two orders of magnitude, not a percentage. Longhorn's scheduler has no concept of disk speed. It places replicas by free space and node anti-affinity, so an untagged HDD in the pool would eventually take a CNPG replica or the Home Assistant recorder volume, and the symptom would be latency rather than an error.
+
+That leaves two options for the HDDs: tag them and fence the default StorageClass off them with a `diskSelector`, or leave them out. Leave them out. Every Longhorn volume in the cluster holds about 12 GB of real data combined, the app list (Home Assistant, Mealie, Node-RED, Paperless, Teslamate) has nothing that wants bulk capacity, and the HDDs are slated for replacement by the Odroids' 1TB SSDs in Wave 2 anyway. A tagged tier would buy unused capacity in exchange for a StorageClass to maintain and a slow disk to keep workloads off. Adding a tagged disk later is a two-line change that needs no data migration, so nothing is lost by waiting until a workload actually wants one.
+
+### Right-size paperless-library during the rebuild
+
+Longhorn schedules against requested size, not used size. Today that means about 363Gi of reservation standing behind about 12 GB of data, and one volume dominates: `paperless-library` requests 100Gi, holds 3.4 GB, and at two replicas books 200Gi of the total. The migration recreates every PVC from restic, so it is the one moment where that request can be corrected without moving data. Request 25Gi and expand later if it ever fills, since `allowVolumeExpansion` is already true on the Longhorn StorageClasses.
+
+### Talos specifics
+
+Two things will bite if missed.
+
+`/storage01` cannot survive as a path. Talos's root filesystem is read only and only `/var` is writable, so the Longhorn data path becomes `/var/mnt/longhorn`, which is where Talos mounts a user volume named `longhorn`. `defaultDataPath` changes to match.
+
+EPHEMERAL expands to fill its disk unless capped, and the cap has to be set at install time. Miss it and no free space is left on the NVMe to carve a Longhorn volume out of, and the fix is reinstalling the node. Roughly, to be checked against whatever Talos version gets pinned:
+
+```yaml
+apiVersion: v1alpha1
+kind: VolumeConfig
+name: EPHEMERAL
+provisioning:
+  maxSize: 80GiB
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn
+provisioning:
+  diskSelector:
+    match: disk.transport == 'nvme'
+  minSize: 100GB
+```
+
+hcc7's SATA SSD needs a second `UserVolumeConfig` in its `node/hcc7/` patch directory, selecting the non-NVMe disk and mounting at `/var/mnt/longhorn-sata`. Both paths need a kubelet bind mount with `rshared` propagation, alongside the `iscsi-tools` and `util-linux-tools` extensions Phase A already installs.
+
+One operational rule follows: a Talos reset, or an upgrade that wipes, destroys that node's Longhorn replicas. Survivable at three replicas, but it means upgrading one node at a time and letting rebuilds finish before starting the next.
+
+### Replica count
+
+`defaultReplicaCount` stays at 3. With four nodes that leaves one node of scheduling slack, which is worth protecting under Talos, where rolling OS upgrades reboot every node as a matter of routine. At two replicas a volume sits on a single replica for the length of each reboot.
+
+Two replicas is a legitimate per-app opt-out rather than a new default, and every volume has an offsite copy that justifies it: VolSync to R2 for PVCs, Barman to R2 for the CNPG clusters. Use it where a volume is large or the app tolerates a restore, set it through a per-app StorageClass, and treat it as a capacity release valve rather than something to apply broadly.
+
+### Capacity trajectory
+
+About 140Gi of Longhorn space per NVMe once EPHEMERAL is capped, plus about 230Gi from hcc7's SATA SSD, so roughly 790Gi at Wave 1 against the 215Gi of reservation left after paperless is right-sized. Longhorn self-balances across a size-asymmetric pool because it prefers the disk with the most available space, and node-level replica anti-affinity is strict by default, so hcc7's second disk adds capacity to hcc7 without opening a path to two replicas of one volume sharing a node.
+
+hcc8 is the long-term ceiling, not hcc7. Replica 3 across four nodes means a volume needs its full size free on three separate nodes, so the three smallest set the limit. Once the Odroids' 1TB SSDs move into hcc5 and hcc6 in Wave 2, hcc8's single 256GB NVMe becomes the constraint, and it has no expansion bay. If that ever matters the fix is a larger NVMe in hcc8, not a structural change. At 12 GB of data it does not matter yet.
+
 ## Cluster and repo structure
 
 The new cluster is bootstrapped as `kubernetes/apollo/`, with the usual `flux/`, `bootstrap/`, `apps/`, and `templates/` directories. It gets its own `GitRepository` and `Kustomization` pair pointed at `./kubernetes/apollo`, and its own `cluster-settings` ConfigMap with genuinely independent `NODE_CIDR`, `CLUSTER_CIDR`, and control-plane VIP values. It lives on a dedicated HCC VLAN carved out on the Ubiquiti gear (UCG Fiber) acquired since the original cluster was built.
@@ -383,10 +447,11 @@ One note on the fleet inventory: `ansible/inventory/hosts.yaml` lists hcc-tablet
 1. Confirm every app is healthy on the new cluster and no rollback is pending. This is the point of no return for the old cluster's data.
 2. Shut the old cluster down as a unit. Because it is being dismantled rather than kept serviceable, there is no need to contract etcd membership gracefully or evacuate Longhorn replicas: all four nodes go together. Power off hcc and hcc2 for disposal.
 3. Wipe and reinstall them with Talos, and join them as workers to the `kubernetes/apollo` cluster, keeping their existing names. The final six nodes are hcc3, hcc4, hcc5, hcc6, hcc7, and hcc8, with hcc5 through hcc7 as control-plane and hcc3, hcc4, and hcc8 as workers.
-4. Re-verify the `iot` multus `NetworkAttachmentDefinition`, currently macvlan on `enp1s0` and physically cabled to hcc3 and hcc4, against the new OS. Interface naming and driver availability can differ under Talos, and this is a physical-cabling dependency rather than pure config. It also needs an actual VLAN tag added now (see HCC VLAN isolation): under the old flat networking the cluster and IoT devices shared a broadcast domain, so no tagging was needed, and on the new cluster they do not. If Home Assistant was deferred, this is where it gets rebuilt.
-5. Revert the new cluster's Cloudflare external-dns to `policy: sync`. Normal pruning is safe again once no other cluster owns records in the zone.
-6. Delete `kubernetes/main` entirely, and remove the now-dead ansible and k3s tooling: `ansible/inventory/hosts.yaml`, the `system-upgrade/k3s` Flux Kustomization, `system-upgrade-controller` itself, and any taskfiles that only existed to drive ansible and k3s.
-7. Wipe the old disks (see Security).
+4. Transplant the two 1TB SATA SSDs harvested from hcc and hcc2 into hcc5 and hcc6, replacing the WD10SPSX HDDs. Wipe them first (see Security), since they hold Longhorn replicas of live application data. Do this after hcc3 and hcc4 have joined, not before: each swap takes a node offline, and at six nodes that still leaves five candidates for `defaultReplicaCount: 3`, where doing it at four would leave three and no slack. One node at a time, letting Longhorn finish rebuilding before starting the second. Add each SSD as a `UserVolumeConfig` in that node's patch directory, joining the same untagged pool as the NVMe disks (see Disk layout and Longhorn). Nothing needs evacuating from the HDDs, because they were never in Longhorn.
+5. Re-verify the `iot` multus `NetworkAttachmentDefinition`, currently macvlan on `enp1s0` and physically cabled to hcc3 and hcc4, against the new OS. Interface naming and driver availability can differ under Talos, and this is a physical-cabling dependency rather than pure config. It also needs an actual VLAN tag added now (see HCC VLAN isolation): under the old flat networking the cluster and IoT devices shared a broadcast domain, so no tagging was needed, and on the new cluster they do not. If Home Assistant was deferred, this is where it gets rebuilt.
+6. Revert the new cluster's Cloudflare external-dns to `policy: sync`. Normal pruning is safe again once no other cluster owns records in the zone.
+7. Delete `kubernetes/main` entirely, and remove the now-dead ansible and k3s tooling: `ansible/inventory/hosts.yaml`, the `system-upgrade/k3s` Flux Kustomization, `system-upgrade-controller` itself, and any taskfiles that only existed to drive ansible and k3s.
+8. Wipe the old disks (see Security).
 
 ## Shared external state: keep the two clusters off each other's paths
 
@@ -431,7 +496,7 @@ The discriminator is the cluster name, inserted as a path prefix rather than a s
 - Cilium depends on KubePrism directly rather than incidentally. Upstream `cluster-template`'s current Cilium `HelmRelease` confirms it: `k8sServiceHost: 127.0.0.1` and `k8sServicePort: 7445`, alongside `kubeProxyReplacement: true`. With kube-proxy fully replaced by Cilium's eBPF datapath, there is no iptables or ipvs fallback for resolving `kubernetes.default.svc`. Cilium cannot route to a Service IP using a datapath that is not up yet, so it needs a static, always-reachable API-server address that does not depend on its own readiness, the VIP, or DNS. That is a harder requirement for Cilium than for plain kubelet traffic. Two more settings from that same file are worth carrying into this cluster's Cilium config: `cni.exclusive: false`, which upstream's own comment marks as *"Required for pairing with Multus CNI"* and which matters directly given this cluster's IoT macvlan setup, and `gatewayAPI.enabled: false`, since upstream deliberately leaves Cilium's built-in Gateway API implementation off. Keep it off here too, so it does not compete with the standalone Envoy Gateway install over the same CRDs and `GatewayClass`.
 - Cilium's containerd and CNI paths change from k3s's embedded layout to Talos's `/etc/cri/conf.d/hosts`, which also affects Spegel's path configuration. `plans/05a-spegel.md` already tracks this as a k3s-versus-Talos difference.
 - Standing shared infrastructure runs concurrently on both clusters for the entire migration window, not just at per-app cutover moments. That covers the ingress layer, cloudflared, and the Tailscale operator, and it is exactly what the dedicated VLAN and CIDR are for.
-- The `dedicated=storage` taint on hcc and hcc2 is retired rather than reproduced. It kept general workload off those two nodes because the Odroid fans get loud under load, and Longhorn carried a matching `taintToleration` so it could still place replicas there. Both machines are leaving, so the reason leaves with them: all six NUC11s are equivalent and schedulable, and the toleration comes out of Longhorn's `defaultSettings` too. Note that the taint never confined Longhorn to those two nodes, it only repelled everything else from them, which is why replica placement has to be checked rather than assumed before draining anything. What still needs deciding before Wave 1 bootstraps Longhorn is where `defaultDataPath: /storage01` lives on each new node, since `defaultReplicaCount: 3` now has six candidates instead of a dedicated pair.
+- The `dedicated=storage` taint on hcc and hcc2 is retired rather than reproduced. It kept general workload off those two nodes because the Odroid fans get loud under load, and Longhorn carried a matching `taintToleration` so it could still place replicas there. Both machines are leaving, so the reason leaves with them: all six NUC11s are equivalent and schedulable, and the toleration comes out of Longhorn's `defaultSettings` too. Note that the taint never confined Longhorn to those two nodes, it only repelled everything else from them, which is why replica placement has to be checked rather than assumed before draining anything. Where Longhorn's data path lives on the new nodes is settled separately under Disk layout and Longhorn.
 
 ### How external traffic actually reaches an app
 
@@ -617,7 +682,11 @@ Platform (Phase B):
 - [ ] Use cert-manager's staging issuer while iterating on bring-up, to avoid Let's Encrypt duplicate-certificate limits
 - [ ] Give the new cluster its own write paths before the first backup runs: `s3://tf-hcc-volsync/apollo/<app>` for each `ReplicationSource`, and `serverName: <app>-pg-apollo-v1` for `mealie-pg` and `home-assistant-pg`. Hydration and recovery still read the old, unprefixed paths
 - [ ] Confirm hcc-tablet1 is genuinely decommissioned rather than idling, since it is in the ansible inventory but not in the live cluster
-- [ ] Decide where `defaultDataPath: /storage01` lives on each of the six new nodes, now that all of them can hold replicas
+- [ ] Cap EPHEMERAL in each node's Talos config before installing, since it otherwise fills the NVMe and leaves no room for a Longhorn user volume. Getting this wrong means reinstalling the node
+- [ ] Set `defaultDataPath: /var/mnt/longhorn`, not `/storage01`, and give hcc7 a second `UserVolumeConfig` for its SATA SSD at `/var/mnt/longhorn-sata`
+- [ ] Add kubelet `extraMounts` with `rshared` propagation for both Longhorn paths
+- [ ] Leave the two WD10SPSX HDDs out of Longhorn. Do not let them join the untagged pool, where the scheduler would treat them as equivalent to flash
+- [ ] Request 25Gi rather than 100Gi for `paperless-library` when rebuilding it, while the PVC is being recreated from restic anyway
 - [ ] Drop the `dedicated=storage` taint and Longhorn's matching `taintToleration` when authoring the new cluster, rather than reproducing them
 
 Per-app (Phase C):
@@ -657,7 +726,6 @@ That holds only as long as the old cluster's API still serves, which is not auto
 # Open questions
 
 - Does the `iot` macvlan NIC stay on hcc3 and hcc4 after Wave 2, or move to different nodes? Related but separate: which node gets the trunked IoT port in Wave 1, if Home Assistant is not deferred.
-- Where does Longhorn's `defaultDataPath: /storage01` live on each of the six new nodes, now that every node can hold replicas instead of a dedicated pair? Needs answering before Wave 1 bootstraps Longhorn. (The related question about the `dedicated=storage` taint is resolved: it is retired, see Platform component inventory.)
 - Is `external-apollo.${SECRET_DOMAIN}` kept permanently as the per-cluster tunnel alias, which is the recommendation, or reclaimed to plain `external.${SECRET_DOMAIN}` after the old cluster is deleted, at the cost of re-touching every app's route annotation for cosmetics?
 - Split-horizon or dual-route for dual-exposed hostnames? Deliberately unresolved, to be settled in Phase B by trying split-horizon on echo-server and falling back to the existing dual-object pattern if it gets complicated. Whichever wins becomes the pattern for every later app, so record the outcome here before Phase C starts.
 - Should in-cluster lookups of `sso.${SECRET_DOMAIN}` resolve internally instead of hairpinning out to the external Gateway's LAN IP and back? Doing so needs a CoreDNS rewrite, which is custom CoreDNS config, and therefore the exact condition `plans/05b-coredns-helm.md` names for taking CoreDNS off Talos management. Hairpinning works, so this is an optimization, but it is the first real trigger for that decision.
