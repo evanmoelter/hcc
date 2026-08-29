@@ -17,6 +17,7 @@ At the end of Wave 1, every app runs on Apollo and the four-node k3s cluster rem
 ## Migration principles
 
 - Rebuild manifests under `kubernetes/apollo` instead of moving directories. Review each app and its `app-template` chart for compatible upgrades while copying it; take upgrades that can be verified without obscuring migration failures.
+- For workloads without an app-specific Helm chart, prefer a compatible image from [`home-operations/containers`](https://github.com/home-operations/containers) and pin it by digest. Use an upstream image next, and retain an image from `ghcr.io/evanmoelter` only when neither provides the required behavior.
 - Prepare each cutover as a two-PR Graphite stack: the old-cluster disable on the bottom and the Apollo rebuild on top. Both pass review and CI before the maintenance window.
 - Disable old copies without deleting their manifests, PVCs, databases, or secrets. Nothing leaves `kubernetes/main` until Wave 2.
 - Allow only one serving copy and one backup writer per app. The clusters never share active IPs, DNS records, tailnet names, restic write paths, or Barman server names.
@@ -244,6 +245,7 @@ Logical import permits a PostgreSQL major-version change, but check each app's s
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
 | External apps | Replace the old tunnel target with `external-apollo.${SECRET_DOMAIN}` |
 | All apps | Convert internal and external Ingresses to `HTTPRoute`; retain Tailscale Ingresses |
+| App-template and raw-manifest workloads | Check `home-operations/containers` for a compatible replacement, especially for images currently built under `ghcr.io/evanmoelter`; verify user IDs, paths, arguments, and security context before switching |
 | TeslaMate | Confirm `teslamate_db_2024-03-18.sql` in `teslamate-backup-pvc` is no longer needed |
 
 Home Assistant moves in Wave 1 and stays pinned to hcc7 for the foreseeable future, so hcc7 must have a trunked IoT VLAN port before app migration starts. Keep `postgres-lb` until every logical import finishes; then decide whether external database access remains useful.
@@ -332,6 +334,7 @@ Per app:
 
 - [ ] Prepare and review the two-PR cutover stack: old-cluster disable on the bottom, Apollo rebuild on top.
 - [ ] Review the app and its `app-template` chart for compatible upgrades before finalizing the Apollo PR.
+- [ ] For apps without their own chart, prefer a digest-pinned `home-operations/containers` image where compatible and retire the corresponding personal image.
 - [ ] Merge the stack in cutover order, including a verified final backup and suspension of the old `ReplicationSource` between the two PRs.
 - [ ] Use Barman recovery for Mealie and Home Assistant, with a fresh on-demand backup; verify recorder history after Home Assistant restores.
 - [ ] Put every CNPG cluster in its app namespace and check the supported PostgreSQL major and required extensions before import.
