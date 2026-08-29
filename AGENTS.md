@@ -1,0 +1,144 @@
+# AGENTS.md
+
+Guidance for AI agents working in this repository. [README.md](./README.md) describes what the cluster is; this file describes how to change it.
+
+This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever is committed here, so the way to change the cluster is to change these files.
+
+## Ground rules
+
+1. **Read-only against the live cluster.** Inspect freely with `kubectl get`, `describe`, `logs`, `flux get`, `k9s`, and `stern`. Anything that changes cluster state (`apply`, `delete`, `patch`, `scale`, `rollout restart`, `flux reconcile`, `flux suspend`, `talosctl`) needs the operator's explicit approval first. Propose the command and say what it will do.
+2. **Never `kubectl apply` over Flux.** Everything under `kubernetes/` is reconciled from git. A hand-applied manifest either gets reverted on the next reconcile or survives as drift that no file explains. Change the file, commit it, and let Flux converge.
+3. **Never write plaintext secrets.** Files matching `*.sops.yaml` are encrypted with age. Editing one in place commits secrets to a public repository. The operator is responsible for keeping secrets up to date.
+4. **Read the plan before implementing.** `plans/` holds design docs written ahead of the work. If a plan covers the task, follow it. If it is stale, say so instead of improvising around it.
+
+## Two cluster trees
+
+| Path | Cluster | Rule |
+|---|---|---|
+| `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
+| `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
+
+`kubernetes/apollo/` does not exist yet. Until it does, changes to running apps still land in `kubernetes/main/`, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+
+## How an app is laid out
+
+Each app is a directory under `kubernetes/<cluster>/apps/<namespace>/<app>/`:
+
+```
+mealie/
+  ks.yaml                        Flux Kustomization: dependsOn, targetNamespace, postBuild vars
+  ks-backup.yaml                 second Kustomization for the backup config
+  app/
+    kustomization.yaml
+    helmrelease.yaml             bjw-s app-template, pinned chart version
+    cluster.yaml                 CNPG Cluster, one per app
+    pvc.yaml
+    secret.sops.yaml
+  backup/
+    data-volsync-r2.yaml         VolSync ReplicationSource
+    data-volsync-r2.sops.yaml    restic repository credentials
+```
+
+To add an app:
+
+1. Create the directory following the shape above.
+2. Register its `ks.yaml` in the namespace's `kustomization.yaml`. Flux cannot see an unregistered app.
+3. List every dependency in `dependsOn`. Storage, database, and identity (`longhorn`, `cloudnative-pg`, `authentik`) all belong there, or the first reconcile races.
+4. Pass `APP: *app` through `postBuild.substitute` if the app uses the shared VolSync template.
+5. Validate with `task kubernetes:kubeconform` before opening a PR.
+
+Conventions worth matching: a `# yaml-language-server: $schema=` comment at the top of each manifest, YAML anchors (`name: &app mealie`) instead of repeating the app name, pinned chart and image versions for Renovate to bump, and `${SECRET_DOMAIN}` or `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than literals.
+
+### Community resources
+
+There is a huge community of home Kubernetes users, many of whom have public repos with their config. This repo heavily relies on these community resources.
+
+An automated way for agents to discover these resources is coming soon. For now, ask the operator to help you find relevant repos/resources, especially when implementing new apps.
+
+Two of them are load-bearing here:
+
+- [home-operations/k8s-schemas](https://github.com/home-operations/k8s-schemas) builds the JSON schemas that the `$schema=` comments and `task kubernetes:kubeconform` validate against. It serves them at `k8s-schemas.home-operations.com`; this repo still points at the older `kubernetes-schemas.pages.dev`. Check there first when a CRD has no schema or fails validation.
+- [home-operations/containers](https://github.com/home-operations/containers) builds rootless application containers. For a workload with no app-specific Helm chart, prefer one of these images, then an upstream image, and only fall back to a custom build when neither does what the app needs.
+
+## Secrets
+
+- Avoid reading secrets from anywhere. Instead, ask the operator to check them for you.
+- Do not leak secrets or potentially sensitive information in any externally visible output (e.g. commits, docs, PR descriptions, etc.).
+- App and cluster secrets live in `*.sops.yaml` and 1Password (synced with ESO).
+  - SOPS: You should never decrypt or edit these files directly. Instead, ask the operator to make the changes for you. For new secrets files, create a file with placeholder values and encrypt with `task sops:encrypt`. Note that only `data` and `stringData` are encrypted, so the rest of the file stays reviewable in a diff.
+  - 1Password: You should never read or write secrets from/to 1Password directly. For new secrets, you can suggest naming/paths and the user will create the entry for you.
+
+## Validating changes
+
+```sh
+task kubernetes:kubeconform     # schema validation, same as CI
+```
+
+CI runs `kubeconform.yaml` and `flux-diff.yaml` on every PR. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change.
+
+## Code style
+
+### Code Comments
+
+I prefer to avoid code comments unless absolutely necessary.
+
+Every comment is a claim the compiler never checks. It can be wrong when written, or go stale as the code drifts. A misleading comment leaves the reader worse off than no comment at all.
+
+- Let the code speak for itself. Prefer a verbose name over an explanatory comment. If a block needs a comment to be readable, try to refactor it instead.
+- No comments about rejected approaches or removed code.
+- Do not document context that belongs in a PR. Comments are not the right place to answer a code review comment.
+- You can document third-party limitations where necessary. Non-obvious behavior in a an app/package we don't control is sometimes worth a comment. Link the upstream bug report so we know when the workaround can go.
+- If you're not 100% sure about a comment, ask me.
+
+If you must add a comment:
+- Keep it extremely short. A long comment costs the reader the time it was meant to save.
+- Wrap at 120 characters. Biome formats code, not comments.
+
+Caveats:
+- some comments have leaked into the codebase. Just because a comment currently exists doesn't mean it's accurate or an acceptable pattern to follow.
+- machine-read annotations and directives are outside this policy.
+
+## Commits and pull requests
+
+Graphite is used to manage the branch/commit/PR lifecycle. The operator's Graphite skills document the current best practices.
+
+## Gotchas
+
+Add new ones here as they are discovered. Remove existing ones when they have been solved.
+
+### VolSync fails on an empty PVC
+
+A restic `ReplicationSource` over a directory with no files errors out instead of taking an empty snapshot. Give the workload an init container that touches a placeholder file. Both `mealie` and `paperless-sftp` do this.
+
+### Stopping a stuck CNPG pod takes two steps
+
+Hibernation alone will not stop it. Suspend the Flux Kustomization, then scale the CNPG operator to zero, or the operator recreates the pod as fast as you remove it. Reverse the order to restore.
+
+### Longhorn ignores disk speed when placing replicas
+
+Keep slow disks out of the pool rather than trusting the scheduler to avoid them.
+
+## Tooling
+
+Local tools are installed/managed with Mise. Everything should be pinned in [`mise.toml`](./mise.toml). Use mise CLI to install/update tools.
+
+Prefer `task <group>:<name>` over raw commands for frequently used tasks; `task` on its own lists what exists.
+
+Talos machine configuration is managed with `topf`, wrapped by `.taskfiles/Talos/`.
+
+## Keeping these docs current
+
+Part of your job is keeping this doc and the README up to date.
+
+Propose an edit when you:
+
+- Learn a convention these docs do not state, or find one they state wrongly.
+- Add or remove something the README describes: a node, an app, a platform component, a task worth knowing about.
+- Hit a failure worth a new entry under Gotchas, or fix one that is already listed. Solved gotchas get removed rather than left behind as history.
+
+Put the doc change in the same PR as the work it describes. A follow-up PR for it rarely gets written.
+
+Two caveats.
+- Be selective about what deserves to be documented. If these docs get too detailed, they will become a maintenance burden.
+- Propose rather than assume. If you are unsure whether something is a real rule or just how one app happens to be written, ask the operator instead of promoting an accident into policy.
+
