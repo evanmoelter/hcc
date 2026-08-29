@@ -6,7 +6,7 @@ The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, usin
 
 # Functionality
 
-Each hosted app gets a short maintenance window at its own cutover point. Home Assistant, Mealie, Node-RED, Paperless, and the apps backed by the shared Postgres cluster go fully offline while their final backup and restore or import runs. The source is never writable during transfer.
+Each hosted app gets a short maintenance window at its own cutover point. Home Assistant, Mealie, Paperless, and the apps backed by the shared Postgres cluster go fully offline while their final backup and restore or import runs; Node-RED is rebuilt empty after Home Assistant. A data source is never writable during transfer.
 
 Ingress hostnames and Tailscale names do not change. The old cluster releases each name before the new cluster claims it. Afterward, Flux remains the normal operating path; routine work does not use SSH or hand-applied manifests.
 
@@ -16,7 +16,7 @@ At the end of Wave 1, every app runs on Apollo and the four-node k3s cluster rem
 
 ## Migration principles
 
-- Rebuild manifests under `kubernetes/apollo` instead of moving directories. Review each app while copying it.
+- Rebuild manifests under `kubernetes/apollo` instead of moving directories. Review each app and its `app-template` chart for compatible upgrades while copying it; take upgrades that can be verified without obscuring migration failures.
 - Prepare each cutover as a two-PR Graphite stack: the old-cluster disable on the bottom and the Apollo rebuild on top. Both pass review and CI before the maintenance window.
 - Disable old copies without deleting their manifests, PVCs, databases, or secrets. Nothing leaves `kubernetes/main` until Wave 2.
 - Allow only one serving copy and one backup writer per app. The clusters never share active IPs, DNS records, tailnet names, restic write paths, or Barman server names.
@@ -67,7 +67,7 @@ flowchart LR
 
 All flash disks use one untagged Longhorn pool. SATA SSD and NVMe latency is close enough after Longhorn's engine hop and synchronous replica writes. The HDDs stay out because Longhorn does not account for disk speed and could place a database replica on roughly 150-IOPS storage. Current workloads use about 12GB and do not need the capacity.
 
-Reduce `paperless-library` from 100Gi to 25Gi when recreating it. It holds about 3.4GB and can expand later, cutting Wave 1 reservation from roughly 363Gi to 215Gi.
+Reduce `paperless-library` from 100Gi to 50Gi when recreating it. It holds about 3.4GB and can expand later, cutting Wave 1 reservation from roughly 363Gi to 265Gi.
 
 Talos storage requirements:
 
@@ -78,7 +78,7 @@ Talos storage requirements:
 
 Keep `defaultReplicaCount: 3`. Four Wave 1 nodes leave one node of reboot slack. Two replicas remain available per app through a separate StorageClass when offsite restore is acceptable. Upgrade or reset one node at a time and wait for Longhorn rebuilds.
 
-Wave 1 provides about 790Gi after the EPHEMERAL cap, well above the 215Gi reservation. In the final fleet, hcc8's single 256GB NVMe sets the per-volume ceiling because three replicas need space on three nodes. Current data is nowhere near it; replace that NVMe if the limit becomes binding.
+Wave 1 provides about 790Gi after the EPHEMERAL cap, well above the 265Gi reservation. In the final fleet, hcc8's single 256GB NVMe sets the per-volume ceiling because three replicas need space on three nodes. Current data is nowhere near it; replace that NVMe if the limit becomes binding.
 
 ## Cluster structure and tooling
 
@@ -101,7 +101,7 @@ Use `topf` for machine configuration. Hand-author `topf.yaml` and strategic-merg
 
 Keep KubePrism enabled while writing the `all/` patches. Configure Cilium with `k8sServiceHost: 127.0.0.1`, `k8sServicePort: 7445`, and `kubeProxyReplacement: true` so it can reach the API through KubePrism before its own datapath is ready. Set `cni.exclusive: false` for Multus and `gatewayAPI.enabled: false` so Cilium does not compete with Envoy Gateway.
 
-Talos uses `/etc/cri/conf.d/hosts` instead of k3s's embedded containerd and CNI paths. Carry that change into Spegel rather than copying its k3s configuration; `plans/05a-spegel.md` tracks the details.
+Talos uses `/etc/cri/conf.d/hosts` instead of k3s's embedded containerd and CNI paths. Carry that change into Spegel rather than copying its k3s configuration. `plans/05a-spegel.md` is a k3s-oriented draft and must be revisited against current Talos and Spegel releases immediately before implementation.
 
 Carry over upstream's QUIC socket-buffer and ARP cache tuning. Preserve its bootstrap order, with Spegel between CoreDNS and cert-manager, but leave CoreDNS Talos-managed. Revisit that choice only if custom configuration requires it, as described in `plans/05b-coredns-helm.md`. Verify whether the target release still needs kubelet-csr-approver; current upstream no longer lists it.
 
@@ -129,8 +129,8 @@ flowchart TD
 | Component | Decision and migration work |
 |---|---|
 | Ingress | Replace ingress-nginx with internal and external Envoy Gateways. Rewrite internal and external Ingresses as `HTTPRoute`s. Raw `LoadBalancer` services stay unchanged. Complete `plans/04-envoy-gateway.md` for Apollo before Wave 1. |
-| CoreDNS | Keep Talos-managed unless custom configuration becomes necessary. |
-| Spegel and metrics | Add both early. Choose kube-prometheus-stack or VictoriaMetrics before bootstrap. |
+| CoreDNS | Keep Talos-managed. Use the UniFi answer and Gateway LAN IP for in-cluster names rather than adding a CoreDNS rewrite. |
+| Spegel and metrics | Add Spegel and kube-prometheus-stack early. Add Thanos later only if long retention, object-storage-backed metrics, or cross-cluster queries become requirements. |
 | Secrets | Add ESO and 1Password Connect for new app secrets. Keep SOPS and age for Talos and bootstrap secrets. |
 | Storage backup | Install snapshot-controller and `longhorn-snapclass` before VolSync. Decide separately whether Longhorn needs a cluster-level S3 target. |
 | CNPG | Install only the operator. Split the old shared cluster into per-app clusters during migration; `plans/11-cnpg-database-split.md` holds the detailed comparison. |
@@ -150,15 +150,15 @@ flowchart TD
 - Isolate the HCC and IoT VLANs in both directions by default.
 - Temporarily allow Apollo to reach `192.168.6.21:5432` for the authentik, Paperless, and TeslaMate imports. Remove the rule after all three migrate.
 - Allow Apollo to reach only the UCG Fiber Integration API needed by external-dns.
-- Give Home Assistant one intentional IoT path through multus. Set the VLAN tag in `bootstrap_talos.vlan` and the NAD, and trunk it to the selected node.
+- Give Home Assistant one intentional IoT path through multus on hcc7. Set the VLAN tag in `bootstrap_talos.vlan` and the NAD, and trunk it to hcc7.
 
 A separate Longhorn replication VLAN and BGP load-balancer announcements remain out of scope.
 
 ### DNS and ingress
 
-Apollo gets its own Cloudflare tunnel. Reusing the old tunnel would distribute traffic across both clusters. Publish `external-apollo.${SECRET_DOMAIN}` with a `DNSEndpoint`, use it as cloudflared's `originServerName`, and target external routes at it. The existing wildcard certificate covers the alias.
+Apollo gets its own Cloudflare tunnel. Reusing the old tunnel would distribute traffic across both clusters. Permanently publish `external-apollo.${SECRET_DOMAIN}` with a `DNSEndpoint`, use it as cloudflared's `originServerName`, and target external routes at it. The existing wildcard certificate covers the alias.
 
-Use two Gateways because cloudflared sends `*.${SECRET_DOMAIN}` to one origin. A shared Gateway would make every internal app public as soon as it received an `HTTPRoute`; separate Gateways make that impossible. Configure both external-dns instances with a Gateway API source such as `gateway-httproute`, replacing the current `sources: ["crd", "ingress"]` and `--ingress-class=external` model. Scope them by the route's parent Gateway.
+Use separate `internal` and `external` Gateways. cloudflared sends `*.${SECRET_DOMAIN}` to one origin, so a shared Gateway would make every internal app public as soon as it received an `HTTPRoute`; separate Gateways make that impossible. Configure both external-dns instances with a Gateway API source such as `gateway-httproute`, replacing the current `sources: ["crd", "ingress"]` and `--ingress-class=external` model. Scope them by the route's parent Gateway.
 
 Internal records move to the UCG Fiber through the [UniFi external-dns webhook](https://github.com/kashalls/external-dns-unifi-webhook). It requires ExternalDNS 0.21.0 or newer, UniFi OS 5.x or newer, Network 10.3.58 or newer, and an API key from Settings > Control Plane > Integrations. It supports ownership TXT records but not wildcards. Pihole and k8s-gateway do not move; ad blocking is separate.
 
@@ -219,7 +219,7 @@ Do not use a temporary `.new` hostname. It adds routes, certificates, and cleanu
 
 | Apps | Data | Method |
 |---|---|---|
-| Node-RED | PVC | VolSync bootstrap `ReplicationDestination` from the existing restic path |
+| Node-RED | no configured data | fresh deployment; no restore |
 | Home Assistant | config PVC plus `home-assistant-pg` | VolSync plus Barman recovery from R2 |
 | Mealie | data PVC plus `mealie-pg` | VolSync plus Barman recovery from R2 |
 | Paperless | library PVC plus database in shared `cnpg-cluster` | VolSync plus logical CNPG import |
@@ -238,24 +238,24 @@ Logical import permits a PostgreSQL major-version change, but check each app's s
 
 | App | Required review |
 |---|---|
-| Home Assistant | Assign an IoT VLAN address; pin it to the node with the trunked IoT NIC; reserve a USB port for the future Thread antenna; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
-| Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 25Gi for the library PVC |
+| Home Assistant | Assign an IoT VLAN address; pin it to hcc7 and keep it there for the foreseeable future; reserve a USB port for the future Thread antenna; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
+| Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 50Gi for the library PVC |
 | Mealie | Restore LAN reachability using the chosen Gateway pattern; consider adding its missing Tailscale Ingress; recover the database instead of using initdb |
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
 | External apps | Replace the old tunnel target with `external-apollo.${SECRET_DOMAIN}` |
 | All apps | Convert internal and external Ingresses to `HTTPRoute`; retain Tailscale Ingresses |
 | TeslaMate | Confirm `teslamate_db_2024-03-18.sql` in `teslamate-backup-pvc` is no longer needed |
 
-Home Assistant moves in Wave 1, so a Wave 1 node must have a trunked IoT VLAN port before app migration starts. Keep `postgres-lb` until every logical import finishes; then decide whether external database access remains useful.
+Home Assistant moves in Wave 1 and stays pinned to hcc7 for the foreseeable future, so hcc7 must have a trunked IoT VLAN port before app migration starts. Keep `postgres-lb` until every logical import finishes; then decide whether external database access remains useful.
 
 Migrate in this order:
 
 1. authentik, because Mealie and Paperless depend on it.
-2. Node-RED, to prove VolSync hydration and name transfer without a database.
-3. Mealie, to prove the smaller hybrid and Barman recovery.
-4. Paperless, after both migration mechanisms have been exercised.
-5. TeslaMate and Grafana together.
-6. Home Assistant last, after its Wave 1 network path is ready.
+2. Mealie, to prove the smaller hybrid and Barman recovery.
+3. Paperless, after VolSync and Barman recovery have been exercised.
+4. TeslaMate and Grafana together.
+5. Home Assistant, after its hcc7 network path is ready.
+6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
 
 ## Execution waves
 
@@ -276,7 +276,7 @@ Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on
 2. Shut down the old cluster as a unit. Power off hcc and hcc2 for disposal.
 3. Wipe hcc3 and hcc4, install Talos, and join them as workers.
 4. Wipe the two 1TB SSDs from the Odroids and install them in hcc5 and hcc6 in place of the unused HDDs. Work one node at a time and wait for Longhorn rebuilds.
-5. Recheck the multus interface name, driver, VLAN tag, and cabling on hcc3 and hcc4 before deciding whether either inherits the Home Assistant network role.
+5. Recheck hcc7's multus interface name, driver, VLAN tag, and cabling after the worker expansion. Home Assistant remains pinned there for the foreseeable future.
 6. Return Apollo's Cloudflare external-dns to `policy: sync`.
 7. Delete `kubernetes/main`, `ansible/`, system-upgrade-controller, its k3s Plan, and taskfiles used only by ansible or k3s.
 8. Revoke the old Cloudflare tunnel credentials and Tailscale OAuth client. Wipe every retired or repurposed disk.
@@ -287,27 +287,24 @@ Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on
 - The HCC VLAN blocks direct access from IoT devices. Only Home Assistant receives a deliberate IoT interface, and Apollo receives only the management and temporary database access described above.
 - Exactly one cluster writes each restic repository, Barman server name, DNS ownership set, and database WAL stream.
 - The old cluster remains in scope for access control until Wave 2 because it still holds current app data and secrets.
-- Back up `age.key` outside this machine. It is required to decrypt existing secrets and seed Apollo.
+- Keep `age.key` in 1Password; it is required to decrypt existing secrets and seed Apollo.
 - Wipe hcc, hcc2, hcc-tablet1, hcc3, and hcc4 disks before disposal or repurposing. Revoke old tunnel and OAuth credentials after teardown.
 
 ## Backup gate
 
-Longhorn has no cluster-level backup target. App-level VolSync and CNPG backups are the only recovery path, so Wave 1 does not start until all checks pass.
+Longhorn has no cluster-level backup target, but the intact old cluster remains available if a restore fails. Before Wave 1, trust the backup status reported by the old cluster rather than testing every restore in advance:
 
-- [ ] Confirm `age.key` has a durable external backup.
-- [ ] Verify recent R2 snapshots for the Home Assistant, Mealie, Node-RED, and Paperless PVCs.
-- [ ] Verify recent R2 backups for `cnpg-cluster`, `mealie-pg`, and `home-assistant-pg`.
-- [ ] Test restoration of `mealie-pg` and `home-assistant-pg`; these weekly backups are their migration path and have not yet been exercised.
-- [ ] Confirm Dragonfly is intentionally cache-only and safe to lose.
+- [ ] Confirm the old cluster reports recent successful VolSync backups for Home Assistant, Mealie, and Paperless.
+- [ ] Confirm it reports recent successful backups for `cnpg-cluster`, `mealie-pg`, and `home-assistant-pg`.
 
 # Pre-migration checklist
 
 Network and hardware:
 
 - [ ] Create the HCC VLAN, addressing, and firewall rules described above.
-- [ ] Verify the UCG Fiber and ExternalDNS versions required by the UniFi webhook; generate its API key and allow Apollo to reach the Integration API.
+- [ ] Generate the UniFi API key, allow Apollo to reach the Integration API, and prove record creation. UniFi OS 5.1.19 and Network 10.5.67 already satisfy the webhook requirements.
 - [ ] Open the temporary path to `192.168.6.21:5432`.
-- [ ] Provision Home Assistant's trunked Wave 1 node and assign the IoT VLAN ID in Talos and the NAD.
+- [ ] Provision hcc7's trunked IoT path and assign the IoT VLAN ID in Talos and the NAD.
 
 Cluster bootstrap:
 
@@ -327,13 +324,14 @@ Platform:
 - [ ] Test both routing shapes on echo-server; record the choice before Phase C.
 - [ ] Complete `plans/04-envoy-gateway.md` for Apollo's IPs, VLAN, cloudflared integration, raw load-balancer services, and Tailscale Ingresses.
 - [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, `longhorn-snapclass`, and the VolSync template.
-- [ ] Adapt Spegel to Talos's `/etc/cri/conf.d/hosts` path as tracked in `plans/05a-spegel.md`.
+- [ ] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Configure Apollo-specific restic and Barman write paths before any new backup runs.
 - [ ] Confirm hcc-tablet1 is decommissioned.
 
 Per app:
 
 - [ ] Prepare and review the two-PR cutover stack: old-cluster disable on the bottom, Apollo rebuild on top.
+- [ ] Review the app and its `app-template` chart for compatible upgrades before finalizing the Apollo PR.
 - [ ] Merge the stack in cutover order, including a verified final backup and suspension of the old `ReplicationSource` between the two PRs.
 - [ ] Use Barman recovery for Mealie and Home Assistant, with a fresh on-demand backup; verify recorder history after Home Assistant restores.
 - [ ] Put every CNPG cluster in its app namespace and check the supported PostgreSQL major and required extensions before import.
@@ -358,9 +356,6 @@ Before Wave 2, cluster-wide rollback means leaving all four old nodes untouched.
 
 # Open questions
 
-- Which node carries Home Assistant's IoT NIC in Wave 1, and do hcc3 or hcc4 inherit it after Wave 2?
-- Keep `external-apollo.${SECRET_DOMAIN}` permanently, as recommended, or rename it to `external.${SECRET_DOMAIN}` after teardown and update every route?
 - Does the echo-server test choose split-horizon or dual-route?
-- Should in-cluster `sso.${SECRET_DOMAIN}` lookups use a CoreDNS rewrite instead of the external Gateway's LAN IP? That would require taking CoreDNS under explicit management as described in `plans/05b-coredns-helm.md`.
 - Should ad blocking return through UniFi or a non-primary pihole?
 - Future work: consider a dedicated Longhorn replication VLAN after the migration stabilizes.
