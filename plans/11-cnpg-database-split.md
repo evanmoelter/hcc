@@ -2,8 +2,12 @@
 
 ## Overview
 
-TODO: Decide whether pg clusters should be located in the database namespace or the app namespace (leaning towards app namespace).
-TODO: figure out how secrets will be handled across namespaces. For example, how will the teslamate db secret be used by grafana? Maybe it's finally time for 1Password?
+**Status: folded into the Talos migration, and partly already done.** This split now happens *during* `plans/20260816-talos-migration.md`'s Wave 1, per-app, rather than as a standalone change on the current cluster: each new dedicated cluster (`teslamate-pg`, `paperless-pg`, `authentik-pg`) is created directly on the new Talos cluster, importing across the network from the old cluster's still-live `cnpg-cluster` instead of importing from a same-cluster source. This avoids splitting on the old cluster and then separately migrating three clusters to new infrastructure afterward. See that doc's "Rebuild (database-backed apps)" section for how this interleaves with the rest of the per-app cutover.
+
+**Two apps have already been split ahead of this plan.** `mealie-pg` and `home-assistant-pg` now exist as independent clusters on PG 18.1, defined alongside their apps in `kubernetes/main/apps/default/{mealie,home-assistant}/app/cluster.yaml`, each with its own Barman backup to R2 and its own `ScheduledBackup`. They are not part of the remaining split work. Their migration is a Barman recovery rather than a logical import, since each instance already holds exactly one database; the Talos migration doc covers that path and the empty-database trap that comes with copying their `bootstrap.initdb` manifests forward.
+
+~~TODO: Decide whether pg clusters should be located in the database namespace or the app namespace (leaning towards app namespace).~~ **Resolved**: app namespace. `mealie-pg` and `home-assistant-pg` are both defined in the app's own directory and namespace, which settles the question by precedent. Follow that for `teslamate-pg`, `paperless-pg`, and `authentik-pg` unless a specific reason argues otherwise. Note this makes ESO the mechanism for cross-namespace access (Grafana reading teslamate's credentials), which is the resolution recorded below.
+~~TODO: figure out how secrets will be handled across namespaces. For example, how will the teslamate db secret be used by grafana? Maybe it's finally time for 1Password?~~ **Resolved**: External Secrets Operator + 1Password, adopted as part of the Talos migration (`plans/20260816-talos-migration.md`). Cross-namespace access becomes an `ExternalSecret` in each consuming namespace pointing at the same 1Password item, rather than a Secret-copying workaround.
 
 Migrate from a single shared CloudNativePG cluster (`cnpg-cluster`) serving multiple applications to dedicated per-app clusters. This improves backup isolation, simplifies upgrades, and follows the microservice database pattern.
 
@@ -40,13 +44,13 @@ cnpg-cluster (database namespace)
 ## Target State
 
 ```
-teslamate-pg (database namespace)
+teslamate-pg (default namespace, alongside the app)
 └── teslamate database
 
-paperless-pg (database namespace)
+paperless-pg (default namespace, alongside the app)
 └── paperless database
 
-authentik-pg (database namespace)
+authentik-pg (security namespace, alongside the app)
 └── authentik database
 ```
 
@@ -66,24 +70,52 @@ Use CNPG's [database import](https://cloudnative-pg.io/docs/1.28/database_import
 |--------|------|------|
 | **CNPG Import (chosen)** | Declarative, handles orchestration, optimized performance | Requires app downtime during import |
 | Manual pg_dump/restore | Simple, well-understood | Manual process, more error-prone |
+| Barman/WAL recovery from R2 | Fast, no source connection needed, PITR-capable | **Physical — whole-instance only, cannot split** (see below) |
 | pg_basebackup | Fast for large DBs | Copies entire cluster, not per-database |
 | Logical replication | Minimal downtime | Complex setup, overkill for this size |
 
+### Why not Barman/WAL recovery
+
+This deserves calling out separately, because the commented-out scaffold in `cluster.yaml` already shows the `bootstrap.recovery` + `externalClusters.barmanObjectStore` pattern, and daily backups to R2 already exist — so recovery looks like the obvious path until you notice it can't do this job.
+
+Barman recovery is **physical**: it replays a base backup plus WAL into a data directory, reproducing the instance byte-for-byte. There is no way to select one database out of it. Recovering `cnpg-cluster` into `teslamate-pg` would produce an instance containing teslamate *and* paperless *and* authentik, requiring two `DROP DATABASE` statements afterward — three times over, once per app, each transiently carrying the full 20Gi footprint. Splitting is a *logical* reorganization, so it needs a logical mechanism. That's decisive on its own.
+
+Two secondary differences reinforce it:
+
+- **Major version.** `pg_dump`/restore crosses PostgreSQL major versions; physical recovery does not — it pins the new cluster to 16.x and requires a matching image. Since the current image is `16.2-10` (a February 2024 patch release), import makes the major-version upgrade available here, whereas recovery defers it to a later logical dump/restore — paying the same cost twice. See "PostgreSQL version compatibility is a per-app gate" below: the upgrade is cheap in *mechanism*, not automatically free in practice.
+- **Bloat.** Import rebuilds indexes and leaves no accumulated bloat; physical recovery carries the existing on-disk state over exactly.
+
+What Barman recovery would have bought — independence from the source cluster, and no cross-VLAN network path — is real but not needed: the source cluster stays live throughout the migration by design, and the firewall rule is a one-line addition (see Dependencies).
+
+### PostgreSQL version compatibility is a per-app gate
+
+The major-version jump is not automatically free: TeslaMate, Paperless-ngx, and Authentik each support a specific range of PostgreSQL versions, and landing on a current major may require bumping the app itself. That app bump is its own change with its own schema migrations, not a version-string edit.
+
+**Deliberately not resolved now.** Supported ranges move with every app release, so any answer written here would be stale by the time the app actually migrates. This is a **pre-flight check performed immediately before each app's cutover**, against that app's release notes at that moment — not a decision made once for all three upfront.
+
+Three things make this cheaper than it sounds:
+
+- **The apps don't have to agree.** Each app now gets its own cluster, so `teslamate-pg`, `paperless-pg`, and `authentik-pg` can land on different majors. Under the shared `cnpg-cluster` a single lagging app would have held all three back; after the split it holds back only itself. One app being stuck is not a reason to keep the others on 16.
+- **The app bump can be decoupled.** If an app needs a newer version to support the target major, bump it **on the old cluster first**, against the existing PG 16 — then the migration changes only PG major and cluster, with the app version already proven in place. Otherwise the cutover changes app version, PostgreSQL major, and Kubernetes cluster simultaneously, and any failure is hard to attribute.
+- **Staying on 16 is always a valid answer.** If an app's compatibility is unclear or its bump looks disruptive, import into a 16.x cluster and treat the major upgrade as separate later work. The split still succeeds; only the free-upgrade side benefit is deferred.
+
+Independently of the app, confirm `cube` and `earthdistance` (teslamate's extensions; `earthdistance` depends on `cube`) ship in the CNPG image for whichever major is chosen.
+
+### Backup-chain rehearsal (declined)
+
+A one-off Barman restore into a throwaway cluster was also considered as a rehearsal of the R2 backup chain, and **declined**: during the migration the old cluster is itself the fallback, still running and never modified by an import, which is a stronger safety net than a restore test. Worth noting the residual: this leaves the R2 recovery path unexercised, so the first real use of those backups would also be the first proof they work. That matters only after the old cluster is decommissioned (Step 8), not during the migration.
+
 ## Implementation Steps
 
-### Step 1: Prepare - Scale Down Apps
+### Step 1: Prepare - Disable the App on the Old Cluster
 
-Scale each app to 0 before importing its database to prevent writes during migration.
+The app must stop writing before its database is imported. During the Talos migration this is the **disable** step defined in `plans/20260816-talos-migration.md` — a commit merged to `kubernetes/main` that scales the workload to zero and removes the app's external and tailscale Ingresses, releasing its DNS and tailnet names. It is a merged change, not a `kubectl scale`, so the state is reconcilable and revertible.
 
-```bash
-# For teslamate
-kubectl scale deployment teslamate -n default --replicas=0
-flux suspend helmrelease teslamate -n default
-```
+The app's directory, PVC, and data stay in `kubernetes/main`, disabled but intact, until the old cluster is decommissioned in Wave 2.
 
 ### Step 2: Create New Cluster with Import
 
-Create `kubernetes/main/apps/database/cloudnative-pg/clusters/teslamate-pg/cluster.yaml`:
+Create `kubernetes/apollo/apps/database/cloudnative-pg/clusters/teslamate-pg/cluster.yaml`:
 
 ```yaml
 ---
@@ -94,6 +126,9 @@ metadata:
   namespace: database
 spec:
   instances: 1
+  # Carried over from cnpg-cluster for illustration. Because logical import
+  # crosses major versions, this is the point to move to a current major
+  # instead of reproducing 16.2 — see "Why not Barman/WAL recovery".
   imageName: ghcr.io/cloudnative-pg/postgresql:16.2-10
   primaryUpdateStrategy: unsupervised
 
@@ -124,7 +159,17 @@ spec:
   externalClusters:
     - name: cnpg-cluster-source
       connectionParameters:
-        host: cnpg-cluster-rw.database.svc.cluster.local
+        # During the Talos migration this cluster is created on the new
+        # cluster while the source is still on the old one, so this points
+        # at the old cluster's postgres-lb LoadBalancer rather than an
+        # in-cluster DNS name. Reachable because the old cluster stays live
+        # and routable across the dedicated migration VLAN.
+        #
+        # Raw IP, not postgres.${SECRET_DOMAIN}: external-dns sources are
+        # ["crd", "ingress"] and never watch Services, so that hostname has
+        # no public record — it resolves only via the old cluster's
+        # k8s-gateway, which is exactly what's in flux during the migration.
+        host: 192.168.6.21
         user: postgres
         dbname: teslamate
       password:
@@ -171,7 +216,7 @@ The cluster will show `Cluster in healthy state` when import completes.
 
 Update teslamate's database connection to use the new cluster.
 
-In `kubernetes/main/apps/default/teslamate/app/helmrelease.yaml`, change:
+In `kubernetes/apollo/apps/default/teslamate/app/helmrelease.yaml`, change:
 ```yaml
 DATABASE_HOST: teslamate-pg-rw.database.svc.cluster.local
 ```
@@ -189,21 +234,18 @@ initContainers:
         value: teslamate-pg-rw.database.svc.cluster.local
 ```
 
-### Step 5: Resume App and Verify
+### Step 5: Bring the App Up on the New Cluster and Verify
 
-```bash
-flux resume helmrelease teslamate -n default
-kubectl scale deployment teslamate -n default --replicas=1
-```
+The app is authored fresh under `kubernetes/apollo`, so Flux brings it up on reconcile — there is nothing to resume. Verify it *before* attaching the routing that publishes its real hostname:
 
-Verify connectivity:
 ```bash
 kubectl logs -n default deployment/teslamate | head -50
+kubectl port-forward -n default deployment/teslamate 4000:4000  # spot-check data
 ```
 
 ### Step 6: Add Scheduled Backup
 
-Create `kubernetes/main/apps/database/cloudnative-pg/clusters/teslamate-pg/scheduledbackup.yaml`:
+Create `kubernetes/apollo/apps/database/cloudnative-pg/clusters/teslamate-pg/scheduledbackup.yaml`:
 
 ```yaml
 ---
@@ -228,18 +270,11 @@ Repeat steps 1-6 for:
 
 Adjust `max_connections` and `shared_buffers` based on each app's needs.
 
-### Step 8: Decommission Old Cluster
+### Step 8: Decommission the Old Cluster
 
-After all apps are migrated and verified:
+Executed as part of the Talos migration's Wave 2, not as a separate step here: `cnpg-cluster` is not deleted piecemeal — it goes away with the whole `kubernetes/main` tree once every app is verified on the new cluster. Keeping it running (and backing up) in the meantime is exactly the safety net rollback depends on.
 
-1. Keep old cluster running for 1-2 weeks as safety net
-2. Take final backup of old cluster
-3. Delete old cluster resources:
-
-```bash
-kubectl delete cluster cnpg-cluster -n database
-kubectl delete scheduledbackup cnpg-cluster-backup -n database
-```
+Take a final backup of the old cluster before the Wave 2 teardown, then delete the tree rather than issuing `kubectl delete` against individual resources.
 
 ### Step 9: Update Kustomization Dependencies
 
@@ -255,7 +290,7 @@ dependsOn:
 ## Directory Structure After Migration
 
 ```
-kubernetes/main/apps/database/cloudnative-pg/
+kubernetes/apollo/apps/database/cloudnative-pg/
 ├── operator/
 │   ├── helmrelease.yaml
 │   ├── kustomization.yaml
@@ -299,6 +334,11 @@ The old cluster remains untouched during migration, so rollback is safe.
 
 ## Testing Checklist
 
+Before each app's cutover (pre-flight):
+- [ ] Check that app version's supported PostgreSQL range against the target major, in its current release notes
+- [ ] If a newer app version is required, bump it on the old cluster against PG 16 first, so the migration changes only PG major and cluster
+- [ ] Confirm required extensions exist in the CNPG image for the chosen major (`cube`, `earthdistance` for teslamate)
+
 For each migrated app:
 - [ ] App connects successfully to new cluster
 - [ ] Data integrity verified (spot check records)
@@ -309,12 +349,13 @@ For each migrated app:
 ## Dependencies
 
 - CloudNativePG operator 1.20+ (import feature)
-- Source cluster must remain running during import
+- Source cluster must remain running during import — during the Talos migration, this is the **old** cluster's (`kubernetes/main`) `postgres-lb` Service, reachable across the dedicated migration VLAN
+- **Firewall rule: new HCC VLAN → `192.168.6.21:5432`**, open for the duration of the migration. `initdb.import` needs a live connection for `pg_dump`, and the new cluster sits on a different VLAN than the source. Without this, every import fails at bootstrap. Temporary — remove once all three apps have moved
 - Sufficient Longhorn storage for new clusters
 
-## k3s Compatibility
+## k3s / Talos Compatibility
 
-Fully compatible - no k3s-specific considerations.
+Distribution-agnostic — no k3s or Talos-specific considerations. Executed during the Talos migration (see Overview), but the import mechanism itself doesn't care which distribution either cluster runs.
 
 ## Estimated Downtime
 
