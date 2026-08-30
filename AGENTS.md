@@ -154,7 +154,7 @@ Local tools are installed/managed with Mise. Everything should be pinned in [`mi
 
 Prefer `task <group>:<name>` over raw commands for frequently used tasks; `task` on its own lists what exists.
 
-Talos machine configuration is managed with `topf`, wrapped by `.taskfiles/Talos/`.
+Talos machine configuration will be managed with `topf`, pinned in `mise.toml`. The `.taskfiles/Talos/` wrapper is written alongside Apollo's `topf.yaml`; the repo has no Talos tasks until then.
 
 ## Keeping these docs current
 
