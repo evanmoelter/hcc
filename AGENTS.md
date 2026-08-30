@@ -98,7 +98,7 @@ Set CPU and memory requests along with a memory limit, and leave the CPU limit o
 task kubernetes:kubeconform     # schema validation, same as CI
 ```
 
-CI runs `kubeconform.yaml` and `flux-diff.yaml` on every PR that touches `kubernetes/**`. Both are path-gated, so a docs-only PR runs neither. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change.
+CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`. Kubeconform is filtered by path and does not start otherwise; flux-local always starts but skips its test and diff jobs when nothing under `kubernetes/` changed. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change.
 
 ## Code style
 
