@@ -1,9 +1,9 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. The new cluster, Apollo, is designed but not yet built, so the workloads described here still run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and `[plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md)` disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. The new cluster, Apollo, is designed but not yet built, so the workloads described here still run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
-Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding priciples of GitOps.
+Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
 ## Migration status
 
@@ -15,7 +15,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
-Apps cut over one at a time from verified backups. `kubernetes/main` stays intact for rollback until the last app has moved. `[plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md)` holds the full design: node topology, storage, networking, and per-app data migration.
+Apps cut over one at a time from verified backups. `kubernetes/main` stays intact for rollback until the last app has moved. [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) holds the full design: node topology, storage, networking, and per-app data migration.
 
 ## Hardware
 
@@ -31,7 +31,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 
 ## Day-2 operations
 
-Tools are pinned in `[mise.toml](./mise.toml)` and environment variables in `[.envrc](./.envrc)`. `mise install` and `direnv allow` set up a workstation.
+Tools are pinned in [mise.toml](./mise.toml) and environment variables in [.envrc](./.envrc). `mise install` and `direnv allow` set up a workstation.
 
 ```sh
 task                              # list every task

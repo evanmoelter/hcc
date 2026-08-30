@@ -64,7 +64,7 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 
 ### Manifest conventions
 
-Every manifest opens with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
+New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 
 ### Config in git, credentials in secrets
 
@@ -98,7 +98,7 @@ Set CPU and memory requests along with a memory limit, and leave the CPU limit o
 task kubernetes:kubeconform     # schema validation, same as CI
 ```
 
-CI runs `kubeconform.yaml` and `flux-diff.yaml` on every PR. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change.
+CI runs `kubeconform.yaml` and `flux-diff.yaml` on every PR that touches `kubernetes/**`. Both are path-gated, so a docs-only PR runs neither. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change.
 
 ## Code style
 
@@ -168,4 +168,3 @@ Put the doc change in the same PR as the work it describes. A follow-up PR for i
 Two caveats.
 - Be selective about what deserves to be documented. If these docs get too detailed, they will become a maintenance burden.
 - Propose rather than assume. If you are unsure whether something is a real rule or just how one app happens to be written, ask the operator instead of promoting an accident into policy.
-
