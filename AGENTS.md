@@ -47,9 +47,7 @@ To add an app:
 4. Pass `APP: *app` through `postBuild.substitute` if the app uses the shared VolSync template.
 5. Validate with `task kubernetes:kubeconform` before opening a PR.
 
-Conventions worth matching: a `# yaml-language-server: $schema=` comment at the top of each manifest, YAML anchors (`name: &app mealie`) instead of repeating the app name, pinned chart and image versions for Renovate to bump, and `${SECRET_DOMAIN}` or `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than literals.
-
-### Community resources
+## Community resources
 
 There is a huge community of home Kubernetes users, many of whom have public repos with their config. This repo heavily relies on these community resources.
 
@@ -59,6 +57,32 @@ Two of them are load-bearing here:
 
 - [home-operations/k8s-schemas](https://github.com/home-operations/k8s-schemas) builds the JSON schemas that the `$schema=` comments and `task kubernetes:kubeconform` validate against. It serves them at `k8s-schemas.home-operations.com`; this repo still points at the older `kubernetes-schemas.pages.dev`. Check there first when a CRD has no schema or fails validation.
 - [home-operations/containers](https://github.com/home-operations/containers) builds rootless application containers. For a workload with no app-specific Helm chart, prefer one of these images, then an upstream image, and only fall back to a custom build when neither does what the app needs.
+
+## Patterns
+
+Guidelines rather than rules. Follow them where they fit. If one takes jumping through hoops to implement, the extra complexity is probably not worth it, so skip it and say why.
+
+### Manifest conventions
+
+Every manifest opens with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
+
+### Config in git, credentials in secrets
+
+Configure an app through the chart's Helm values where it supports them, so the whole configuration sits in the HelmRelease. Fall back to a committed file rendered with `configMapGenerator` only when the app needs one the chart cannot produce, as Home Assistant does with `configs/configuration.yaml`.
+
+Credentials arrive as environment variables from a secret, through `envFrom.secretRef` for a bundle or `secretKeyRef` for a single value like the CNPG connection URI. Keep everything else out of the secret so hostnames, database names, and bucket paths stay readable in a diff. If an app wants a secret inside a config file and gives you no way to interpolate one, do not build the mechanism yourself. ESO arrives soon, and an `ExternalSecret` can template a whole config file with its secrets in place; expect that to become the answer for apps that cannot interpolate their own.
+
+### One Flux Kustomization per lifecycle
+
+Split an app into `ks.yaml` plus a satellite for anything with a different failure mode: `ks-backup.yaml`, `ks-sftp.yaml`, `ks-restore.yaml`, `ks-cluster.yaml`. Point the satellite at its own subdirectory and give it a `dependsOn` back to the app. A backup can then fail, or be suspended for a cutover, without disturbing the workload that serves traffic.
+
+### Non-root with a hardened container context
+
+New workloads run as UID and GID 568, with `runAsNonRoot`, `fsGroup: 568`, and `fsGroupChangePolicy: OnRootMismatch` on the pod, and `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `capabilities.drop: ["ALL"]` on the container. Mealie, Home Assistant, and Node-RED are built this way. Some images will not tolerate it. Loosen the one setting that blocks the app rather than dropping the whole block.
+
+### CPU requests, memory limits
+
+Set CPU and memory requests along with a memory limit, and leave the CPU limit off. Throttling a workload through a short busy period costs more than it saves on a cluster this size.
 
 ## Secrets
 
