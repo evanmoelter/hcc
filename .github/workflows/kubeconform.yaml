@@ -7,13 +7,14 @@ on:
     branches: ["main"]
     paths: ["kubernetes/**"]
 
-env:
-  KUBERNETES_DIR: ./kubernetes/main
-
 jobs:
   kubeconform:
-    name: Kubeconform
+    name: Kubeconform (${{ matrix.cluster }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster: ["main"]
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -26,4 +27,18 @@ jobs:
 
       - name: Run kubeconform
         shell: bash
-        run: bash ./scripts/kubeconform.sh ${{ env.KUBERNETES_DIR }}
+        run: bash ./scripts/kubeconform.sh ./kubernetes/${{ matrix.cluster }}
+
+  kubeconform-status:
+    name: Kubeconform Success
+    needs: ["kubeconform"]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Any jobs failed?
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
+
+      - name: All jobs passed or skipped?
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: echo "All jobs passed or skipped" && echo "${{ toJSON(needs.*.result) }}"

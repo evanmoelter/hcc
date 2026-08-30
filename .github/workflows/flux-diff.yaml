@@ -27,9 +27,13 @@ jobs:
           files: kubernetes/**
 
   test:
-    name: Flux Local Test
+    name: Flux Local Test (${{ matrix.cluster }})
     needs: pre-job
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cluster: ["main"]
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
     steps:
       - name: Checkout
@@ -42,11 +46,11 @@ jobs:
             test
             --enable-helm
             --all-namespaces
-            --path /github/workspace/kubernetes/main/flux
+            --path /github/workspace/kubernetes/${{ matrix.cluster }}/flux
             -v
 
   diff:
-    name: Flux Local Diff
+    name: Flux Local Diff (${{ matrix.cluster }}, ${{ matrix.resources }})
     needs: pre-job
     runs-on: ubuntu-latest
     permissions:
@@ -54,7 +58,11 @@ jobs:
       pull-requests: write
     strategy:
       matrix:
+        cluster: ["main"]
         resources: ["helmrelease", "kustomization"]
+        include:
+          - cluster: "main"
+            source: "home-kubernetes"
       max-parallel: 4
       fail-fast: false
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
@@ -76,12 +84,12 @@ jobs:
           args: >-
             diff ${{ matrix.resources }}
             --unified 6
-            --path /github/workspace/pull/kubernetes/main/flux
-            --path-orig /github/workspace/default/kubernetes/main/flux
+            --path /github/workspace/pull/kubernetes/${{ matrix.cluster }}/flux
+            --path-orig /github/workspace/default/kubernetes/${{ matrix.cluster }}/flux
             --strip-attrs "helm.sh/chart,checksum/config,app.kubernetes.io/version,chart"
             --limit-bytes 10000
             --all-namespaces
-            --sources "home-kubernetes"
+            --sources "${{ matrix.source }}"
             --output-file diff.patch
 
       - name: Generate Diff
@@ -94,7 +102,7 @@ jobs:
               echo EOF
           } >> "$GITHUB_OUTPUT";
           {
-              echo "### ${{ matrix.resources }} Diff"
+              echo "### ${{ matrix.cluster }} ${{ matrix.resources }} Diff"
               echo '```diff'
               cat diff.patch
               echo '```'
@@ -105,10 +113,10 @@ jobs:
         continue-on-error: true
         uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
         with:
-          message-id: "${{ github.event.pull_request.number }}/kubernetes/${{ matrix.resources }}"
+          message-id: "${{ github.event.pull_request.number }}/kubernetes/${{ matrix.cluster }}/${{ matrix.resources }}"
           message-failure: Diff was not successful
           message: |
-            ### ${{ matrix.resources }} changes
+            ### ${{ matrix.cluster }} ${{ matrix.resources }} changes
             ```diff
             ${{ steps.diff.outputs.diff }}
             ```

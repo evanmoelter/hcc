@@ -3,10 +3,12 @@
 version: "3"
 
 vars:
+  # Cluster
+  CLUSTER: '{{.CLUSTER | default "main"}}'
   # Directories
   ANSIBLE_DIR: "{{.ROOT_DIR}}/ansible"
   BOOTSTRAP_DIR: "{{.ROOT_DIR}}/bootstrap"
-  KUBERNETES_DIR: "{{.ROOT_DIR}}/kubernetes/main"
+  KUBERNETES_DIR: "{{.ROOT_DIR}}/kubernetes/{{.CLUSTER}}"
   PRIVATE_DIR: "{{.ROOT_DIR}}/.private"
   SCRIPTS_DIR: "{{.ROOT_DIR}}/scripts"
   # Files
