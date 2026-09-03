@@ -10,6 +10,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 2. **Never `kubectl apply` over Flux.** Everything under `kubernetes/` is reconciled from git. A hand-applied manifest either gets reverted on the next reconcile or survives as drift that no file explains. Change the file, commit it, and let Flux converge.
 3. **Never write plaintext secrets.** Files matching `*.sops.yaml` are encrypted with age. Editing one in place commits secrets to a public repository. The operator is responsible for keeping secrets up to date.
 4. **Read the plan before implementing.** `plans/` holds design docs written ahead of the work. If a plan covers the task, follow it. If it is stale, say so instead of improvising around it.
+5. **Check `docs/` for settled facts.** `docs/` describes how things are; `plans/` describes how they will change. Addressing, VLANs, and firewall rules live in [docs/networking.md](./docs/networking.md), so take them from there rather than from a plan that may predate the decision. When a plan's work lands, the durable result belongs in `docs/` and the plan keeps only a pointer.
 
 ## Two cluster trees
 
