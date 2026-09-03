@@ -60,6 +60,7 @@ stern -n default <app>            # tail logs
 kubernetes/main/       old cluster manifests: bootstrap/, flux/, apps/, templates/
 ansible/               node provisioning
 terraform/             Cloudflare R2 buckets and tunnel
+docs/                  reference docs for how things are, not how they will change
 plans/                 design docs, written before the work
 .taskfiles/            task definitions
 scripts/               validation and helper scripts

@@ -147,6 +147,8 @@ flowchart TD
 
 ### HCC VLAN
 
+VLAN 6, `192.168.20.0/22`, with Apollo in `192.168.21.0/24`. [docs/networking.md](../docs/networking.md) holds the address plan and the reasoning behind it.
+
 - Allow the trusted network to reach the HCC VLAN.
 - Isolate the HCC and IoT VLANs in both directions by default.
 - Temporarily allow Apollo to reach `192.168.6.21:5432` for the authentik, Paperless, and TeslaMate imports. Remove the rule after all three migrate.
@@ -360,5 +362,7 @@ Before Wave 2, cluster-wide rollback means leaving all four old nodes untouched.
 # Open questions
 
 - Does the echo-server test choose split-horizon or dual-route?
+- Should Home Assistant be the Thread border router at all? OTBR must send router advertisements and forward IPv6 on its infrastructure link, which needs `NET_ADMIN` and sysctl changes that fight the hardened non-root security context this repo standardizes on. A dedicated border router or an existing HomePod on VLAN 2 would leave Home Assistant a plain Matter controller. Decide before reserving hcc7's USB port for a Thread antenna, and before assuming the pinning to hcc7 is permanent.
+- Does the Home Assistant pod's macvlan interface get an IPv6 link-local address? Matter discovery is mDNS over IPv6 and finds nothing without one. Testable on the current cluster.
 - Should ad blocking return through UniFi or a non-primary pihole?
 - Future work: consider a dedicated Longhorn replication VLAN after the migration stabilizes.
