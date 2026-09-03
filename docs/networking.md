@@ -4,7 +4,9 @@ The address plan for the house and the cluster. This is the reference; [plans/20
 
 ## VLANs
 
-The UCG Fiber routes all three. Each `/22` follows `192.168.(4 × (ID - 1)).0/22`, DHCP in the lower half, statics in the upper half.
+The UCG Fiber routes all three. Each `/22` follows `192.168.(4 × (ID - 1)).0/22`.
+
+The device VLANs put DHCP in the lower half and statics in the upper half. HCC does not: its addressing is allocated per `/24`, so DHCP is confined to the shared block and every cluster block is static. Read each VLAN's DHCP range from the table rather than inferring it.
 
 | ID | Name | Subnet | Gateway | DHCP | Purpose |
 |---|---|---|---|---|---|
