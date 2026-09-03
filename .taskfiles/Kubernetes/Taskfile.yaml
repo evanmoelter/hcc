@@ -28,4 +28,6 @@ tasks:
     desc: Validate Kubernetes manifests with kubeconform
     cmd: bash {{.KUBECONFORM_SCRIPT}} {{.KUBERNETES_DIR}}
     preconditions:
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=main", sh: 'test -n "{{.CLUSTER}}"' }
       - { msg: "Missing kubeconform script", sh: "test -f {{.KUBECONFORM_SCRIPT}}" }
+      - { msg: "Missing cluster directory {{.KUBERNETES_DIR}}", sh: "test -d {{.KUBERNETES_DIR}}" }

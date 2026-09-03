@@ -24,8 +24,10 @@ tasks:
       - kubectl apply --kubeconfig {{.KUBECONFIG_FILE}} --server-side --filename {{.CLUSTER_SETTINGS_FILE}}
       - kubectl apply --kubeconfig {{.KUBECONFIG_FILE}} --server-side --kustomize {{.KUBERNETES_DIR}}/flux/config
     preconditions:
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=main", sh: 'test -n "{{.CLUSTER}}"' }
       - { msg: "Missing kubeconfig", sh: "test -f {{.KUBECONFIG_FILE}}" }
       - { msg: "Missing Sops Age key file", sh: "test -f {{.AGE_FILE}}" }
+      - { msg: "Missing cluster directory {{.KUBERNETES_DIR}}", sh: "test -d {{.KUBERNETES_DIR}}" }
 
   apply:
     desc: Apply a Flux Kustomization resource for a cluster
@@ -49,6 +51,7 @@ tasks:
       ks:
         sh: flux --kubeconfig {{.KUBECONFIG_FILE}} --namespace {{.ns}} get kustomizations $(basename {{.path}}) 2>&1
     preconditions:
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=main", sh: 'test -n "{{.CLUSTER}}"' }
       - { msg: "Missing kubeconfig", sh: "test -f {{.KUBECONFIG_FILE}}" }
       - { msg: "Missing Flux Kustomization for app {{.path}}", sh: "test -f {{.KUBERNETES_DIR}}/apps/{{.path}}/ks.yaml" }
 
@@ -63,6 +66,7 @@ tasks:
       - kubectl create namespace flux-system --dry-run=client -o yaml | kubectl --kubeconfig {{.KUBECONFIG_FILE}} apply --filename -
       - sops --decrypt {{.GITHUB_DEPLOY_KEY_FILE}} | kubectl apply --kubeconfig {{.KUBECONFIG_FILE}} --server-side --filename -
     preconditions:
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=main", sh: 'test -n "{{.CLUSTER}}"' }
       - { msg: "Missing kubeconfig", sh: "test -f {{.KUBECONFIG_FILE}}" }
       - { msg: "Missing Sops Age key file", sh: "test -f {{.AGE_FILE}}" }
       - { msg: "Missing Github deploy key file", sh: "test -f {{.GITHUB_DEPLOY_KEY_FILE}}" }

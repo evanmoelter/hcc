@@ -3,8 +3,8 @@
 version: "3"
 
 vars:
-  # Cluster
-  CLUSTER: '{{.CLUSTER | default "main"}}'
+  # Cluster; no default, so every cluster-scoped task must be told which tree to use
+  CLUSTER: '{{.CLUSTER}}'
   # Directories
   ANSIBLE_DIR: "{{.ROOT_DIR}}/ansible"
   KUBERNETES_DIR: "{{.ROOT_DIR}}/kubernetes/{{.CLUSTER}}"

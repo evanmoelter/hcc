@@ -95,11 +95,11 @@ Set CPU and memory requests along with a memory limit, and leave the CPU limit o
 ## Validating changes
 
 ```sh
-task kubernetes:kubeconform                 # schema validation, same as CI
+task kubernetes:kubeconform CLUSTER=main    # schema validation, same as CI
 task kubernetes:kubeconform CLUSTER=apollo  # the same, against the Apollo tree
 ```
 
-Every task that reads a cluster tree takes a `CLUSTER` variable, defaulting to `main`. It selects the directory under `kubernetes/`.
+Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset.
 
 CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`, once per cluster in each workflow's matrix. Kubeconform is filtered by path and does not start otherwise; flux-local always starts but skips its test and diff jobs when nothing under `kubernetes/` changed. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change. A new cluster tree needs an entry added to both matrices before CI validates it.
 
