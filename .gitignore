@@ -23,7 +23,5 @@ Brewfile.lock.json
 .claude/settings.local.json
 # wiki
 wiki
-# Bootstrap
-/config.yaml
 .terraform/
 .env

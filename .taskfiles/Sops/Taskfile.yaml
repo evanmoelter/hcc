@@ -20,12 +20,14 @@ tasks:
         task: .encrypt-file
         vars:
           file: "{{.ITEM}}"
+      - cmd: echo "Encrypted {{len (compact (splitList "\n" .file))}} file(s) under {{.KUBERNETES_DIR}}"
+        silent: true
+    preconditions:
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=main", sh: 'test -n "{{.CLUSTER}}"' }
+      - { msg: "Missing cluster directory {{.KUBERNETES_DIR}}", sh: "test -d {{.KUBERNETES_DIR}}" }
     vars:
       file:
-        sh: |
-          if [ -d "{{.KUBERNETES_DIR}}" ]; then
-              find "{{.KUBERNETES_DIR}}" -type f -name "*.sops.*" -exec grep -L "ENC\[AES256_GCM" {} \;
-          fi
+        sh: find "{{.KUBERNETES_DIR}}" -type f -name "*.sops.*" -exec grep -L "ENC\[AES256_GCM" {} \;
 
   .encrypt-file:
     internal: true
@@ -35,7 +37,3 @@ tasks:
     preconditions:
       - { msg: "Missing Sops config file", sh: "test -f {{.SOPS_CONFIG_FILE}}" }
       - { msg: "Missing Sops Age key file", sh: "test -f {{.AGE_FILE}}" }
-
-  .reset:
-    internal: true
-    cmd: rm -rf {{.SOPS_CONFIG_FILE}}
