@@ -11,6 +11,7 @@ spec:
     copyMethod: Snapshot
     pruneIntervalDays: 7
     repository: "paperless-library-volsync-r2"
+    unlock: "2026-09-04"
     volumeSnapshotClassName: longhorn-snapclass
     cacheCapacity: "8Gi"
     cacheStorageClassName: longhorn-cache
