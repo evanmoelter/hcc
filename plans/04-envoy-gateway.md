@@ -193,16 +193,22 @@ Steps 1 through 7 predate the Talos decision and sketch the shape. This section 
 
 ### Client address on both paths
 
-The migration plan needs the real client address on the LAN path and Cloudflare's forwarded headers on the tunnel path, because Authentik's trusted-proxy configuration and Home Assistant's proxy CIDRs depend on which one a request took. Two settings carry that:
+The migration plan needs the real client address on the LAN path and Cloudflare's forwarded headers on the tunnel path, because Authentik's trusted-proxy configuration and Home Assistant's proxy CIDRs depend on which one a request took.
 
-- A `ClientTrafficPolicy` with `clientIPDetection.xForwardedFor.numTrustedHops: 1`, so Envoy trusts exactly one hop and no more. cloudflared is that hop on the tunnel path.
-- `externalTrafficPolicy: Local` on the Envoy service, set through the `EnvoyProxy` resource. Without it the LAN path is source-NATed by kube-proxy replacement and every client looks like a node.
+`externalTrafficPolicy: Local` on the Envoy service, set through the `EnvoyProxy` resource, is required either way. Without it the LAN path is source-NATed by kube-proxy replacement and every client looks like a node. It preserves the connection address and settles nothing about forwarded headers.
 
-Set both before Authentik moves. Getting them wrong shows up as an authentication loop, not as a routing error.
+Forwarded headers are the harder half, and **`numTrustedHops` alone is not safe here**. It takes the client IP from the Nth address from the right of `X-Forwarded-For` and does not check who sent it, so a client reaching a Gateway directly can supply any `X-Forwarded-For` it likes and choose its own apparent address. On a Gateway that serves both cloudflared and the LAN, that is a spoofable input feeding Authentik's trusted-proxy decision.
+
+Bind the trust to the sender instead. Envoy Gateway's `xForwardedFor` accepts `trustedCIDRs` as an alternative to `numTrustedHops`, which is the setting that expresses "believe this header only from cloudflared". Resolve, before Authentik moves:
+
+- Which CIDR cloudflared actually presents to the Gateway, and whether it is narrow enough to be worth trusting.
+- Whether the internal Gateway should trust `X-Forwarded-For` at all, given nothing legitimately forwards to it.
+
+Test with a spoofed `X-Forwarded-For` from a LAN client on echo-server and confirm the address the backend sees. Getting this wrong shows up as an authentication loop, or as an access decision made on an attacker-supplied address, not as a routing error.
 
 ### One policy for both Gateways
 
-`ClientTrafficPolicy` and `BackendTrafficPolicy` both accept `targetSelectors`, so a single policy of each kind covers every Gateway:
+`ClientTrafficPolicy` and `BackendTrafficPolicy` both accept `targetSelectors`, so a single policy of each kind can cover every Gateway:
 
 ```yaml
 spec:
@@ -211,13 +217,16 @@ spec:
       kind: Gateway
 ```
 
-That keeps the internal and external Gateways from drifting apart in TLS version, timeout, compression, or retry behavior, which is the failure mode the dual-route fallback would otherwise invite.
+Use this for TLS version, timeouts, compression, and retry behavior, where the two Gateways drifting apart is the failure mode.
+
+Do not use it for client IP detection. A shared policy is what would apply one trust rule to a Gateway reached only through cloudflared and to one reached directly from the LAN, which is the hole described above. If the two paths need different trust, that setting needs its own `ClientTrafficPolicy` per Gateway even though everything else stays shared.
 
 ### Gateway configuration
 
 - Attach an `EnvoyProxy` through the `GatewayClass` `parametersRef` rather than per Gateway. It carries replica count, resources, the service's `externalTrafficPolicy`, and Prometheus telemetry.
 - Pin the Envoy LoadBalancer address with `spec.infrastructure.annotations`, using Cilium's `lbipam.cilium.io/ips`, so a Gateway's address comes from the address plan rather than from pool order.
-- Put `external-dns.alpha.kubernetes.io/target` on the **Gateway**, not on each route. This is what makes the split-horizon shape work: one `HTTPRoute` on the external Gateway, and each external-dns instance publishes a different target for it. Under dual-route the annotation still keeps each Gateway's target in one place.
+- Put `external-dns.alpha.kubernetes.io/target` on the **Gateway**, not on each route. external-dns reads it only from Gateways, so this keeps each Gateway's target in one place instead of repeating it per route. That is what the dual-route shape wants: each Gateway carries its own target, and each instance is scoped to one Gateway.
+- It does **not** deliver split-horizon. The annotation holds a single value, and every instance watching that Gateway reads the same one, so pointing it at the Cloudflare alias does not also yield the LAN address for UniFi. Route- and Gateway-scoping flags choose which Gateways an instance sees, not what target it publishes. Split-horizon therefore still needs a mechanism this plan has not identified, and the echo-server test in the migration plan has to settle that before the shape can be chosen — otherwise dual-route is the answer by default.
 - Give the HTTP listeners a single redirect route rather than one per app, annotated `external-dns.alpha.kubernetes.io/controller: none` so external-dns does not publish the redirect's own hostname.
 
 ### external-dns

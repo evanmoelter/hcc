@@ -100,26 +100,43 @@ Use `topf` for machine configuration. Hand-author `topf.yaml` and strategic-merg
 
 ### Shared components
 
-Apollo replaces `kubernetes/main/templates/` with `kubernetes/apollo/components/`, holding Kustomize `Component` resources rather than plain bases. The difference is not cosmetic. A component attaches through the consuming Flux `Kustomization`'s `spec.components` and can patch the resources it is composed with, so it carries its own `dependsOn` instead of asking every app to remember one. The standing rule that a missing `dependsOn` races the first reconcile becomes structural rather than a convention.
+Apollo replaces `kubernetes/main/templates/` with `kubernetes/apollo/components/`, holding Kustomize `Component` resources rather than plain bases. A component attaches through the consuming Flux `Kustomization`'s `spec.components` and can patch what it composes with, so shared configuration is written once instead of retyped per app.
+
+Know what a component can reach, because it is narrower than it looks. A component composes into the build of `spec.path`. It can add resources there and patch them, including `HelmRelease.spec.dependsOn`, which is how an app's release comes to wait on the CNPG operator release. It cannot touch the `ks.yaml` that references it: that file is rendered by `cluster-apps`, a different build. `dependsOn` and `healthCheckExprs` on the owning Kustomization stay written out by hand, or arrive from a root patch selected by label.
 
 Three components cover the migration:
 
 | Component | Replaces | Provides |
 |---|---|---|
 | `volsync` | `templates/volsync` | Bootstrap `ReplicationDestination`, hydrating claim, and `ReplicationSource` |
-| `postgres` | a hand-written `cluster.yaml` per app | CNPG `Cluster`, its `ObjectStore`, `ScheduledBackup`, and `dependsOn: cloudnative-pg` |
+| `postgres` | a hand-written `cluster.yaml` per app | CNPG `Cluster`, its `ObjectStore`, `ScheduledBackup`, and a `HelmRelease.dependsOn` on the CNPG operator release |
 | `namespace` | a `namespace.yaml` per namespace | The `Namespace`, annotated `kustomize.toolkit.fluxcd.io/prune: disabled` |
 
-An app opts in from its `ks.yaml`:
+A database-backed app gets two Kustomizations, following "One Flux Kustomization per lifecycle" in AGENTS.md. The satellite renders the component and waits; the app depends on it:
 
 ```yaml
+# ks-cluster.yaml
 spec:
   components:
     - ../../../../components/postgres
+  path: ./kubernetes/apollo/apps/default/mealie/cluster
+  wait: true
+  healthCheckExprs:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      current: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+      failed: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'False')
   postBuild:
     substitute:
       APP: *app
+---
+# ks.yaml
+spec:
+  dependsOn:
+    - name: mealie-cluster
 ```
+
+Rendering the cluster and the app together would not work. Health checks gate a Kustomization's own readiness; they do not order resources within one. A single Kustomization applies the CNPG `Cluster` and the `HelmRelease` in the same pass, so the app would start against a database still restoring.
 
 The `postgres` component defaults to `bootstrap.recovery`, not `initdb`. This inverts the trap recorded under "Data migration methods": copying a manifest forward and forgetting to switch it produces an empty but healthy database, and nothing reports a problem. With recovery as the default, a net-new database is the case that must be declared, and a forgotten switch fails loudly with no target backup found rather than quietly succeeding. Declare it with a label that the root Kustomization turns into a plain `initdb`:
 
@@ -132,10 +149,10 @@ metadata:
 
 Drop the label once the app's first backup lands, so a later rebuild recovers instead of reinitializing.
 
-Two details belong in the component rather than in each app:
+Two details are easy to lose:
 
-- `cnpg.io/skipEmptyWalArchiveCheck: enabled` on the `Cluster`. Recovery into a cluster whose destination archive is non-empty is refused by default, which is exactly the case when a rebuilt cluster reuses its own server name. Safe here, because the recovered cluster inherits the source's system identifier and writes new WAL on a new timeline.
-- `healthCheckExprs` for `postgresql.cnpg.io/v1 Cluster`, so a dependent app gates on the database being ready rather than on the CR existing.
+- `cnpg.io/skipEmptyWalArchiveCheck: enabled` goes on the `Cluster`, so the component carries it. Recovery into a cluster whose destination archive is non-empty is refused by default, which is exactly the case when a rebuilt cluster reuses its own server name. Safe here, because the recovered cluster inherits the source's system identifier and writes new WAL on a new timeline.
+- `healthCheckExprs` goes on a Kustomization, so the component cannot carry it. It belongs in `ks-cluster.yaml` above, together with `wait: true`; expressions alone define how to judge a custom resource and do not select anything to wait for.
 
 ### Root Kustomization defaults
 

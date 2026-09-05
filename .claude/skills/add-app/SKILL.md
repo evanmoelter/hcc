@@ -62,7 +62,7 @@ Ask with AskUserQuestion. Do not guess any of these, and do not re-ask what Step
     externalsecret.yaml     only if secrets
 ```
 
-Add `ks-backup.yaml` and a `backup/` directory only when the backup has a failure mode worth suspending independently of the workload. A component-supplied `ReplicationSource` does not need one.
+Add a satellite Kustomization and its own subdirectory for anything with a separate lifecycle: `ks-cluster.yaml` for a database, `ks-backup.yaml` for a backup worth suspending independently of the workload. A component-supplied `ReplicationSource` does not need one.
 
 ### ks.yaml
 
@@ -91,7 +91,8 @@ spec:
       APP: *app
 ```
 
-- `dependsOn` lists storage and identity. Components carry their own, so a `postgres` component means you do not write `cloudnative-pg` yourself.
+- `dependsOn` lists storage, database, and identity, and is written out here. A component cannot add to it: components compose into the build of `spec.path`, and this file is not in that build. The `postgres` component patches `HelmRelease.spec.dependsOn` to wait on the CNPG operator release, which is a weaker and different gate.
+- A database-backed app takes a second Kustomization. Put the `postgres` component behind `ks-cluster.yaml` with `wait: true` and its `healthCheckExprs`, and depend on it from here. Rendered together, the `HelmRelease` and the CNPG `Cluster` apply in the same pass and the app starts against a database that is not ready.
 - `postBuild.substitute.APP` is required whenever any component is used.
 - Set `wait: true` only when another Kustomization depends on this one and this one defines no health checks. Otherwise leave it off.
 - Do not set `retryInterval`, `timeout`, or HelmRelease remediation. The root `cluster-apps` Kustomization defaults them, and a local value is silently overridden.

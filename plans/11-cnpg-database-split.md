@@ -165,13 +165,20 @@ The backup gate in the migration plan reads the **old** cluster's metrics, which
 
 ## The postgres component owns the common shape
 
-Apollo defines a `postgres` Kustomize component (see the migration plan's "Shared components"), so these three clusters are not three hand-written manifests. The component supplies the `Cluster`, its writing `ObjectStore`, the `ScheduledBackup`, and `dependsOn: cloudnative-pg`, parameterized by `${APP}`.
+Apollo defines a `postgres` Kustomize component (see the migration plan's "Shared components"), so these three clusters are not three hand-written manifests. The component supplies the `Cluster`, its writing `ObjectStore`, and the `ScheduledBackup`, parameterized by `${APP}`, plus a patch adding the CNPG operator release to the app's `HelmRelease.spec.dependsOn`.
 
-It defaults to `bootstrap.recovery`, which is right for a rebuild and wrong for a first import. The three splitting apps are a one-time case:
+Resources are all it can supply. `dependsOn` and `healthCheckExprs` on a Kustomization are out of a component's reach, so each database gets its own `ks-cluster.yaml` satellite with `wait: true`, and the app's `ks.yaml` depends on it. This is the repo's existing "One Flux Kustomization per lifecycle" pattern, and it is what actually sequences the app behind the restore: health checks gate a Kustomization's readiness and do not order resources inside one, so a cluster and a `HelmRelease` rendered together start together.
 
-1. Label the app's Flux `Kustomization` `components.postgres/cnpg: init`, which replaces the component's `bootstrap` with a plain `initdb`.
-2. Patch `initdb.import` and the source `externalClusters` entry onto it from the app's own directory, since both are specific to this cutover.
-3. After the import completes and the first scheduled backup lands, remove the label and the patch. Future rebuilds then take the component's recovery default.
+The component defaults to `bootstrap.recovery`, which is right for a rebuild and wrong for a first import. The three splitting apps are a one-time case:
+
+1. **Do not** set the `components.postgres/cnpg: init` label. That label makes the root Kustomization replace `spec.bootstrap` wholesale, and Flux appends its own patches after the ones in the app directory, so it would overwrite the import configuration rather than prepare a place for it.
+2. Replace `spec.bootstrap` and `spec.externalClusters` outright from the app's own directory, in one patch. Adding under `/spec/bootstrap/initdb/...` fails, because the component leaves `bootstrap.recovery` there and JSON Patch `add` needs its parent to exist:
+
+   ```
+   Error: add operation does not apply: doc is missing path: "/spec/bootstrap/initdb/import"
+   ```
+
+3. After the import completes and the first scheduled backup lands, delete the patch. Future rebuilds then take the component's recovery default.
 
 Steps 2 and 6 below show the resulting manifests in full, so the one-time shape is reviewable before it is written.
 
@@ -187,25 +194,32 @@ The app's directory, PVC, and data stay in `kubernetes/main`, disabled but intac
 
 The cluster lives in the app's namespace, alongside the app, per the decision recorded in the Overview. Compose it from the `postgres` component and add only what is specific to this one-time import.
 
-`kubernetes/apollo/apps/default/teslamate/ks.yaml`:
+`kubernetes/apollo/apps/default/teslamate/ks-cluster.yaml`, which renders the component and waits for the import to finish:
 
 ```yaml
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app teslamate
-  labels:
-    components.postgres/cnpg: init
+  name: &app teslamate-cluster
 spec:
   components:
     - ../../../../components/postgres
+  path: ./kubernetes/apollo/apps/default/teslamate/cluster
+  wait: true
+  healthCheckExprs:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      current: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
+      failed: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'False')
   postBuild:
     substitute:
-      APP: *app
+      APP: teslamate
 ```
 
-`kubernetes/apollo/apps/default/teslamate/app/objectstore-source.yaml`, read only, pointing at the archive the old cluster wrote:
+The app's own `ks.yaml` carries `dependsOn: [{name: teslamate-cluster}]`. Without that split the `HelmRelease` would be applied in the same pass as the `Cluster` and TeslaMate would start against a half-imported database. Note there is no `components.postgres/cnpg: init` label here; see above for why it would clobber the import.
+
+`cluster/objectstore-source.yaml`, read only, pointing at the archive the old cluster wrote:
 
 ```yaml
 ---
@@ -226,7 +240,7 @@ spec:
         key: R2_SECRET_ACCESS_KEY
 ```
 
-The import itself is patched onto the component's `Cluster` from the app's `kustomization.yaml`:
+The import replaces the component's bootstrap outright, from `cluster/kustomization.yaml`:
 
 ```yaml
 ---
@@ -240,15 +254,19 @@ patches:
       version: v1
       kind: Cluster
     patch: |-
-      - op: add
-        path: /spec/bootstrap/initdb/import
+      - op: replace
+        path: /spec/bootstrap
         value:
-          type: microservice
-          databases:
-            - teslamate
-          source:
-            externalCluster: cnpg-cluster-source
-      - op: add
+          initdb:
+            database: teslamate
+            owner: teslamate
+            import:
+              type: microservice
+              databases:
+                - teslamate
+              source:
+                externalCluster: cnpg-cluster-source
+      - op: replace
         path: /spec/externalClusters
         value:
           - name: cnpg-cluster-source
@@ -260,6 +278,8 @@ patches:
               name: cloudnative-pg-secrets
               key: POSTGRES_SUPER_PASS
 ```
+
+Both operations are `replace`, not `add`. The component leaves `bootstrap.recovery` and a recovery `externalClusters` entry in place, so `add` under `/spec/bootstrap/initdb` has no parent and the build fails outright.
 
 `host` is the old cluster's `postgres-lb` address rather than a DNS name. External-dns never watched Services on the old cluster, so `postgres.${SECRET_DOMAIN}` resolves only through k8s-gateway, which is itself in flux during the migration. The raw address is reachable across the temporary firewall rule in Dependencies.
 
@@ -345,7 +365,7 @@ spec:
     name: barman-cloud.cloudnative-pg.io
 ```
 
-Confirm the first backup lands before removing the `components.postgres/cnpg: init` label. Until it does, the component's recovery default has nothing to recover from, and a rebuild would fail rather than restore.
+Confirm the first backup lands before removing the one-time import patch. Until it does, the component's recovery default has nothing to recover from, and a rebuild would fail rather than restore. These three apps never carry the `components.postgres/cnpg: init` label; that label is for a net-new database with no import.
 
 ### Step 7: Repeat for Other Databases
 
@@ -366,12 +386,13 @@ Take a final backup of the old cluster before the Wave 2 teardown, then delete t
 Update each app's kustomization to depend on its specific cluster:
 
 ```yaml
-# teslamate kustomization
+# teslamate ks.yaml
 dependsOn:
+  - name: teslamate-cluster
   - name: longhorn
 ```
 
-The `postgres` component adds `dependsOn: cloudnative-pg` itself, and the cluster is now rendered by the same Kustomization as the app, so there is no separate `teslamate-pg` Kustomization to depend on. Readiness is gated by the component's `healthCheckExprs` on the CNPG `Cluster` instead.
+`teslamate-cluster` is the satellite Kustomization from Step 2, and this dependency is what holds the app back until the import finishes. The `postgres` component separately patches the app's `HelmRelease.spec.dependsOn` to wait on the CNPG operator release, which is a different and weaker gate: it says the operator is running, not that this database is ready.
 
 ## Directory Structure After Migration
 
@@ -388,8 +409,10 @@ kubernetes/apollo/
     │       └── barman-plugin/
     ├── default/
     │   ├── teslamate/
-    │   │   ├── ks.yaml                        components + APP substitution
-    │   │   └── app/
+    │   │   ├── ks.yaml                        dependsOn the satellite below
+    │   │   ├── ks-cluster.yaml                components + APP; wait + healthCheckExprs
+    │   │   ├── app/
+    │   │   └── cluster/
     │   │       ├── objectstore-source.yaml    cutover only; deleted after verification
     │   │       └── kustomization.yaml         one-time import patch
     │   └── paperless/
@@ -431,7 +454,7 @@ For each migrated app:
 - [ ] Data integrity verified (spot check records)
 - [ ] Scheduled backup runs successfully
 - [ ] Backup appears in R2 bucket under new serverName
-- [ ] `components.postgres/cnpg: init` label and the one-time import patch removed after the first backup
+- [ ] One-time import patch removed after the first backup lands
 - [ ] Source `ObjectStore` deleted once the app is verified
 - [ ] App functionality tested (login, create record, etc.)
 
