@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | not yet created     |
+| Status       | serving all apps; frozen       | Talos machine config only; no Flux tree yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -34,15 +34,24 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 Tools are pinned in [mise.toml](./mise.toml) and environment variables in [.envrc](./.envrc). `mise install` and `direnv allow` set up a workstation.
 
 ```sh
-task                              # list every task
-flux get kustomizations -A        # what is reconciling, and what is not
+task                                        # list every task
+flux get kustomizations -A                  # what is reconciling, and what is not
 flux get helmreleases -A
-task flux:reconcile               # pull changes from git now, rather than waiting
-task kubernetes:kubeconform       # validate manifests the way CI does
-task kubernetes:resources         # gather cluster state for troubleshooting
-k9s                               # poke around
-stern -n default <app>            # tail logs
+task flux:reconcile CLUSTER=main            # pull changes from git now, rather than waiting
+task kubernetes:kubeconform CLUSTER=main    # validate manifests the way CI does
+task kubernetes:resources                   # gather cluster state for troubleshooting
+task talos:render CLUSTER=apollo            # render Talos machine configs, no hardware needed
+task talos:kubeconfig CLUSTER=apollo        # refresh Apollo's admin kubeconfig
+kubectx main | kubectx apollo               # switch clusters
+k9s                                         # poke around
+stern -n default <app>                      # tail logs
 ```
+
+Every task that reads a cluster tree needs `CLUSTER`, naming a directory under `kubernetes/`. There is no default while two clusters exist.
+
+Each cluster keeps its own `kubeconfig-<cluster>` at the repo root, and [.envrc](./.envrc) merges them into one `KUBECONFIG` list so `kubectx` switches between them by context name. `./kubeconfig` is a stub holding nothing but `current-context`; it exists so `kubectx` records the selection there rather than editing a generated per-cluster file. Tasks ignore the selection and use their own `CLUSTER`, so `task flux:reconcile CLUSTER=main` hits main whatever `kubectx` says.
+
+Apollo's kubeconfig is a temporary admin certificate, so `task talos:kubeconfig CLUSTER=apollo` reissues it. It defaults to 168h; `validity=` takes a Go duration, which has no day unit.
 
 > Recovery runbooks: placeholder. Filled in as each one is exercised.
 
@@ -58,7 +67,8 @@ stern -n default <app>            # tail logs
 
 ```
 kubernetes/main/       old cluster manifests: bootstrap/, flux/, apps/, templates/
-ansible/               node provisioning
+kubernetes/apollo/     new cluster: bootstrap/talos/ holds topf.yaml and its machine config patches
+ansible/               node provisioning for the old cluster
 terraform/             Cloudflare R2 buckets and tunnel
 docs/                  reference docs for how things are, not how they will change
 plans/                 design docs, written before the work

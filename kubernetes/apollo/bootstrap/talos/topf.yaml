@@ -1,0 +1,35 @@
+---
+clusterName: apollo
+clusterEndpoint: https://192.168.21.1:6443
+
+# renovate: datasource=github-releases depName=siderolabs/talos
+talosVersion: v1.13.9
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: v1.36.3
+
+schematicId: "@schematic.yaml"
+secretsPath: secrets.sops.yaml
+
+data:
+  nodeSubnet: 192.168.21.0/24
+  linkPrefixLength: "22"
+  gateway: 192.168.20.1
+  apiVIP: 192.168.21.1
+  iotVlanID: "2"
+
+nodes:
+  - host: hcc5
+    ip: 192.168.21.5
+    role: control-plane
+    data:
+      macAddr: "68:1d:ef:36:96:04"
+  - host: hcc6
+    ip: 192.168.21.6
+    role: control-plane
+    data:
+      macAddr: "e8:ff:1e:d1:9f:e4"
+  - host: hcc7
+    ip: 192.168.21.7
+    role: control-plane
+    data:
+      macAddr: "00:1e:06:49:1e:b8"

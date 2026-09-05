@@ -11,7 +11,7 @@ vars:
   SCRIPTS_DIR: "{{.ROOT_DIR}}/scripts"
   # Files
   AGE_FILE: "{{.ROOT_DIR}}/age.key"
-  KUBECONFIG_FILE: "{{.ROOT_DIR}}/kubeconfig"
+  KUBECONFIG_FILE: "{{.ROOT_DIR}}/kubeconfig-{{.CLUSTER}}"
 
 env:
   KUBECONFIG: "{{.KUBECONFIG_FILE}}"
@@ -26,6 +26,7 @@ includes:
     taskfile: .taskfiles/Kubernetes/Taskfile.yaml
   flux: .taskfiles/Flux/Taskfile.yaml
   sops: .taskfiles/Sops/Taskfile.yaml
+  talos: .taskfiles/Talos/Taskfile.yaml
   user:
     taskfile: .taskfiles/User
     optional: true

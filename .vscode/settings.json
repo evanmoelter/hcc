@@ -19,9 +19,9 @@
         "Kubernetes": "./kubernetes/*.yaml"
     },
     "vs-kubernetes": {
-        "vs-kubernetes.kubeconfig": "./kubeconfig",
+        "vs-kubernetes.kubeconfig": "./kubeconfig-main",
         "vs-kubernetes.knownKubeconfigs": [
-            "./kubeconfig"
+            "./kubeconfig-main"
         ]
     },
     "cSpell.words": [

@@ -1,0 +1,78 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+vars:
+  TALOS_DIR: "{{.KUBERNETES_DIR}}/bootstrap/talos"
+  TOPF_CONFIG_FILE: "{{.TALOS_DIR}}/topf.yaml"
+  TALOS_RENDER_DIR: "{{.TALOS_DIR}}/rendered"
+  TALOS_SECRETS_FILE: "{{.TALOS_DIR}}/secrets.sops.yaml"
+
+env:
+  TOPFCONFIG: "{{.TOPF_CONFIG_FILE}}"
+
+tasks:
+
+  render:
+    desc: Render Talos machine configs without touching a node
+    summary: |
+      Args:
+        node: Only render this node (default: every node)
+    cmd: topf render --nodes-filter '{{.node}}' --output {{.TALOS_RENDER_DIR}}
+    vars:
+      node: '{{.node | default ".*"}}'
+    preconditions: &topf
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=apollo", sh: 'test -n "{{.CLUSTER}}"' }
+      - { msg: "Missing topf config {{.TOPF_CONFIG_FILE}}", sh: "test -f {{.TOPF_CONFIG_FILE}}" }
+      - { msg: "Missing {{.TALOS_SECRETS_FILE}}, generate it with: topf secrets", sh: "test -f {{.TALOS_SECRETS_FILE}}" }
+
+  kubeconfig:
+    desc: Refresh the admin kubeconfig for a cluster
+    summary: |
+      Args:
+        validity: How long the client certificate stays valid, as a Go duration
+                  with no day unit, so 7 days is 168h (default: 168h)
+    cmd: |
+      set -e
+      topf kubeconfig --validity {{.validity}} > {{.KUBECONFIG_FILE}}.tmp
+      kubectl --kubeconfig {{.KUBECONFIG_FILE}}.tmp \
+          config rename-context topf@{{.CLUSTER}} {{.CLUSTER}}
+      mv {{.KUBECONFIG_FILE}}.tmp {{.KUBECONFIG_FILE}}
+    vars:
+      validity: '{{.validity | default "168h"}}'
+    preconditions: *topf
+
+  apply:
+    desc: Apply Talos machine config to the cluster
+    summary: |
+      Args:
+        node: Only apply to this node (default: every node)
+        mode: apply mode - auto, reboot, no-reboot, staged, try (default: auto)
+    prompt: Apply Talos machine config to '{{.node}}' on cluster '{{.CLUSTER}}'... continue?
+    cmd: topf apply --nodes-filter '{{.node}}' --mode {{.mode}} {{.CLI_ARGS}}
+    vars:
+      node: '{{.node | default ".*"}}'
+      mode: '{{.mode | default "auto"}}'
+    preconditions: *topf
+
+  upgrade:
+    desc: Upgrade Talos on each node, one at a time
+    summary: |
+      Args:
+        node: Only upgrade this node (default: every node)
+    prompt: Upgrade Talos on '{{.node}}' on cluster '{{.CLUSTER}}'... continue?
+    cmd: topf upgrade --nodes-filter '{{.node}}' --drain {{.CLI_ARGS}}
+    vars:
+      node: '{{.node | default ".*"}}'
+    preconditions: *topf
+
+  reset:
+    desc: Reset Talos nodes back to maintenance mode, wiping them
+    summary: |
+      Args:
+        node: Only reset this node (default: every node, which destroys the cluster)
+    prompt: WIPE Talos node(s) '{{.node}}' on cluster '{{.CLUSTER}}' back to maintenance mode... continue?
+    cmd: topf reset --nodes-filter '{{.node}}' --graceful --wait-for-maintenance --confirm=false {{.CLI_ARGS}}
+    vars:
+      node: '{{.node | default ".*"}}'
+    preconditions: *topf

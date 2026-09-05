@@ -153,7 +153,7 @@ VLAN 6, `192.168.20.0/22`, with Apollo in `192.168.21.0/24`. [docs/networking.md
 - Isolate the HCC and IoT VLANs in both directions by default.
 - Temporarily allow Apollo to reach `192.168.6.21:5432` for the authentik, Paperless, and TeslaMate imports. Remove the rule after all three migrate.
 - Allow Apollo to reach only the UCG Fiber Integration API needed by external-dns.
-- Give Home Assistant one intentional IoT path through multus on hcc7. Set the VLAN tag in `bootstrap_talos.vlan` and the NAD, and trunk it to hcc7.
+- Give Home Assistant one intentional IoT path through multus on hcc7. Trunk the IoT VLAN to hcc7, create the tagged link in hcc7's `topf` node patch, and set the same tag in the NAD.
 
 A separate Longhorn replication VLAN and BGP load-balancer announcements remain out of scope.
 
