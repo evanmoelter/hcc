@@ -11,7 +11,6 @@ spec:
     copyMethod: Snapshot
     pruneIntervalDays: 7
     repository: mealie-data-volsync-r2
-    unlock: "2026-09-04"
     volumeSnapshotClassName: longhorn-snapclass
     cacheCapacity: 2Gi
     cacheStorageClassName: longhorn-cache
