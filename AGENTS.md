@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` does not exist yet. Until it does, changes to running apps still land in `kubernetes/main/`, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` holds only `bootstrap/talos/` so far; it has no Flux tree, so no app can be deployed there yet. Until it has one, changes to running apps still land in `kubernetes/main/`, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
@@ -98,9 +98,10 @@ Set CPU and memory requests along with a memory limit, and leave the CPU limit o
 ```sh
 task kubernetes:kubeconform CLUSTER=main    # schema validation, same as CI
 task kubernetes:kubeconform CLUSTER=apollo  # the same, against the Apollo tree
+task talos:render CLUSTER=apollo            # for Talos changes; renders machine configs, no hardware needed
 ```
 
-Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset.
+Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. It doubles as the kubectl context, so a cluster's context must be named after it: tasks pass `--context {{.CLUSTER}}` and never a kubeconfig path. Never export `CLUSTER` from the shell, since Task reads variables from the environment and would hand every cluster-scoped task a silent default. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset, or when no context matches.
 
 CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`, once per cluster in each workflow's matrix. Kubeconform is filtered by path and does not start otherwise; flux-local always starts but skips its test and diff jobs when nothing under `kubernetes/` changed. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change. A new cluster tree needs an entry added to both matrices before CI validates it.
 
@@ -155,7 +156,7 @@ Local tools are installed/managed with Mise. Everything should be pinned in [`mi
 
 Prefer `task <group>:<name>` over raw commands for frequently used tasks; `task` on its own lists what exists.
 
-Talos machine configuration will be managed with `topf`, pinned in `mise.toml`. The `.taskfiles/Talos/` wrapper is written alongside Apollo's `topf.yaml`; the repo has no Talos tasks until then.
+Talos machine configuration is managed with `topf`, pinned in `mise.toml`, from `kubernetes/<cluster>/bootstrap/talos/`. `task talos:render` validates a config with no hardware; `apply`, `upgrade`, and `reset` all touch nodes and prompt first. Kubernetes upgrades use `talosctl upgrade-k8s` directly, because `topf` does not wrap them.
 
 ## Keeping these docs current
 

@@ -1,0 +1,18 @@
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn-sata
+provisioning:
+  diskSelector:
+    match: disk.transport == "sata" && !disk.rotational && !system_disk
+  minSize: 100GiB
+  grow: true
+filesystem:
+  type: xfs
+---
+machine:
+  kubelet:
+    extraMounts:
+      - destination: /var/mnt/longhorn-sata
+        type: bind
+        source: /var/mnt/longhorn-sata
+        options: ["bind", "rshared", "rw"]
