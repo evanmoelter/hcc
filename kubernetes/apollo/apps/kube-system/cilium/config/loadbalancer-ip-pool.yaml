@@ -1,0 +1,9 @@
+---
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: apollo
+spec:
+  blocks:
+    - start: 192.168.21.100
+      stop: 192.168.21.254

@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        cluster: ["main"]
+        cluster: ["main", "apollo"]
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
     steps:
       - name: Checkout
@@ -58,10 +58,12 @@ jobs:
       pull-requests: write
     strategy:
       matrix:
-        cluster: ["main"]
+        cluster: ["main", "apollo"]
         resources: ["helmrelease", "kustomization"]
         include:
           - cluster: "main"
+            source: "home-kubernetes"
+          - cluster: "apollo"
             source: "home-kubernetes"
       max-parallel: 4
       fail-fast: false

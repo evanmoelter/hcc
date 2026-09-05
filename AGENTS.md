@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` holds only `bootstrap/talos/` so far; it has no Flux tree, so no app can be deployed there yet. Until it has one, changes to running apps still land in `kubernetes/main/`, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` now has a Flux tree, but only Cilium and Flux itself are deployed to it. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
@@ -101,6 +101,13 @@ task kubernetes:kubeconform CLUSTER=apollo  # the same, against the Apollo tree
 task talos:render CLUSTER=apollo            # for Talos changes; renders machine configs, no hardware needed
 ```
 
+A Flux change is worth rendering as well, since kubeconform validates schemas but not Helm values:
+
+```sh
+docker run --rm -v "$PWD":/workspace ghcr.io/allenporter/flux-local:v8.0.1 \
+    test --enable-helm --all-namespaces --path /workspace/kubernetes/apollo/flux
+```
+
 Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. It doubles as the kubectl context, so a cluster's context must be named after it: tasks pass `--context {{.CLUSTER}}` and never a kubeconfig path. Never export `CLUSTER` from the shell, since Task reads variables from the environment and would hand every cluster-scoped task a silent default. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset, or when no context matches.
 
 CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`, once per cluster in each workflow's matrix. Kubeconform is filtered by path and does not start otherwise; flux-local always starts but skips its test and diff jobs when nothing under `kubernetes/` changed. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change. A new cluster tree needs an entry added to both matrices before CI validates it.
@@ -157,6 +164,8 @@ Local tools are installed/managed with Mise. Everything should be pinned in [`mi
 Prefer `task <group>:<name>` over raw commands for frequently used tasks; `task` on its own lists what exists.
 
 Talos machine configuration is managed with `topf`, pinned in `mise.toml`, from `kubernetes/<cluster>/bootstrap/talos/`. `task talos:render` validates a config with no hardware; `apply`, `upgrade`, and `reset` all touch nodes and prompt first. Kubernetes upgrades use `talosctl upgrade-k8s` directly, because `topf` does not wrap them.
+
+`task bootstrap:cluster` installs the components Flux cannot install for itself, from `kubernetes/<cluster>/bootstrap/helmfile.yaml`, then hands the rest to Flux. It runs once per cluster, on an empty one. Cilium reads the same values file there that its HelmRelease reads, so the hand-installed release and the reconciled one cannot drift.
 
 ## Keeping these docs current
 
