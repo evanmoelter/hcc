@@ -22,14 +22,14 @@ nodes:
     ip: 192.168.21.5
     role: control-plane
     data:
-      macAddr: "68:1d:ef:36:96:04"
+      macAddr: "48:21:0b:26:67:b5"
   - host: hcc6
     ip: 192.168.21.6
     role: control-plane
     data:
-      macAddr: "e8:ff:1e:d1:9f:e4"
+      macAddr: "48:21:0b:26:68:2c"
   - host: hcc7
     ip: 192.168.21.7
     role: control-plane
     data:
-      macAddr: "00:1e:06:49:1e:b8"
+      macAddr: "48:21:0b:3d:9b:a3"
