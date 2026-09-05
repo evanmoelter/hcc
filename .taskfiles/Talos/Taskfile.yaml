@@ -14,11 +14,17 @@ env:
 tasks:
 
   render:
-    desc: Render Talos machine configs without touching a node
+    desc: Render Talos machine configs and validate them, without touching a node
     summary: |
       Args:
         node: Only render this node (default: every node)
-    cmd: topf render --nodes-filter '{{.node}}' --output {{.TALOS_RENDER_DIR}}
+    cmds:
+      - topf render --nodes-filter '{{.node}}' --output {{.TALOS_RENDER_DIR}}
+      - |
+        set -e
+        for config in {{.TALOS_RENDER_DIR}}/*.yaml; do
+          talosctl validate --config "${config}" --mode metal
+        done
     vars:
       node: '{{.node | default ".*"}}'
     preconditions: &topf

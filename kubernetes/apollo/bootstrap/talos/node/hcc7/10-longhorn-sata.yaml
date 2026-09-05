@@ -4,6 +4,7 @@ name: longhorn-sata
 provisioning:
   diskSelector:
     match: disk.transport == "sata" && !disk.rotational && !system_disk
+  minSize: 100GiB
   grow: true
 filesystem:
   type: xfs
