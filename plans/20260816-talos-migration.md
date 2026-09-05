@@ -172,7 +172,7 @@ Keep KubePrism enabled while writing the `all/` patches. Configure Cilium with `
 
 Talos uses `/etc/cri/conf.d/hosts` instead of k3s's embedded containerd and CNI paths. Carry that change into Spegel rather than copying its k3s configuration. `plans/05a-spegel.md` is a k3s-oriented draft and must be revisited against current Talos and Spegel releases immediately before implementation.
 
-Spegel needs containerd to keep unpacked layers, so `all/70-cri.yaml` writes `discard_unpacked_layers = false` into `/etc/cri/conf.d/20-customization.part`. It has to be on the node before Spegel starts, which is why it lands with the machine config rather than with Spegel itself. The same file enables unprivileged ports and ICMP, so a container running as 568 can bind a low port without a capability.
+Spegel needs containerd to keep unpacked layers, so `all/70-cri.yaml` writes `discard_unpacked_layers = false` into `/etc/cri/conf.d/20-customization.part`. It has to be on the node before Spegel starts, which is why it lands with the machine config rather than with Spegel itself. Reference repos also set `enable_unprivileged_ports` and `enable_unprivileged_icmp` here; containerd 2.0 changed both defaults to true, so on Talos 1.13.9 they are redundant and Apollo leaves them out.
 
 Talos 1.13.9 has no `FilesystemTrimConfig` or `FilesystemScrubConfig`; both are newer documents, and `talosctl validate` rejects them. Add periodic trim and scrub when Apollo moves to a release that registers them.
 
