@@ -98,6 +98,6 @@ Home Assistant needs no rule. Its IoT interface is an attachment on VLAN 2 rathe
 
 Matter discovery is mDNS over IPv6, and with no IPv6 subnet configured it runs on link-local addresses. Those are scoped to a single L2 segment and cannot be routed or reflected between VLANs. A macvlan attachment onto VLAN 2 is therefore the only mechanism that works, not a convenience.
 
-Home Assistant is pinned to hcc7, which needs VLAN 6 untagged and VLAN 2 tagged on its switch port. The attachment takes `192.168.6.100/22`: the upper half of VLAN 2, outside the DHCP range, with the `/22` mask the subnet actually uses. The current cluster uses `192.168.4.100/24`, which sits inside the DHCP range with no reservation and carries the wrong mask.
+Home Assistant is pinned to hcc6, which needs VLAN 6 untagged and VLAN 2 tagged on its switch port. hcc6 carries the IoT path rather than hcc7 because it has a dual NIC: if the tagged trunk proves awkward, the second port can take VLAN 2 untagged without moving the workload again. The attachment takes `192.168.6.100/22`: the upper half of VLAN 2, outside the DHCP range, with the `/22` mask the subnet actually uses. The current cluster uses `192.168.4.100/24`, which sits inside the DHCP range with no reservation and carries the wrong mask.
 
 Any other workload needing IoT discovery needs its own attachment and the same node pinning.
