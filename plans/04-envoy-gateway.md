@@ -187,6 +187,49 @@ Update cloudflared config to point to the external gateway IP instead of ingress
 5. Remove old Ingress resources
 6. Remove ingress-nginx
 
+## Settled configuration from reference repos
+
+Steps 1 through 7 predate the Talos decision and sketch the shape. This section records the details four community repos have converged on, and answers questions `plans/20260816-talos-migration.md` leaves open. Apply it to Apollo; the k3s notes below are historical.
+
+### Client address on both paths
+
+The migration plan needs the real client address on the LAN path and Cloudflare's forwarded headers on the tunnel path, because Authentik's trusted-proxy configuration and Home Assistant's proxy CIDRs depend on which one a request took. Two settings carry that:
+
+- A `ClientTrafficPolicy` with `clientIPDetection.xForwardedFor.numTrustedHops: 1`, so Envoy trusts exactly one hop and no more. cloudflared is that hop on the tunnel path.
+- `externalTrafficPolicy: Local` on the Envoy service, set through the `EnvoyProxy` resource. Without it the LAN path is source-NATed by kube-proxy replacement and every client looks like a node.
+
+Set both before Authentik moves. Getting them wrong shows up as an authentication loop, not as a routing error.
+
+### One policy for both Gateways
+
+`ClientTrafficPolicy` and `BackendTrafficPolicy` both accept `targetSelectors`, so a single policy of each kind covers every Gateway:
+
+```yaml
+spec:
+  targetSelectors:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+```
+
+That keeps the internal and external Gateways from drifting apart in TLS version, timeout, compression, or retry behavior, which is the failure mode the dual-route fallback would otherwise invite.
+
+### Gateway configuration
+
+- Attach an `EnvoyProxy` through the `GatewayClass` `parametersRef` rather than per Gateway. It carries replica count, resources, the service's `externalTrafficPolicy`, and Prometheus telemetry.
+- Pin the Envoy LoadBalancer address with `spec.infrastructure.annotations`, using Cilium's `lbipam.cilium.io/ips`, so a Gateway's address comes from the address plan rather than from pool order.
+- Put `external-dns.alpha.kubernetes.io/target` on the **Gateway**, not on each route. This is what makes the split-horizon shape work: one `HTTPRoute` on the external Gateway, and each external-dns instance publishes a different target for it. Under dual-route the annotation still keeps each Gateway's target in one place.
+- Give the HTTP listeners a single redirect route rather than one per app, annotated `external-dns.alpha.kubernetes.io/controller: none` so external-dns does not publish the redirect's own hostname.
+
+### external-dns
+
+- Sources are `["crd", "gateway-httproute", "service"]`. The migration plan already replaces `["crd", "ingress"]`; `service` is the part worth not dropping, since Paperless's SFTP `LoadBalancer` is published that way.
+- Scope ownership with both `txtOwnerId` and `txtPrefix`, for example `txtPrefix: k8s.apollo.%{record_type}-`. The plan's `txtOwnerId: apollo` alone leaves the two clusters writing TXT records at the same names; a per-cluster prefix means they cannot collide even before `policy: upsert-only` is considered. Give the UniFi instance its own prefix as well.
+
+### Deferred
+
+- `BackendTrafficPolicy` `responseOverride` redirecting 4xx and 5xx to a static error-page service. Nice, and unrelated to the migration.
+- Per-Gateway `gatus` endpoint annotations for uptime discovery. Revisit if gatus is ever deployed.
+
 ## k3s Compatibility
 
 ✅ **Fully compatible** - Envoy Gateway works with k3s. However, there are some considerations:
