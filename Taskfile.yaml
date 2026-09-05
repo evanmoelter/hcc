@@ -14,6 +14,7 @@ vars:
   KUBECONFIG_FILE: "{{.ROOT_DIR}}/kubeconfig-{{.CLUSTER}}"
 
 env:
+  # Task does not override an exported KUBECONFIG, so cluster commands pass --kubeconfig explicitly
   KUBECONFIG: "{{.KUBECONFIG_FILE}}"
   PYTHONDONTWRITEBYTECODE: "1"
   SOPS_AGE_KEY_FILE: "{{.AGE_FILE}}"
