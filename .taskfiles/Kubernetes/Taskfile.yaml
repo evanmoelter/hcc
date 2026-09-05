@@ -11,7 +11,7 @@ tasks:
     desc: Gather common resources in your cluster, useful when asking for support
     cmds:
       - for: { var: resource }
-        cmd: kubectl --kubeconfig {{.KUBECONFIG_FILE}} get {{.ITEM}} {{.CLI_ARGS | default "-A"}}
+        cmd: kubectl --context {{.CLUSTER}} get {{.ITEM}} {{.CLI_ARGS | default "-A"}}
     preconditions:
       - { msg: "CLUSTER is not set, e.g. CLUSTER=main", sh: 'test -n "{{.CLUSTER}}"' }
     vars:

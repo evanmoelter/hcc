@@ -39,19 +39,15 @@ flux get kustomizations -A                  # what is reconciling, and what is n
 flux get helmreleases -A
 task flux:reconcile CLUSTER=main            # pull changes from git now, rather than waiting
 task kubernetes:kubeconform CLUSTER=main    # validate manifests the way CI does
-task kubernetes:resources                   # gather cluster state for troubleshooting
-task talos:render CLUSTER=apollo            # render Talos machine configs, no hardware needed
+task kubernetes:resources CLUSTER=main      # gather cluster state for troubleshooting
+task talos:render CLUSTER=apollo            # for Talos changes; renders machine configs
 task talos:kubeconfig CLUSTER=apollo        # refresh Apollo's admin kubeconfig
 kubectx main | kubectx apollo               # switch clusters
 k9s                                         # poke around
 stern -n default <app>                      # tail logs
 ```
 
-Every task that reads a cluster tree needs `CLUSTER`, naming a directory under `kubernetes/`. There is no default while two clusters exist.
-
-Each cluster keeps its own `kubeconfig-<cluster>` at the repo root, and [.envrc](./.envrc) merges them into one `KUBECONFIG` list so `kubectx` switches between them by context name. `./kubeconfig` is a stub holding nothing but `current-context`; it exists so `kubectx` records the selection there rather than editing a generated per-cluster file. Tasks ignore the selection and use their own `CLUSTER`, so `task flux:reconcile CLUSTER=main` hits main whatever `kubectx` says.
-
-Apollo's kubeconfig is a temporary admin certificate, so `task talos:kubeconfig CLUSTER=apollo` reissues it. It defaults to 168h; `validity=` takes a Go duration, which has no day unit.
+Every task that reads a cluster tree needs `CLUSTER`, naming a directory under `kubernetes/`. There is no default while two clusters exist. `kubectx` picks the cluster for bare `kubectl`; tasks ignore that and use `CLUSTER`. Apollo's kubeconfig is a short-lived admin certificate, so reissue it when it expires.
 
 > Recovery runbooks: placeholder. Filled in as each one is exercised.
 
