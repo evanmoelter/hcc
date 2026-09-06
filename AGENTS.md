@@ -104,13 +104,15 @@ task talos:render CLUSTER=apollo            # for Talos changes; renders machine
 A Flux change is worth rendering as well, since kubeconform validates schemas but not Helm values:
 
 ```sh
-docker run --rm -v "$PWD":/workspace ghcr.io/allenporter/flux-local:v8.0.1 \
-    test --enable-helm --all-namespaces --path /workspace/kubernetes/apollo/flux
+flate test all --path ./kubernetes/apollo/flux    # renders every Kustomization and HelmRelease
+flate build hr --path ./kubernetes/apollo/flux cilium
 ```
 
 Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. It doubles as the kubectl context, so a cluster's context must be named after it: tasks pass `--context {{.CLUSTER}}` and never a kubeconfig path. Never export `CLUSTER` from the shell, since Task reads variables from the environment and would hand every cluster-scoped task a silent default. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset, or when no context matches.
 
-CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`, once per cluster in each workflow's matrix. Kubeconform is filtered by path and does not start otherwise; flux-local always starts but skips its test and diff jobs when nothing under `kubernetes/` changed. The flux-diff output shows the rendered manifest delta, which is useful to review when reviewing a Flux change. A new cluster tree needs an entry added to both matrices before CI validates it.
+CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`. Kubeconform is filtered by path and does not start otherwise, and its matrix covers both clusters; a new cluster tree needs an entry there. `flux-diff.yaml` always starts but skips its jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both output the rendered manifest delta, which is worth reading when reviewing a Flux change.
+
+Neither renderer can diff a cluster tree that does not yet exist on the default branch, so the first PR to add one renders it but has nothing to compare against.
 
 ## Code style
 
