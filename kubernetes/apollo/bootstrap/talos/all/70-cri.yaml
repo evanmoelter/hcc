@@ -1,0 +1,9 @@
+---
+machine:
+  files:
+    - path: /etc/cri/conf.d/20-customization.part
+      op: create
+      permissions: 0o644
+      content: |
+        [plugins."io.containerd.cri.v1.images"]
+          discard_unpacked_layers = false
