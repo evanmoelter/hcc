@@ -15,7 +15,7 @@ tasks:
     prompt: Bootstrap Cilium and Flux onto cluster '{{.CLUSTER}}'... continue?
     cmds:
       - helmfile --kube-context {{.CLUSTER}} --file {{.BOOTSTRAP_HELMFILE}} sync
-      - kubectl --context {{.CLUSTER}} --namespace flux-system create secret generic sops-age --from-file=age.agekey={{.AGE_FILE}}
+      - task: .sops-age-secret
       - kubectl --context {{.CLUSTER}} apply --server-side --kustomize {{.FLUX_INSTANCE_DIR}}
       - kubectl --context {{.CLUSTER}} --namespace flux-system wait fluxinstance/flux --for=condition=Ready --timeout=5m
       - sops --decrypt {{.CLUSTER_SECRETS_FILE}} | kubectl --context {{.CLUSTER}} apply --server-side --filename -
@@ -26,3 +26,9 @@ tasks:
       - { msg: "No kubeconfig context '{{.CLUSTER}}'", sh: "kubectl config get-contexts {{.CLUSTER}}" }
       - { msg: "Missing Sops Age key file", sh: "test -f {{.AGE_FILE}}" }
       - { msg: "Missing {{.BOOTSTRAP_HELMFILE}}", sh: "test -f {{.BOOTSTRAP_HELMFILE}}" }
+
+  .sops-age-secret:
+    internal: true
+    cmd: kubectl --context {{.CLUSTER}} --namespace flux-system create secret generic sops-age --from-file=age.agekey={{.AGE_FILE}}
+    status:
+      - kubectl --context {{.CLUSTER}} --namespace flux-system get secret sops-age
