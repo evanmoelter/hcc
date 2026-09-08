@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. The new cluster, Apollo, is designed but not yet built, so the workloads described here still run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo's nodes run Talos and this tree bootstraps Cilium and Flux onto them, but no workload has moved yet, so everything described here still runs on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Talos machine config only; no Flux tree yet |
+| Status       | serving all apps; frozen       | Cilium and Flux only; no apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -55,7 +55,9 @@ Every task that reads a cluster tree needs `CLUSTER`, naming a directory under `
 
 ## Bootstrapping
 
-> Placeholder. Filled in as the cluster is built.
+A new cluster is built in two stages. `task talos:apply CLUSTER=apollo` installs Talos on nodes in maintenance mode; `talosctl bootstrap` starts etcd on one of them. The cluster then has no CNI, so nothing schedules.
+
+`task bootstrap:cluster CLUSTER=apollo` closes that gap. It installs Cilium and the Flux operator with helmfile, seeds the age key and cluster variables, and points Flux at this repository. Everything after that reconciles from git.
 
 
 
@@ -63,7 +65,7 @@ Every task that reads a cluster tree needs `CLUSTER`, naming a directory under `
 
 ```
 kubernetes/main/       old cluster manifests: bootstrap/, flux/, apps/, templates/
-kubernetes/apollo/     new cluster: bootstrap/talos/ holds topf.yaml and its machine config patches
+kubernetes/apollo/     new cluster manifests: bootstrap/, flux/, apps/
 ansible/               node provisioning for the old cluster
 terraform/             Cloudflare R2 buckets and tunnel
 docs/                  reference docs for how things are, not how they will change

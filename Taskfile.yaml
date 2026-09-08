@@ -24,6 +24,7 @@ env:
 
 includes:
   ansible: .taskfiles/Ansible/Taskfile.yaml
+  bootstrap: .taskfiles/Bootstrap/Taskfile.yaml
   kubernetes:
     aliases: ["k8s"]
     taskfile: .taskfiles/Kubernetes/Taskfile.yaml

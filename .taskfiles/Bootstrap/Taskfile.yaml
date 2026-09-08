@@ -1,0 +1,34 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+vars:
+  BOOTSTRAP_HELMFILE: "{{.KUBERNETES_DIR}}/bootstrap/helmfile.yaml"
+  CLUSTER_SECRETS_FILE: "{{.KUBERNETES_DIR}}/flux/vars/cluster-secrets.sops.yaml"
+  CLUSTER_SETTINGS_FILE: "{{.KUBERNETES_DIR}}/flux/vars/cluster-settings.yaml"
+  FLUX_INSTANCE_DIR: "{{.KUBERNETES_DIR}}/apps/flux-system/flux-instance/app"
+
+tasks:
+
+  cluster:
+    desc: Install a cluster's hand-applied components and hand the rest to Flux
+    prompt: Bootstrap Cilium and Flux onto cluster '{{.CLUSTER}}'... continue?
+    cmds:
+      - helmfile --kube-context {{.CLUSTER}} --file {{.BOOTSTRAP_HELMFILE}} sync
+      - task: .sops-age-secret
+      - kubectl --context {{.CLUSTER}} apply --server-side --kustomize {{.FLUX_INSTANCE_DIR}}
+      - kubectl --context {{.CLUSTER}} --namespace flux-system wait fluxinstance/flux --for=condition=Ready --timeout=5m
+      - sops --decrypt {{.CLUSTER_SECRETS_FILE}} | kubectl --context {{.CLUSTER}} apply --server-side --filename -
+      - kubectl --context {{.CLUSTER}} apply --server-side --filename {{.CLUSTER_SETTINGS_FILE}}
+      - kubectl --context {{.CLUSTER}} apply --server-side --kustomize {{.KUBERNETES_DIR}}/flux/config
+    preconditions:
+      - { msg: "CLUSTER is not set, e.g. CLUSTER=apollo", sh: 'test -n "{{.CLUSTER}}"' }
+      - { msg: "No kubeconfig context '{{.CLUSTER}}'", sh: "kubectl config get-contexts {{.CLUSTER}}" }
+      - { msg: "Missing Sops Age key file", sh: "test -f {{.AGE_FILE}}" }
+      - { msg: "Missing {{.BOOTSTRAP_HELMFILE}}", sh: "test -f {{.BOOTSTRAP_HELMFILE}}" }
+
+  .sops-age-secret:
+    internal: true
+    cmd: kubectl --context {{.CLUSTER}} --namespace flux-system create secret generic sops-age --from-file=age.agekey={{.AGE_FILE}}
+    status:
+      - kubectl --context {{.CLUSTER}} --namespace flux-system get secret sops-age

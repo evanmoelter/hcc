@@ -121,9 +121,38 @@ jobs:
             ${{ steps.diff.outputs.diff }}
             ```
 
+  flate:
+    name: Flate (apollo)
+    needs: pre-job
+    runs-on: ubuntu-latest
+    if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup flate
+        uses: home-operations/flate/action@631b76b69c4e58c6f4d1cb01e23616fa61aebafa # v0.6.5
+
+      - name: Run flate test
+        run: flate test all --path ./kubernetes/apollo/flux
+
+      - name: Run flate diff
+        env:
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          if git cat-file -e "origin/${BASE}:kubernetes/apollo/flux" 2>/dev/null; then
+            flate diff all --path ./kubernetes/apollo/flux --output github \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No apollo tree on ${BASE} yet; nothing to diff against." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   flux-local-status:
     name: Flux Local Success
-    needs: ["test", "diff"]
+    needs: ["test", "diff", "flate"]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
