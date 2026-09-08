@@ -56,7 +56,7 @@ An automated way for agents to discover these resources is coming soon. For now,
 
 Two of them are load-bearing here:
 
-- [home-operations/k8s-schemas](https://github.com/home-operations/k8s-schemas) builds the JSON schemas that the `$schema=` comments and `task kubernetes:kubeconform` validate against. It serves them at `k8s-schemas.home-operations.com`; this repo still points at the older `kubernetes-schemas.pages.dev`. Check there first when a CRD has no schema or fails validation.
+- [home-operations/k8s-schemas](https://github.com/home-operations/k8s-schemas) builds the JSON schemas that the `$schema=` comments and `task kubernetes:kubeconform` validate against.
 - [home-operations/containers](https://github.com/home-operations/containers) builds rootless application containers. For a workload with no app-specific Helm chart, prefer one of these images, then an upstream image, and only fall back to a custom build when neither does what the app needs.
 
 ## Patterns
