@@ -1,4 +1,5 @@
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/gitrepository_v1.json
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -12,9 +13,13 @@ spec:
   ignore: |
     # exclude all
     /*
-    # include kubernetes directory
+    # include only this cluster's tree, re-including each level so the
+    # parent directories are not left excluded
     !/kubernetes
+    /kubernetes/*
+    !/kubernetes/apollo
 ---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:

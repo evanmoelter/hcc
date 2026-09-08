@@ -7,6 +7,7 @@ helmDefaults:
   waitForJobs: true
 
 releases:
+  # Bump this version together with the Cilium OCIRepository; nothing validates that they match.
   - name: cilium
     namespace: kube-system
     chart: oci://quay.io/cilium/charts/cilium

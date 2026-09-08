@@ -110,9 +110,7 @@ flate build hr --path ./kubernetes/apollo/flux cilium
 
 Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. It doubles as the kubectl context, so a cluster's context must be named after it: tasks pass `--context {{.CLUSTER}}` and never a kubeconfig path. Never export `CLUSTER` from the shell, since Task reads variables from the environment and would hand every cluster-scoped task a silent default. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset, or when no context matches.
 
-CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`. Kubeconform is filtered by path and does not start otherwise, and its matrix covers both clusters; a new cluster tree needs an entry there. `flux-diff.yaml` always starts but skips its jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both output the rendered manifest delta, which is worth reading when reviewing a Flux change.
-
-Neither renderer can diff a cluster tree that does not yet exist on the default branch, so the first PR to add one renders it but has nothing to compare against.
+CI runs `kubeconform.yaml` and `flux-diff.yaml` on PRs that touch `kubernetes/**`. Kubeconform is filtered by path and does not start otherwise, and its matrix covers both clusters. `flux-diff.yaml` always starts but skips its jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both output the rendered manifest delta, which is worth reading when reviewing a Flux change.
 
 ## Code style
 
@@ -166,8 +164,6 @@ Local tools are installed/managed with Mise. Everything should be pinned in [`mi
 Prefer `task <group>:<name>` over raw commands for frequently used tasks; `task` on its own lists what exists.
 
 Talos machine configuration is managed with `topf`, pinned in `mise.toml`, from `kubernetes/<cluster>/bootstrap/talos/`. `task talos:render` validates a config with no hardware; `apply`, `upgrade`, and `reset` all touch nodes and prompt first. Kubernetes upgrades use `talosctl upgrade-k8s` directly, because `topf` does not wrap them.
-
-`task bootstrap:cluster` installs the components Flux cannot install for itself, from `kubernetes/<cluster>/bootstrap/helmfile.yaml`, then hands the rest to Flux. It runs once per cluster, on an empty one. Cilium reads the same values file there that its HelmRelease reads, so the hand-installed release and the reconciled one cannot drift.
 
 ## Keeping these docs current
 
