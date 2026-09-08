@@ -83,7 +83,9 @@ New workloads run as UID and GID 568, with `runAsNonRoot`, `fsGroup: 568`, and `
 
 ### CPU requests, memory limits
 
-Set CPU and memory requests along with a memory limit, and leave the CPU limit off. Throttling a workload through a short busy period costs more than it saves on a cluster this size.
+Set CPU and memory requests along with a memory limit, and leave the CPU limit off by default. Throttling a workload through a short busy period usually costs more than it saves on a cluster this size.
+
+Cap CPU where a burst would cost more than the throttling does, such as a background reconciler sharing nodes with latency-sensitive workloads. Flux's controllers carry a `2000m` limit for that reason.
 
 ## Secrets
 
