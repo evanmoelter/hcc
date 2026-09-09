@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` has a Flux tree with Cilium, Flux, Spegel, and bootstrap metrics configured. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` has Cilium, Flux, Spegel, and bootstrap metrics deployed. ESO and 1Password Connect are configured with operator-supplied credentials, awaiting deployment; [docs/secrets.md](./docs/secrets.md) describes setup and app integration. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
@@ -71,7 +71,7 @@ New manifests should open with a `# yaml-language-server: $schema=` comment, and
 
 Configure an app through the chart's Helm values where it supports them, so the whole configuration sits in the HelmRelease. Fall back to a committed file rendered with `configMapGenerator` only when the app needs one the chart cannot produce, as Home Assistant does with `configs/configuration.yaml`.
 
-Credentials arrive as environment variables from a secret, through `envFrom.secretRef` for a bundle or `secretKeyRef` for a single value like the CNPG connection URI. Keep everything else out of the secret so hostnames, database names, and bucket paths stay readable in a diff. If an app wants a secret inside a config file and gives you no way to interpolate one, do not build the mechanism yourself. ESO arrives soon, and an `ExternalSecret` can template a whole config file with its secrets in place; expect that to become the answer for apps that cannot interpolate their own.
+Credentials arrive as environment variables from a secret, through `envFrom.secretRef` for a bundle or `secretKeyRef` for a single value like the CNPG connection URI. Keep everything else out of the secret so hostnames, database names, and bucket paths stay readable in a diff. If an app wants a secret inside a config file and gives you no way to interpolate one, use an `ExternalSecret` to template the file once Apollo's `onepassword-store` is Ready.
 
 ### One Flux Kustomization per lifecycle
 

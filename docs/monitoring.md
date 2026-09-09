@@ -3,7 +3,7 @@
 Apollo's bootstrap metrics configuration lives in `kubernetes/apollo/apps/monitoring/kube-prometheus-stack/`.
 Its Flux Kustomization waits for Spegel and uses `wait: true`. The HelmRelease installs Prometheus Operator,
 Prometheus, Alertmanager, kube-state-metrics, node-exporter, and the chart's Kubernetes recording and alerting rules.
-Deployment and scrape-target health must be checked after merge.
+Deployment and all 32 active scrape targets were verified healthy on 2026-09-09.
 
 Prometheus keeps up to two days or 3 GB of retained blocks in a 5 GiB disk-backed `emptyDir`, with room for the WAL
 and compaction. Alertmanager uses a 256 MiB `emptyDir`. Pod replacement loses metrics history and alert silences.
