@@ -16,7 +16,8 @@ metrics endpoints. Kube-proxy scraping is disabled because Cilium replaces it. T
 for kubelet, controller-manager, and scheduler remain in place for their serving certificates.
 
 Prometheus discovers monitors and rules across namespaces and adds `cluster: apollo` to external labels.
-Individual applications still need their own ServiceMonitor or PodMonitor. The monitoring namespace permits privileged
+Individual applications still need their own ServiceMonitor or PodMonitor. Cilium/Hubble and Spegel are not yet scraped;
+enabling their metrics where needed and adding monitors remains follow-up work. The monitoring namespace permits privileged
 pod admission because node-exporter uses host networking, PID access, and read-only host mounts. Containers run as
 UID/GID 568 with privilege escalation disabled and all capabilities dropped.
 
