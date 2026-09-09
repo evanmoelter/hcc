@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` now has a Flux tree, but only Cilium and Flux itself are deployed to it. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` has a Flux tree with Cilium, Flux, Spegel, and bootstrap metrics configured. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
