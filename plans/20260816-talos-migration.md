@@ -216,6 +216,8 @@ flowchart TD
 | Longhorn taints | Drop the Odroid-specific `dedicated=storage` taint and matching toleration. |
 | Other | Keep Dragonfly, cert-manager, Authentik, Multus, Cilium, reloader, and metrics-server. Do not carry OpenEBS scaffold cruft forward. |
 
+Bootstrap metrics manifests are now configured; deployment and target health still need verification after merge. [docs/monitoring.md](../docs/monitoring.md) records the configuration and follow-up work. ESO and 1Password Connect are next in the Phase B dependency order.
+
 ## Networking and external state
 
 ### HCC VLAN
