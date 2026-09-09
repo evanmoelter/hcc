@@ -170,7 +170,7 @@ Add a default once two apps need it. A default introduced for one app is a patch
 
 Keep KubePrism enabled while writing the `all/` patches. Configure Cilium with `k8sServiceHost: 127.0.0.1`, `k8sServicePort: 7445`, and `kubeProxyReplacement: true` so it can reach the API through KubePrism before its own datapath is ready. Set `cni.exclusive: false` for Multus and `gatewayAPI.enabled: false` so Cilium does not compete with Envoy Gateway.
 
-Talos uses `/etc/cri/conf.d/hosts` instead of k3s's embedded containerd and CNI paths. Carry that change into Spegel rather than copying its k3s configuration. `plans/05a-spegel.md` is a k3s-oriented draft and must be revisited against current Talos and Spegel releases immediately before implementation.
+Talos uses `/etc/cri/conf.d/hosts` instead of k3s's embedded containerd and CNI paths, which is the one Helm value Spegel needs overridden on Talos. `plans/done/05a-spegel.md` records what shipped.
 
 Spegel needs containerd to keep unpacked layers, so `all/70-cri.yaml` writes `discard_unpacked_layers = false` into `/etc/cri/conf.d/20-customization.part`. It has to be on the node before Spegel starts, which is why it lands with the machine config rather than with Spegel itself. Reference repos also set `enable_unprivileged_ports` and `enable_unprivileged_icmp` here; containerd 2.0 changed both defaults to true, so on Talos 1.13.9 they are redundant and Apollo leaves them out.
 
@@ -406,7 +406,7 @@ Platform:
 - [ ] Create `kubernetes/apollo/components/` with the `volsync`, `postgres`, and `namespace` components before the first app rebuild.
 - [ ] Set the `cluster-apps` defaults, and give each one a `labelSelector` escape hatch where an app may legitimately differ.
 - [ ] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
-- [ ] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
+- [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Configure Apollo-specific restic and Barman write paths before any new backup runs.
 - [ ] Confirm hcc-tablet1 is decommissioned.
 
