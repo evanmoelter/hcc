@@ -38,8 +38,10 @@ mounts need no namespace label there. Deploying Spegel to its own namespace woul
 
 `serviceMonitor.enabled` and `grafanaDashboard.enabled` stay off until
 kube-prometheus-stack lands, the next component in the migration plan's Phase B.
-Neither resource can be applied before its CRD exists. The dashboard's default
-`Sidecar` mode is the one to use unless Apollo also gets the Grafana operator.
+The ServiceMonitor cannot be applied before its CRD exists. The dashboard has no such
+constraint in its default `Sidecar` mode, which renders a plain ConfigMap; it waits
+only because nothing would read it yet. Keep `Sidecar` mode unless Apollo also gets
+the Grafana operator, whose mode does need a CRD.
 
 ## Values not carried over from community repos
 
@@ -55,8 +57,10 @@ Neither resource can be applied before its CRD exists. The dashboard's default
 ```sh
 kubectl --context apollo -n kube-system get ds spegel
 kubectl --context apollo -n kube-system logs -l app.kubernetes.io/name=spegel -c registry
-talosctl -n <node> read /etc/cri/conf.d/hosts/ghcr.io/hosts.toml
+talosctl -n <node> read /etc/cri/conf.d/hosts/_default/hosts.toml
 ```
 
-Spegel writes a `hosts.toml` per mirrored registry on every node; its absence means
-the init container could not reach the registry configuration path.
+`mirroredRegistries` is left empty, which mirrors every registry rather than none, so
+Spegel writes a single catch-all `_default/hosts.toml` on each node and no per-registry
+file. Its absence means the init container could not reach the registry configuration
+path. Do not look for `ghcr.io/hosts.toml`; nothing writes one under this config.
