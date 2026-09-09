@@ -23,52 +23,11 @@ Connect is a ClusterIP service. Its NetworkPolicy permits inbound API traffic on
 the same namespace. ESO currently reaches it over HTTP inside the cluster; add internal TLS after
 cert-manager is available. No Gateway route or external DNS record exposes Connect.
 
-## Bootstrap credentials
-
-Bootstrap credentials are stored in the committed SOPS file. For a new integration or credential rotation,
-the operator performs these steps; agents must not access 1Password or decrypt this file.
-
-1. Create the `hcc-apollo` vault and an Apollo-specific Connect integration following the
-   [1Password setup guide](https://www.1password.dev/connect/get-started). Grant the integration access
-   with read access to `hcc-apollo` and read/write access to `hcc-secrets`, as configured by the operator.
-   The current store selects only `hcc-apollo`; write-back to `hcc-secrets` is not configured.
-2. Save the integration's credentials JSON and token securely for disaster recovery. They cannot
-   depend on ESO for delivery, because they are needed to start the provider ESO reads from.
-3. Edit the encrypted file locally:
-
-   ```sh
-   sops kubernetes/apollo/apps/security/onepassword-connect/app/secret.sops.yaml
-   ```
-
-   Set `stringData.1password-credentials.json` to the **raw JSON**, using a YAML block scalar for
-   multiline contents. This chart mounts a file; do not base64-encode the JSON as an environment-based
-   Connect setup would require. Set `stringData.token` to the Connect token. Save through SOPS so the
-   tracked file remains encrypted. Do not paste either value into chat, logs, or PR descriptions.
-4. Commit the encrypted update and let Flux apply it after merge.
-
-SOPS and age continue to deliver bootstrap credentials; existing cluster and Talos secrets remain
-unchanged. ESO does not migrate the old cluster's secrets or copy vault items automatically.
-
-Check readiness without reading any secret values:
-
-```sh
-kubectl --context apollo -n security get helmreleases,pods
-kubectl --context apollo -n flux-system get kustomization external-secrets onepassword-connect onepassword-store
-kubectl --context apollo get clustersecretstore onepassword
-```
-
-All three Kustomizations and the store must become Ready. Verify the first consuming ExternalSecret
-reports `Ready=True` and `SecretSynced` before treating application secret delivery as proven.
-Both Connect containers must remain ready with stable restart counts. Check pod events for failed
-readiness or liveness probes on ports 8080 and 8081:
-
-```sh
-kubectl --context apollo -n security describe pods -l app=onepassword-connect
-```
-
-The chart mounts the credentials file with `subPath`. Replacing the credentials JSON later requires
-a Connect pod rollout to load it: change a pod annotation in the HelmRelease through git as part of
-that credential rotation. A token-only update is read by ESO from the Kubernetes Secret.
+SOPS supplies Connect's credentials JSON and ESO's Connect token independently of ESO, so the provider
+can start before it can serve application secrets. The Connect integration has read access to
+`hcc-apollo` and read/write access to `hcc-secrets`. The current store selects only `hcc-apollo`;
+write-back to `hcc-secrets` is not configured. Talos and other bootstrap secrets continue to use SOPS
+and age.
 
 ## Application pattern
 
