@@ -218,10 +218,9 @@ flowchart TD
 
 Bootstrap metrics are deployed and their active scrape targets were verified healthy on 2026-09-09;
 [docs/monitoring.md](../docs/monitoring.md) records the configuration and follow-up work. ESO and 1Password
-Connect are configured with a dedicated `hcc-apollo` vault, with operator-supplied bootstrap credentials,
-pending deployment verification. [docs/secrets.md](../docs/secrets.md) records the setup and app integration.
-After `onepassword-store` becomes Ready, cert-manager is next on the ingress path; Longhorn can begin
-the parallel storage path.
+Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bootstrap credentials.
+[docs/secrets.md](../docs/secrets.md) records the setup and app integration. Cert-manager is next on the
+ingress path; Longhorn can begin the parallel storage path.
 
 ## Networking and external state
 

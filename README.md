@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, and bootstrap metrics deployed; ESO and Connect configured, awaiting deployment; no apps yet |
+| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, bootstrap metrics, ESO, and Connect deployed; no apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 

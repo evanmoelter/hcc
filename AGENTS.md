@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` has Cilium, Flux, Spegel, and bootstrap metrics deployed. ESO and 1Password Connect are configured with operator-supplied credentials, awaiting deployment; [docs/secrets.md](./docs/secrets.md) describes setup and app integration. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` runs Cilium, Flux, Spegel, bootstrap metrics, ESO, and 1Password Connect; [docs/secrets.md](./docs/secrets.md) describes setup and app integration. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
@@ -177,7 +177,7 @@ Propose an edit when you:
 - Add or remove something the README describes: a node, an app, a platform component, a task worth knowing about.
 - Hit a failure worth a new entry under Gotchas, or fix one that is already listed. Solved gotchas get removed rather than left behind as history.
 
-Put the doc change in the same PR as the work it describes. A follow-up PR for it rarely gets written.
+Put the doc change in the same PR as the work it describes. Write the docs for the state after the PR is merged and deployed, so deployment alone does not require a follow-up documentation PR.
 
 Two caveats.
 - Be selective about what deserves to be documented. If these docs get too detailed, they will become a maintenance burden.

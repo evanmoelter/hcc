@@ -18,7 +18,6 @@ Connect's API and sync containers share a 1 GiB disk-backed `emptyDir` cache. Po
 that cache and requires a successful resync with 1Password. No Longhorn volume or backup is needed.
 Both containers run as UID/GID 999 with read-only root filesystems and dropped capabilities. The pinned
 images own `/home/opuser/.op` as 999 with mode 0700, so the usual UID 568 cannot reach the mounted files.
-The operator has supplied bootstrap credentials; runtime behavior still needs verification after Flux deploys the release.
 
 Connect is a ClusterIP service. Its NetworkPolicy permits inbound API traffic only from ESO pods in
 the same namespace. ESO currently reaches it over HTTP inside the cluster; add internal TLS after
@@ -26,7 +25,7 @@ cert-manager is available. No Gateway route or external DNS record exposes Conne
 
 ## Bootstrap credentials
 
-The operator has populated the committed SOPS file. For a new integration or credential rotation,
+Bootstrap credentials are stored in the committed SOPS file. For a new integration or credential rotation,
 the operator performs these steps; agents must not access 1Password or decrypt this file.
 
 1. Create the `hcc-apollo` vault and an Apollo-specific Connect integration following the
@@ -45,12 +44,12 @@ the operator performs these steps; agents must not access 1Password or decrypt t
    multiline contents. This chart mounts a file; do not base64-encode the JSON as an environment-based
    Connect setup would require. Set `stringData.token` to the Connect token. Save through SOPS so the
    tracked file remains encrypted. Do not paste either value into chat, logs, or PR descriptions.
-4. Commit the encrypted update with these manifests and let Flux deploy it after merge.
+4. Commit the encrypted update and let Flux apply it after merge.
 
 SOPS and age continue to deliver bootstrap credentials; existing cluster and Talos secrets remain
 unchanged. ESO does not migrate the old cluster's secrets or copy vault items automatically.
 
-After deployment, check readiness without reading any secret values:
+Check readiness without reading any secret values:
 
 ```sh
 kubectl --context apollo -n security get helmreleases,pods
@@ -60,6 +59,12 @@ kubectl --context apollo get clustersecretstore onepassword
 
 All three Kustomizations and the store must become Ready. Verify the first consuming ExternalSecret
 reports `Ready=True` and `SecretSynced` before treating application secret delivery as proven.
+Both Connect containers must remain ready with stable restart counts. Check pod events for failed
+readiness or liveness probes on ports 8080 and 8081:
+
+```sh
+kubectl --context apollo -n security describe pods -l app=onepassword-connect
+```
 
 The chart mounts the credentials file with `subPath`. Replacing the credentials JSON later requires
 a Connect pod rollout to load it: change a pod annotation in the HelmRelease through git as part of
