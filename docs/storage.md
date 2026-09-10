@@ -23,6 +23,8 @@ free and limits reservation to 100% of capacity.
 The default `longhorn` StorageClass uses three replicas on distinct nodes, with best-effort data locality
 and replica balancing. `longhorn-two-replicas` is an explicit per-app choice when offsite restore is acceptable.
 Both use ext4 inside volumes and delete the volume when its PVC is deleted. The host user volumes use XFS.
+New volumes require all requested replicas to be schedulable. Existing volumes can continue serving with
+fewer available replicas during a node outage.
 
 Apollo starts with hcc5 through hcc7. App migrations may proceed before hcc8 joins. During a node outage,
 three-replica volumes have two available replicas; restore the node and wait for healthy replicas before

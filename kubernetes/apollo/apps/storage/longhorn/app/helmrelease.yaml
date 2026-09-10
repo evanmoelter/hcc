@@ -32,6 +32,7 @@ spec:
     csi:
       kubeletRootDir: /var/lib/kubelet
     defaultSettings:
+      allowVolumeCreationWithDegradedAvailability: false
       createDefaultDiskLabeledNodes: true
       defaultDataPath: /var/mnt/longhorn
       defaultReplicaCount: 3

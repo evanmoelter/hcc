@@ -379,6 +379,14 @@ Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on
 
 # Security
 
+Before app migration, attempt Talos-level encryption with TPM + Secure Boot in a follow-on PR. Cover `STATE`,
+`EPHEMERAL`, and the Longhorn user volumes, including hcc7's SATA volume. Verify TPM and Secure Boot support,
+choose the key-recovery policy, and test unattended reboots before moving app data.
+
+Choose whichever is simpler at implementation time: reprovision nodes individually, or rebuild Apollo and
+re-bootstrap it from git. No household app data needs preserving yet, but bootstrap credentials and the steps
+to restore platform services must be accounted for. This work is separate from Longhorn PVC encryption.
+
 - Talos removes SSH. Node administration uses the mTLS-authenticated Talos API.
 - The HCC VLAN blocks direct access from IoT devices. Only Home Assistant receives a deliberate IoT interface, and Apollo receives only the management and temporary database access described above.
 - Exactly one cluster writes each restic repository, Barman server name, DNS ownership set, and database WAL stream.
@@ -404,6 +412,7 @@ Network and hardware:
 
 Cluster bootstrap:
 
+- [ ] Complete the follow-on TPM + Secure Boot encryption attempt and record the outcome before app migration.
 - [ ] Generate the Talos schematic with `iscsi-tools` and `util-linux-tools` against current releases.
 - [ ] Author `topf.yaml` and scoped patches; adapt the Talos Taskfile.
 - [ ] Keep KubePrism enabled and carry the required KubePrism, kube-proxy replacement, Multus, and Envoy settings into Cilium.
