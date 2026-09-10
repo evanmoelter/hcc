@@ -6,20 +6,23 @@ Store it in `hcc-apollo` → `cert-manager` → `CLOUDFLARE_DNS_TOKEN`; ESO crea
 ESO polls hourly, with possible provider delays. During rotation, retain the old token until the
 replacement has synced and successfully issued a certificate.
 
-`wildcard-staging` tests DNS-01 issuance for the apex and wildcard. Its certificate is not browser-trusted.
+The `wildcard` Certificate in `network` requests the apex and wildcard from the production issuer.
+Both Envoy Gateways use its `wildcard` TLS Secret in the same namespace. The certificate has its own
+Flux Kustomization, `envoy-gateway-certificates`, depending on `cert-manager-issuers`; gateway configuration
+waits for certificate readiness. Production issuance and LAN verification remain pending.
 Check readiness after deployment:
 
 ```sh
 kubectl --context apollo -n security get externalsecret cert-manager
 kubectl --context apollo get clusterissuers
-kubectl --context apollo -n security get certificate wildcard-staging
-kubectl --context apollo -n security get orders,challenges
+kubectl --context apollo -n network get certificate wildcard
+kubectl --context apollo -n network get orders,challenges
 ```
 
 A Ready issuer proves account registration; a Ready Certificate proves DNS-01 issuance.
-Gateway work will request the production certificate in the Gateways' namespace and remove the staging
-test. Cert-manager retains the staging Secret after Certificate deletion; deleting that leftover Secret
-requires operator approval.
+The staging test Certificate is removed from git. Cert-manager retains its Secret after Certificate
+deletion; any cleanup of that leftover Secret requires operator approval. Keep the staging issuer for
+future issuance testing. [docs/gateway.md](./gateway.md) covers TLS verification without changing DNS.
 
 ## References
 

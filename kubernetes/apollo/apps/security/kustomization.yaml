@@ -9,4 +9,3 @@ resources:
   - ./cert-manager/ks.yaml
   - ./cert-manager/ks-secrets.yaml
   - ./cert-manager/ks-issuers.yaml
-  - ./cert-manager/ks-certificates.yaml
