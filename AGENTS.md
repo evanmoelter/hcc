@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` runs Cilium, Flux, Spegel, bootstrap metrics, ESO, 1Password Connect, and cert-manager; [docs/secrets.md](./docs/secrets.md) describes secret setup and app integration, and [docs/certificates.md](./docs/certificates.md) covers certificate issuance. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` runs Cilium, Flux, Spegel, bootstrap metrics, ESO, 1Password Connect, cert-manager, and Longhorn; [docs/secrets.md](./docs/secrets.md) describes secret setup and app integration, and [docs/certificates.md](./docs/certificates.md) covers certificate issuance. [docs/storage.md](./docs/storage.md) covers Longhorn disk configuration and node registration. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 

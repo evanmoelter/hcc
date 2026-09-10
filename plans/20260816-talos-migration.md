@@ -2,7 +2,7 @@
 
 # Overview
 
-The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, using four new NUC11s in Wave 1 and adding the wiped hcc3 and hcc4 in Wave 2; the unsupported Odroid HC2 nodes hcc and hcc2 retire, while hcc-tablet1 has already left the live cluster. Apps are rebuilt and cut over one at a time from verified backups, while `kubernetes/main` remains intact for rollback until the old cluster shuts down in Wave 2.
+The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, starting with three new NUC11 control-plane nodes, adding hcc8 when a switch port is available, and adding the wiped hcc3 and hcc4 in Wave 2; the unsupported Odroid HC2 nodes hcc and hcc2 retire, while hcc-tablet1 has already left the live cluster. Apps are rebuilt and cut over one at a time from verified backups, while `kubernetes/main` remains intact for rollback until the old cluster shuts down in Wave 2.
 
 # Functionality
 
@@ -35,7 +35,7 @@ The old cluster stays at `kubernetes/main`. Renaming a live Flux root adds risk 
 | hcc2 | k3s controller and Longhorn storage node | retired | 2 |
 | hcc-tablet1 | stale ansible entry; absent from live cluster | confirm decommissioned; remove entry | n/a |
 | hcc5, hcc6, hcc7 | new NUC11s | Talos control-plane | 1 |
-| hcc8 | new NUC11 | Talos worker | 1 |
+| hcc8 | new NUC11; awaiting a switch port | Talos worker | when a port is available |
 | hcc3, hcc4 | k3s controllers; multus `enp1s0` hosts | wiped; Talos workers | 2 |
 
 ```mermaid
@@ -77,9 +77,16 @@ Talos storage requirements:
 - Give hcc7 a second user volume at `/var/mnt/longhorn-sata`.
 - Add kubelet mounts with `rshared` propagation and the `iscsi-tools` and `util-linux-tools` extensions.
 
-Keep `defaultReplicaCount: 3`. Four Wave 1 nodes leave one node of reboot slack. Two replicas remain available per app through a separate StorageClass when offsite restore is acceptable. Upgrade or reset one node at a time and wait for Longhorn rebuilds.
+Keep `defaultReplicaCount: 3`. Apollo initially uses hcc5 through hcc7 because no switch port is available for hcc8.
+App migrations can proceed on these three nodes; a node outage temporarily leaves two replicas until it returns.
+Add hcc8 when a port becomes available to gain reboot slack. Two replicas remain available per app through a
+separate StorageClass when offsite restore is acceptable. Upgrade or reset one node at a time and wait for
+Longhorn rebuilds. [docs/storage.md](../docs/storage.md) records Longhorn configuration and hcc8 registration.
 
-Wave 1 provides about 790Gi after the EPHEMERAL cap, well above the 265Gi reservation. In the final fleet, hcc8's single 256GB NVMe sets the per-volume ceiling because three replicas need space on three nodes. Current data is nowhere near it; replace that NVMe if the limit becomes binding.
+The planned four-node fleet provides about 790Gi after the EPHEMERAL cap, above the 265Gi reservation.
+Until hcc8 joins, verify actual schedulable capacity on the three control-plane nodes before each app migration.
+A three-replica volume needs a sufficiently large eligible disk on each of three distinct nodes; hcc7's two
+disks do not combine into one replica's capacity. After the fleet expands, hcc8 need not hold every volume.
 
 ## Cluster structure and tooling
 
@@ -222,7 +229,9 @@ Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bo
 [docs/secrets.md](../docs/secrets.md) records the setup and app integration. Cert-manager's controller,
 issuers, and staging wildcard test are defined under Apollo; [docs/certificates.md](../docs/certificates.md)
 records credential setup and live verification. After staging issuance is verified, Envoy Gateway is
-next on the ingress path; Longhorn can begin the parallel storage path.
+next on the ingress path. Longhorn is defined on the parallel storage path;
+[docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
+Snapshot-controller and VolSync follow Longhorn.
 
 ## Networking and external state
 
@@ -348,7 +357,7 @@ Migrate in this order:
 
 ### Wave 1
 
-1. Create the HCC VLAN and Apollo repo tree. Build the four new nodes with hcc5 through hcc7 as control-plane and hcc8 as worker.
+1. Create the HCC VLAN and Apollo repo tree. Build hcc5 through hcc7 as control-plane; add hcc8 as worker when a switch port is available.
 2. Bootstrap Talos, etcd, Cilium, Talos-managed CoreDNS, and Flux.
 3. Reconcile Phase B in dependency order. Use echo-server to test the external, LAN, certificate, and tailnet paths and settle the Gateway pattern.
 4. Rebuild stateful apps one at a time using the standard cutover and app order above.
@@ -369,6 +378,14 @@ Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on
 8. Revoke the old Cloudflare tunnel credentials and Tailscale OAuth client. Wipe every retired or repurposed disk.
 
 # Security
+
+Before app migration, attempt Talos-level encryption with TPM + Secure Boot in a follow-on PR. Cover `STATE`,
+`EPHEMERAL`, and the Longhorn user volumes, including hcc7's SATA volume. Verify TPM and Secure Boot support,
+choose the key-recovery policy, and test unattended reboots before moving app data.
+
+Choose whichever is simpler at implementation time: reprovision nodes individually, or rebuild Apollo and
+re-bootstrap it from git. No household app data needs preserving yet, but bootstrap credentials and the steps
+to restore platform services must be accounted for. This work is separate from Longhorn PVC encryption.
 
 - Talos removes SSH. Node administration uses the mTLS-authenticated Talos API.
 - The HCC VLAN blocks direct access from IoT devices. Only Home Assistant receives a deliberate IoT interface, and Apollo receives only the management and temporary database access described above.
@@ -395,6 +412,7 @@ Network and hardware:
 
 Cluster bootstrap:
 
+- [ ] Complete the follow-on TPM + Secure Boot encryption attempt and record the outcome before app migration.
 - [ ] Generate the Talos schematic with `iscsi-tools` and `util-linux-tools` against current releases.
 - [ ] Author `topf.yaml` and scoped patches; adapt the Talos Taskfile.
 - [ ] Keep KubePrism enabled and carry the required KubePrism, kube-proxy replacement, Multus, and Envoy settings into Cilium.
