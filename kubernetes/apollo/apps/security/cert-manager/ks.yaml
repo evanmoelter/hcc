@@ -7,11 +7,11 @@ metadata:
 spec:
   dependsOn:
     - name: kube-prometheus-stack
-  targetNamespace: cert-manager
+  targetNamespace: security
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apollo/apps/cert-manager/cert-manager/app
+  path: ./kubernetes/apollo/apps/security/cert-manager/app
   prune: true
   sourceRef:
     kind: GitRepository

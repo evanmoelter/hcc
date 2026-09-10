@@ -8,11 +8,11 @@ spec:
   dependsOn:
     - name: cert-manager
     - name: cert-manager-secrets
-  targetNamespace: cert-manager
+  targetNamespace: security
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apollo/apps/cert-manager/cert-manager/issuers
+  path: ./kubernetes/apollo/apps/security/cert-manager/issuers
   prune: true
   sourceRef:
     kind: GitRepository
