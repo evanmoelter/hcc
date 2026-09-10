@@ -219,8 +219,10 @@ flowchart TD
 Bootstrap metrics are deployed and their active scrape targets were verified healthy on 2026-09-09;
 [docs/monitoring.md](../docs/monitoring.md) records the configuration and follow-up work. ESO and 1Password
 Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bootstrap credentials.
-[docs/secrets.md](../docs/secrets.md) records the setup and app integration. Cert-manager is next on the
-ingress path; Longhorn can begin the parallel storage path.
+[docs/secrets.md](../docs/secrets.md) records the setup and app integration. Cert-manager's controller,
+issuers, and staging wildcard test are defined under Apollo; [docs/certificates.md](../docs/certificates.md)
+records credential setup and live verification. After staging issuance is verified, Envoy Gateway is
+next on the ingress path; Longhorn can begin the parallel storage path.
 
 ## Networking and external state
 

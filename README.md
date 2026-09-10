@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, bootstrap metrics, ESO, and Connect deployed; no apps yet |
+| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, bootstrap metrics, ESO, Connect, and cert-manager; no apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -19,6 +19,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 
 [Apollo monitoring](./docs/monitoring.md) describes the bootstrap metrics stack, temporary retention, and local access.
 [Apollo secrets](./docs/secrets.md) describes ESO, the dedicated `hcc-apollo` vault, and the operator's Connect credential setup.
+[Apollo certificates](./docs/certificates.md) describes cert-manager, Cloudflare credential setup, and the staging issuance test.
 
 ## Hardware
 

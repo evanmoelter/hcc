@@ -6,3 +6,7 @@ resources:
   - ./external-secrets/ks.yaml
   - ./onepassword-connect/ks.yaml
   - ./onepassword-connect/ks-store.yaml
+  - ./cert-manager/ks.yaml
+  - ./cert-manager/ks-secrets.yaml
+  - ./cert-manager/ks-issuers.yaml
+  - ./cert-manager/ks-certificates.yaml
