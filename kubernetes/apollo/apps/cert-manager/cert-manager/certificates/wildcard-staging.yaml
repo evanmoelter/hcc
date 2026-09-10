@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/cert-manager.io/certificate_v1.json
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: &certificate wildcard-staging
+spec:
+  secretName: *certificate
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  dnsNames:
+    - "${SECRET_DOMAIN}"
+    - "*.${SECRET_DOMAIN}"
