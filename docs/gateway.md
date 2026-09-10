@@ -14,7 +14,7 @@ EnvoyProxy, with two proxy replicas per Gateway. Cilium receives each pinned add
 `Gateway.spec.infrastructure.annotations`. The controller deploys proxies in the Gateway namespace.
 
 Workloads run as UID/GID 568 with dropped capabilities and no privilege escalation. The proxy and its
-shutdown sidecar allow filesystem writes: Envoy applies one container security configuration to both,
+shutdown sidecar allow filesystem writes: Envoy Gateway applies one container security configuration to both,
 and the [shutdown manager](https://github.com/envoyproxy/gateway/blob/v1.9.1/internal/cmd/envoy/shutdown_manager.go)
 writes `/tmp/shutdown-ready` without a writable volume mount. The controller and echo-server retain
 read-only root filesystems. Controller, proxy, and echo metrics are scraped by Prometheus.
