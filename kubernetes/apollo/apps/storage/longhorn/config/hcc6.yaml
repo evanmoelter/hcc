@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/longhorn.io/node_v1beta2.json
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: hcc6
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+spec:
+  name: hcc6
+  allowScheduling: true
+  disks:
+    nvme:
+      allowScheduling: true
+      diskType: filesystem
+      evictionRequested: false
+      path: /var/mnt/longhorn
+      storageReserved: 0
+      tags: []
