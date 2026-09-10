@@ -5,6 +5,9 @@ privileged pods because Longhorn's manager and CSI components need host access. 
 are retained for these system components. Talos already declares the `iscsi-tools` and `util-linux-tools`
 extensions and the required `rshared` kubelet mounts.
 
+Longhorn retains its default instance-manager CPU reservation: each V1 instance-manager pod requests 12%
+of its node's allocatable CPU. This is a request, not a CPU limit; include it when budgeting app capacity.
+
 ## Disks and replicas
 
 | Node | Longhorn disks | Registration |
@@ -36,8 +39,12 @@ The Longhorn Node resources declare each allowed path explicitly. Flux pruning i
 so removing a file does not delete storage configuration. Perform scheduling and disk changes through git;
 UI edits to managed fields are reverted. Disk removal requires disabling scheduling and evacuating replicas first.
 
-To add hcc8, first join it with the existing Talos configuration and verify its user volume and kubelet mount.
-Then add `./hcc8.yaml` to `kubernetes/apollo/apps/storage/longhorn/config/kustomization.yaml` and validate the tree.
+To add hcc8, add a node entry to `kubernetes/apollo/bootstrap/talos/topf.yaml` with `host: hcc8`,
+`ip: 192.168.21.8`, `role: worker`, and `data.macAddr` set to its actual cluster-facing interface MAC.
+The shared Talos patches provide the Longhorn user volume and kubelet mount. Render with
+`task talos:render CLUSTER=apollo node=hcc8`, then apply the node configuration with operator approval using
+`task talos:apply CLUSTER=apollo node=hcc8`. Once hcc8 joins and its user volume and kubelet mount are verified,
+add `./hcc8.yaml` to `kubernetes/apollo/apps/storage/longhorn/config/kustomization.yaml` and validate the tree.
 The prepared file is deliberately unregistered: Longhorn removes Node resources whose Kubernetes node is absent.
 Do not retire an old-cluster node just to free this port before the migration plan permits retirement.
 
@@ -62,6 +69,8 @@ These deployment checks have not yet been performed for this configuration.
 The UI is a ClusterIP service; local access uses
 `kubectl --context apollo -n storage port-forward service/longhorn-frontend 8080:80`.
 No ingress or tailnet identity is claimed. The existing Prometheus stack discovers the chart's ServiceMonitor.
+An additive NetworkPolicy permits Prometheus pods in `monitoring` to reach manager TCP port 9500 while
+retaining the chart's internal traffic restrictions. Verify the Longhorn scrape targets are up after deployment.
 
 Snapshot-controller, `longhorn-snapclass`, and VolSync follow this step. No cluster-level backup target is
 configured; replica redundancy is not an offsite backup. Prometheus and Alertmanager remain on their bootstrap
