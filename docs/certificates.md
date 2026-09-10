@@ -1,7 +1,8 @@
 # Apollo certificates
 
 Apollo runs cert-manager in the `cert-manager` namespace. Its OCI Helm chart installs the CRDs,
-controller, CA injector, and two webhook replicas. ServiceMonitors feed the bootstrap Prometheus.
+controller, CA injector, and two webhook replicas. A ServiceMonitor feeds the bootstrap Prometheus.
+Webhook scheduling prefers separate nodes, while allowing co-location when necessary.
 The controller uses public Cloudflare DNS-over-HTTPS resolvers for DNS-01 self-checks, independently
 of the LAN's split-horizon answers.
 
@@ -23,9 +24,13 @@ create an item titled `cert-manager` with a field labeled `CLOUDFLARE_DNS_TOKEN`
 ESO reads it into `cert-manager-secret` in the `cert-manager` namespace. Keep the token separate from
 the old cluster and from external-dns. No credential belongs in git.
 
+ESO polls the credential hourly. Provider synchronization or reconciliation failures can delay an
+update further. When rotating the token, keep the old token valid until the replacement has synced
+and certificate issuance succeeds with it.
+
 The `letsencrypt-staging` and `letsencrypt-production` ClusterIssuers create separate ACME account
-keys in Apollo. These are independent of the old cluster's accounts. Neither issuer specifies an
-optional contact email; no additional bootstrap secret variable is required.
+keys in Apollo. These are independent of the old cluster's accounts. Apollo deliberately omits the
+optional ACME contact email.
 
 ## Staging test and Gateway handoff
 
@@ -53,7 +58,7 @@ Deployment and issuance still need to be verified on the live cluster.
 
 During the Gateway work, create the production Certificate in the Gateways' namespace and reference
 its Secret from their listeners. Remove the staging Certificate and its Flux registration after the
-test is no longer needed. The chart leaves certificate Secrets behind when a Certificate is removed;
+test is no longer needed. By default, cert-manager leaves certificate Secrets behind when a Certificate is removed;
 the operator must separately approve deletion of the leftover `wildcard-staging` Secret. Coordinate
 initial production issuance with the old cluster as described in the migration plan.
 
