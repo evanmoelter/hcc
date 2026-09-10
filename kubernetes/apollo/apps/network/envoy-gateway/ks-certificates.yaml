@@ -2,16 +2,16 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app cert-manager-certificates
+  name: &app envoy-gateway-certificates
   namespace: flux-system
 spec:
   dependsOn:
     - name: cert-manager-issuers
-  targetNamespace: security
+  targetNamespace: network
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apollo/apps/security/cert-manager/certificates
+  path: ./kubernetes/apollo/apps/network/envoy-gateway/certificates
   prune: true
   sourceRef:
     kind: GitRepository

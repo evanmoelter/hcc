@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app envoy-gateway
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    config:
+      envoyGateway:
+        provider:
+          type: Kubernetes
+          kubernetes:
+            deploy:
+              type: GatewayNamespace
+    deployment:
+      pod:
+        securityContext: &podSecurityContext
+          runAsNonRoot: true
+          runAsUser: 568
+          runAsGroup: 568
+          fsGroup: 568
+          fsGroupChangePolicy: OnRootMismatch
+          seccompProfile:
+            type: RuntimeDefault
+      envoyGateway:
+        securityContext: &containerSecurityContext
+          runAsUser: 568
+          runAsGroup: 568
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+    certgen:
+      job:
+        pod:
+          securityContext: *podSecurityContext
+        securityContext: *containerSecurityContext
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 128Mi

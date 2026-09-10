@@ -227,9 +227,10 @@ Bootstrap metrics are deployed and their active scrape targets were verified hea
 [docs/monitoring.md](../docs/monitoring.md) records the configuration and follow-up work. ESO and 1Password
 Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bootstrap credentials.
 [docs/secrets.md](../docs/secrets.md) records the setup and app integration. Cert-manager's controller,
-issuers, and staging wildcard test are defined under Apollo; [docs/certificates.md](../docs/certificates.md)
-records credential setup and live verification. After staging issuance is verified, Envoy Gateway is
-next on the ingress path. Longhorn is defined on the parallel storage path;
+issuers, and production wildcard certificate are defined under Apollo; [docs/certificates.md](../docs/certificates.md)
+records credential setup and issuance checks. Envoy Gateway and echo-server provide the ingress foundation;
+[docs/gateway.md](../docs/gateway.md) records its configuration and pending LAN verification. After those
+checks pass, Cloudflare and UniFi external-dns and Apollo's tunnel are next on the ingress path. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
 Snapshot-controller and VolSync follow Longhorn.
 
@@ -251,7 +252,7 @@ A separate Longhorn replication VLAN and BGP load-balancer announcements remain 
 
 Apollo gets its own Cloudflare tunnel. Reusing the old tunnel would distribute traffic across both clusters. Permanently publish `external-apollo.${SECRET_DOMAIN}` with a `DNSEndpoint`, use it as cloudflared's `originServerName`, and target external routes at it. The existing wildcard certificate covers the alias.
 
-Use separate `internal` and `external` Gateways. cloudflared sends `*.${SECRET_DOMAIN}` to one origin, so a shared Gateway would make every internal app public as soon as it received an `HTTPRoute`; separate Gateways make that impossible. Configure both external-dns instances with a Gateway API source such as `gateway-httproute`, replacing the current `sources: ["crd", "ingress"]` and `--ingress-class=external` model. Scope them by the route's parent Gateway.
+Use separate `envoy-internal` and `envoy-external` Gateways. cloudflared sends `*.${SECRET_DOMAIN}` to one origin, so a shared Gateway would make every internal app public as soon as it received an `HTTPRoute`; separate Gateways make that impossible. Configure both external-dns instances with a Gateway API source such as `gateway-httproute`, replacing the current `sources: ["crd", "ingress"]` and `--ingress-class=external` model. Scope them by the route's parent Gateway.
 
 Internal records move to the UCG Fiber through the [UniFi external-dns webhook](https://github.com/kashalls/external-dns-unifi-webhook). It requires ExternalDNS 0.21.0 or newer, UniFi OS 5.x or newer, Network 10.3.58 or newer, and an API key from Settings > Control Plane > Integrations. It supports ownership TXT records but not wildcards. Pihole and k8s-gateway do not move; ad blocking is separate.
 
@@ -277,7 +278,10 @@ Set Apollo's Cloudflare external-dns to `txtOwnerId: apollo` and `policy: upsert
 
 Use cert-manager's staging issuer during repeated bootstrap attempts and avoid simultaneous wildcard renewals across clusters.
 
-`plans/04-envoy-gateway.md` holds the settled Gateway, policy, and proxy configuration, including how the real client address survives both the LAN and tunnel paths.
+[docs/gateway.md](../docs/gateway.md) records the foundation: `externalTrafficPolicy: Cluster` with Cilium's
+existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Neither
+Gateway trusts forwarded client addresses yet. [plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks
+remaining DNS, tunnel, routing, and forwarded-header trust decisions.
 
 ### Backup paths and identities
 
@@ -422,7 +426,7 @@ Cluster bootstrap:
 
 Platform:
 
-- [ ] Create the Cloudflare tunnel, alias, credentials, and staging certificate path.
+- [ ] Verify production wildcard issuance; create the Cloudflare tunnel, alias, and credentials.
 - [ ] Configure Cloudflare external-dns with owner `apollo`, upsert-only policy, and external-Gateway scope. Give UniFi its own owner and initial both-Gateway scope.
 - [ ] Switch both external-dns instances to a Gateway API source such as `gateway-httproute`.
 - [ ] Prove UniFi record creation, both Gateways, the Flux webhook, and the distinct Tailscale identity.

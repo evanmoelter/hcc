@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/gateway.envoyproxy.io/envoyproxy_v1alpha1.json
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: envoy
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 2
+        pod:
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 568
+            runAsGroup: 568
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  gateway.envoyproxy.io/owning-gateway-namespace: network
+              matchLabelKeys:
+                - gateway.envoyproxy.io/owning-gateway-name
+        container:
+          image: mirror.gcr.io/envoyproxy/envoy:v1.39.1
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 1Gi
+      envoyService:
+        externalTrafficPolicy: Cluster
+      envoyPDB:
+        minAvailable: 1
+  telemetry:
+    metrics:
+      prometheus: {}
