@@ -24,6 +24,26 @@ The staging test Certificate is removed from git. Cert-manager retains its Secre
 deletion; any cleanup of that leftover Secret requires operator approval. Keep the staging issuer for
 future issuance testing. [docs/gateway.md](./gateway.md) covers TLS verification without changing DNS.
 
+## Cluster rebuilds
+
+Reprovisioning individual nodes while preserving etcd retains the certificate Secret. A full cluster wipe
+loses it; after bootstrap credentials and Cloudflare DNS-01 access are restored, cert-manager issues a
+replacement from the committed Certificate. Gateway configuration waits for that issuance.
+
+Use the staging issuer during repeated encryption and Secure Boot rebuild experiments, then return to
+production for browser-trusted TLS. Let's Encrypt limits issuance for an exact set of hostnames to five
+certificates per seven days across accounts; matching requests from `main` share that allowance.
+Losing the old certificate means a rebuild cannot rely on ARI renewal exemptions.
+See [Let's Encrypt's limits](https://letsencrypt.org/docs/rate-limits/#new-certificates-per-exact-set-of-identifiers).
+
+The Certificate's `privateKey` field configures generation; cert-manager stores the actual key and
+certificate in `network/wildcard` and rotates the key on issuance. Keep cert-manager responsible for
+that Secret rather than syncing a static key from 1Password. Before a full wipe, the operator can
+optionally back up the complete TLS Secret and the separate `security/letsencrypt-production` ACME
+account Secret to avoid reissuance and retain the account identity. Restore backed-up Secrets before
+their issuers and Certificates reconcile; live restore commands require operator approval.
+[cert-manager's backup guidance](https://cert-manager.io/docs/devops-tips/backup/) covers the required resources.
+
 ## References
 
 The OCI chart, public DNS self-checks, and ServiceMonitor pattern follow
