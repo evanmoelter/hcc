@@ -7,3 +7,6 @@ resources:
   - ./envoy-gateway/ks-certificates.yaml
   - ./envoy-gateway/ks-config.yaml
   - ./echo-server/ks.yaml
+  - ./external-dns-cloudflare/ks.yaml
+  - ./external-dns-unifi/ks.yaml
+  - ./cloudflared/ks.yaml

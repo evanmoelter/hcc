@@ -45,9 +45,6 @@ spec:
       hostnames:
         - "echo-apollo.${SECRET_DOMAIN}"
       parentRefs:
-        - name: envoy-internal
-          namespace: network
-          sectionName: https
         - name: envoy-external
           namespace: network
           sectionName: https

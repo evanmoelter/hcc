@@ -1,16 +1,16 @@
 terraform {
   required_providers {
-    # cloudflare = {
-    #   source  = "cloudflare/cloudflare"
-    #   version = "4.28.0"
-    # }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "5.24.0"
+    }
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5"
     }
     sops = {
       source  = "carlpett/sops"
-      version = "1.3.0"
+      version = "1.4.1"
     }
   }
   backend "s3" {

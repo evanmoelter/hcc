@@ -229,8 +229,11 @@ Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bo
 [docs/secrets.md](../docs/secrets.md) records the setup and app integration. Cert-manager's controller,
 issuers, and production wildcard certificate are defined under Apollo; [docs/certificates.md](../docs/certificates.md)
 records credential setup and issuance checks. Envoy Gateway and echo-server provide the ingress foundation;
-[docs/gateway.md](../docs/gateway.md) records its configuration and pending LAN verification. After those
-checks pass, Cloudflare and UniFi external-dns and Apollo's tunnel are next on the ingress path. Longhorn is defined on the parallel storage path;
+[docs/gateway.md](../docs/gateway.md) records its configuration and successful LAN verification.
+Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are defined for split-horizon testing;
+[docs/dns.md](../docs/dns.md) records ownership, Terraform and credential setup, and pending deployment checks.
+External-path testing, forwarded-header trust, and echo's return to internal-only access remain on the ingress
+path. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
 Snapshot-controller and VolSync follow Longhorn.
 
@@ -250,7 +253,11 @@ A separate Longhorn replication VLAN and BGP load-balancer announcements remain 
 
 ### DNS and ingress
 
-Apollo gets its own Cloudflare tunnel. Reusing the old tunnel would distribute traffic across both clusters. Permanently publish `external-apollo.${SECRET_DOMAIN}` with a `DNSEndpoint`, use it as cloudflared's `originServerName`, and target external routes at it. The existing wildcard certificate covers the alias.
+Apollo gets its own Cloudflare tunnel. Reusing the old tunnel would distribute traffic across both clusters.
+Terraform owns the tunnel and its permanent `external-apollo.${SECRET_DOMAIN}` alias, referencing the generated
+tunnel UUID directly. External-dns owns app hostnames and excludes the fixed alias. Use the alias as cloudflared's
+`originServerName` and target external routes at it; the existing wildcard certificate covers it.
+[docs/dns.md](../docs/dns.md) records this ownership split and credential handoff.
 
 Use separate `envoy-internal` and `envoy-external` Gateways. cloudflared sends `*.${SECRET_DOMAIN}` to one origin, so a shared Gateway would make every internal app public as soon as it received an `HTTPRoute`; separate Gateways make that impossible. Configure both external-dns instances with a Gateway API source such as `gateway-httproute`, replacing the current `sources: ["crd", "ingress"]` and `--ingress-class=external` model. Scope them by the route's parent Gateway.
 
