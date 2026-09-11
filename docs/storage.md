@@ -31,4 +31,15 @@ Kubernetes node. When a switch port becomes available:
 
 Access the UI with `kubectl --context apollo -n storage port-forward service/longhorn-frontend 8080:80`.
 Before app migration, verify healthy replicas, persistence across pod recreation, and working Prometheus scrapes.
-The [migration plan](../plans/20260816-talos-migration.md) tracks encryption, backups, and remaining storage work.
+[Boot and disk security](talos-security.md) describes TPM encryption of the Longhorn user volumes and recovery
+after node replacement. The [migration plan](../plans/20260816-talos-migration.md) tracks verification, backups,
+and remaining storage work.
+
+After recreating a Longhorn filesystem, check `status.diskStatus` on its Longhorn Node resource.
+The node summary can report Ready while the disk reports `DiskFilesystemChanged` because its recorded
+UUID belongs to the old filesystem. The replacement disk needs re-registration before it is schedulable.
+For the empty-disk encryption conversion, clearing only the affected disk's `status.diskStatus.<name>.diskUUID`
+through the status subresource lets Longhorn discover the new UUID. Verify there are no volumes, replicas,
+or backing images first, and use a JSON Patch test against the old UUID before replacing it with an empty
+string. This is an operator-run repair of runtime status; the Git-managed disk specification stays intact.
+Do not use this shortcut to adopt a disk when existing data must be recovered.

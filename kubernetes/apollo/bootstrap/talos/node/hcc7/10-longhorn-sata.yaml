@@ -1,6 +1,12 @@
 apiVersion: v1alpha1
 kind: UserVolumeConfig
 name: longhorn-sata
+encryption:
+  provider: luks2
+  keys:
+    - slot: 0
+      tpm: {}
+      lockToState: true
 provisioning:
   diskSelector:
     match: disk.transport == "sata" && !disk.rotational && !system_disk

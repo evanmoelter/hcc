@@ -22,6 +22,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo certificates](./docs/certificates.md) describes cert-manager, Cloudflare credential setup, and production wildcard issuance.
 [Apollo gateway](./docs/gateway.md) describes the ingress foundation and pending LAN verification.
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, and hcc8 registration.
+[Apollo boot and disk security](./docs/talos-security.md) describes Secure Boot, TPM encryption, and node conversion.
 
 ## Hardware
 
