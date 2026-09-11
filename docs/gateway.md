@@ -47,9 +47,8 @@ ready replicas each, and echo-server was Accepted with ResolvedRefs on both pare
 returned HTTP 301 and successful HTTPS with certificate verification. `x-envoy-external-address` preserved
 the workstation's source address even with a forged X-Forwarded-For header. The LAN gate passed.
 
-The commands below repeat that baseline check with echo attached to both HTTPS listeners. During
-split-horizon testing it attaches only to `envoy-external`, so use only `192.168.21.101` for echo requests.
-They inspect status without reading Secret contents:
+During split-horizon testing, echo attaches only to `envoy-external`. Check HTTP redirects on both
+Gateways and HTTPS echo responses on `192.168.21.101`. These commands inspect status without reading Secret contents:
 
 ```sh
 flux --context apollo get kustomizations -A
@@ -60,7 +59,7 @@ kubectl --context apollo -n network describe httproute echo-server
 ```
 
 Confirm the certificate is Ready, both Gateways are Accepted and Programmed at their assigned addresses,
-and echo-server's route is Accepted with ResolvedRefs on both parents. Each Gateway should have two ready
+and echo-server's route is Accepted with ResolvedRefs on its external parent. Each Gateway should have two ready
 proxy replicas. Check that the generated Services have `externalTrafficPolicy: Cluster`:
 
 ```sh
@@ -76,12 +75,12 @@ gateway_test_host='echo-apollo.YOUR_DOMAIN'
 for gateway_test_ip in 192.168.21.100 192.168.21.101; do
   curl --noproxy '*' --resolve "${gateway_test_host}:80:${gateway_test_ip}" \
     --silent --show-error --dump-header - --output /dev/null "http://${gateway_test_host}/"
-  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
-    --fail --silent --show-error "https://${gateway_test_host}/"
-  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
-    --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
-    "https://${gateway_test_host}/"
 done
+curl --noproxy '*' --resolve "${gateway_test_host}:443:192.168.21.101" \
+  --fail --silent --show-error "https://${gateway_test_host}/"
+curl --noproxy '*' --resolve "${gateway_test_host}:443:192.168.21.101" \
+  --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
+  "https://${gateway_test_host}/"
 ```
 
 Expect an HTTP 301 with the same hostname and HTTPS scheme, then successful HTTPS responses without

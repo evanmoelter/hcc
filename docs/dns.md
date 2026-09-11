@@ -6,8 +6,8 @@ Household hostnames stay on `main` until their individual cutovers.
 | Owner | Responsibility |
 |---|---|
 | Terraform | Local `apollo` tunnel and proxied `external-apollo.${SECRET_DOMAIN}` alias to its UUID |
-| Cloudflare external-dns | External Gateway app records pointing to that alias; owner `apollo`, `upsert-only` through Wave 1 |
-| UniFi external-dns | Both Gateways’ LAN records and annotated LoadBalancer Services; owner `apollo-unifi`, `sync` |
+| `cloudflare-dns` | External Gateway app records pointing to that alias; owner `apollo`, `upsert-only` through Wave 1 |
+| `unifi-dns` | Both Gateways’ LAN records and annotated LoadBalancer Services; owner `apollo-unifi`, `sync` |
 
 Cloudflare reads `external-dns-cloudflare.kubernetes.io/target` on the external Gateway. UniFi uses the
 `external-dns.alpha.kubernetes.io/` prefix and reads Gateway status addresses instead. Annotate raw

@@ -2,7 +2,7 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: &app external-dns-cloudflare
+  name: &app cloudflare-dns
 spec:
   interval: 30m
   releaseName: *app
@@ -31,7 +31,7 @@ spec:
       fsGroupChangePolicy: OnRootMismatch
       seccompProfile:
         type: RuntimeDefault
-    securityContext: &containerSecurityContext
+    securityContext:
       runAsNonRoot: true
       runAsUser: 568
       runAsGroup: 568
@@ -69,5 +69,5 @@ spec:
       - name: CF_API_TOKEN
         valueFrom:
           secretKeyRef:
-            name: external-dns-cloudflare-secret
+            name: cloudflare-dns-secret
             key: CF_API_TOKEN
