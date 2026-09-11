@@ -51,3 +51,17 @@ The [LAN baseline](./gateway.md#lan-verification) passed. DNS and tunnel verific
 Echo is intentionally public during testing. Afterward, move its route to `envoy-internal`: LAN DNS should
 change to `192.168.21.100`, and the tunnel must stop serving echo. Remove its leftover public DNS and matching
 Apollo TXT record manually; `upsert-only` retains them. Tailscale access follows its operator deployment.
+
+## References
+
+The provider separation follows [onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/network),
+[szinn](https://github.com/szinn/k8s-homelab/tree/main/kubernetes/main/apps/network/external-dns),
+[joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/network/cloudflare-dns),
+[Mafyuh](https://github.com/Mafyuh/iac/tree/main/kubernetes/oke/cluster/cloudflare-dns), and
+[billimek](https://github.com/billimek/k8s-gitops/blob/master/kubernetes/kube-system/external-dns/external-dns-cloudflare.yaml).
+Apollo uses [ExternalDNS's configurable annotation prefix](https://github.com/kubernetes-sigs/external-dns/blob/v0.22.0/source/annotations/annotations.go)
+to produce direct LAN A records instead of a private alias chain. The
+[UniFi webhook](https://github.com/home-operations/external-dns-unifi-webhook) documents API setup;
+[Cloudflare's tunnel resource](https://github.com/cloudflare/terraform-provider-cloudflare/blob/v5.24.0/docs/resources/zero_trust_tunnel_cloudflared.md)
+and [local configuration](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/local-management/configuration-file/)
+describe tunnel ownership and connector configuration.
