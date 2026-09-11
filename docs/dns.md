@@ -3,6 +3,11 @@
 Apollo uses separate Cloudflare and UniFi external-dns instances in `network`, plus a locally managed
 Cloudflare tunnel. Household hostnames remain on `main` until their individual cutovers.
 
+Both ExternalDNS releases use the pinned chart from the
+[home-operations OCI mirror](https://github.com/home-operations/charts-mirror), with Cosign verification of
+the mirror's GitHub Actions identity. Switch to the official OCI source when upstream publishes one;
+the mirror retires charts six months after upstream OCI support becomes available.
+
 ## Record ownership
 
 Terraform owns the tunnel and the fixed proxied CNAME `external-apollo.${SECRET_DOMAIN}` pointing to
