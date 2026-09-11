@@ -1,0 +1,150 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s/helm-charts/main/charts/other/app-template/schemas/helmrelease-helm-v2beta2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: &app minio
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: 3.1.0
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      strategy: rollback
+      retries: 3
+  values:
+    controllers:
+      minio:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        containers:
+          app:
+            image:
+              repository: quay.io/minio/minio
+              tag: RELEASE.2024-04-06T05-26-02Z
+            env:
+              MINIO_API_CORS_ALLOW_ORIGIN: https://minio.${SECRET_DOMAIN},https://s3.${SECRET_DOMAIN}
+              MINIO_BROWSER_REDIRECT_URL: https://minio.${SECRET_DOMAIN}
+              # MINIO_PROMETHEUS_JOB_ID: minio
+              # MINIO_PROMETHEUS_URL: https://prometheus.${SECRET_PRIMARY_DOMAIN}
+              # MINIO_PROMETHEUS_AUTH_TYPE: public
+              MINIO_SERVER_URL: https://s3.${SECRET_DOMAIN}
+              MINIO_UPDATE: "off"
+            envFrom:
+              - secretRef:
+                  name: minio-secret
+            args:
+              - server
+              - /data
+              - --console-address
+              - :9001
+              # SFTP TODO??
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /minio/health/live
+                    port: 9000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+                  timeoutSeconds: 10
+                  failureThreshold: 6
+              readiness: *probes
+              startup:
+                enabled: false
+            securityContext:
+              privileged: true #??
+              runAsUser: 99 #??
+            resources:
+              requests:
+                memory: 100Mi
+                cpu: 100m
+              limits:
+                memory: 3Gi
+    service:
+      app:
+        controller: *app
+        ports:
+          http:
+            port: 9001
+          s3:
+            port: 9000
+          sftp:
+            port: 9022 #??
+    serviceMonitor:
+      app:
+        serviceName: *app
+        endpoints:
+          - port: s3
+            scheme: http
+            path: /minio/v2/metrics/cluster
+            interval: 1m
+            scrapeTimeout: 10s
+    ingress:
+      app:
+        className: internal
+        annotations:
+          nginx.ingress.kubernetes.io/configuration-snippet: |
+            more_set_headers "Host $host";
+            more_set_headers "X-Forwarded-For $remote_addr"
+        hosts:
+          - host: &host "{{ .Release.Name }}.${SECRET_DOMAIN}"
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: http
+        tls:
+          - hosts: [*host]
+      api:
+        enabled: true
+        className: external
+        annotations:
+          external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}
+          nginx.ingress.kubernetes.io/configuration-snippet: |
+            more_set_headers "Host $host";
+            more_set_headers "X-Forwarded-For $remote_addr"
+        hosts:
+          - host: &s3Host s3.${SECRET_DOMAIN}
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: s3
+        tls:
+          - hosts: [*s3Host]
+      sftp:
+        enabled: true
+        className: internal
+        annotations:
+          nginx.ingress.kubernetes.io/configuration-snippet: |
+            more_set_headers "Host $host";
+            more_set_headers "X-Forwarded-For $remote_addr"
+        hosts:
+          - host: &sftpHost sftp.${SECRET_DOMAIN}
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: sftp
+        tls:
+          - hosts: [*sftpHost]
+    persistence:
+      config:
+        enabled: true
+        existingClaim: minio-csi
+        globalMounts:
+          - path: /data
+      ## TODO paperless-consume
