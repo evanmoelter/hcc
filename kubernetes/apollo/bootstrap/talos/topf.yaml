@@ -8,6 +8,7 @@ talosVersion: v1.13.9
 kubernetesVersion: v1.36.3
 
 schematicId: "@schematic.yaml"
+secureboot: true
 secretsPath: secrets.sops.yaml
 
 data:
