@@ -7,6 +7,8 @@ subsequent topf upgrades. The schematic retains the existing extensions.
 All three nodes passed Secure Boot and TPM encryption verification and an additional unattended reboot
 with USB media removed. All ten encrypted volumes were Ready with PCR 7 and signed PCR 11 policies;
 non-STATE volumes were bound to STATE, with no failed key syncs. The existing etcd cluster was retained.
+All nodes and etcd services were healthy, and all four Longhorn disks were Ready and Schedulable after
+repairing their stale disk UUIDs.
 
 | Volume | Nodes | Bound to STATE |
 |---|---|---|
@@ -170,4 +172,3 @@ Longhorn data; once apps arrive, recovery requires verified offsite backups.
 - [Talos disk encryption](https://docs.siderolabs.com/talos/v1.13/configure-your-talos-cluster/storage-and-disk-management/disk-encryption)
 - [Talos CLI](https://docs.siderolabs.com/talos/v1.13/reference/cli)
 - [topf installer configuration](https://github.com/postfinance/topf/blob/v0.5.0/docs/configuration.md)
-
