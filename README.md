@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, bootstrap metrics, ESO, Connect, cert-manager, Longhorn, Envoy Gateway, and echo-server; no household apps yet |
+| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, bootstrap metrics, ESO, Connect, cert-manager, Longhorn, Envoy Gateway, DNS, cloudflared, and echo-server; no household apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -20,7 +20,8 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo monitoring](./docs/monitoring.md) describes the bootstrap metrics stack, temporary retention, and local access.
 [Apollo secrets](./docs/secrets.md) describes ESO, the dedicated `hcc-apollo` vault, and the operator's Connect credential setup.
 [Apollo certificates](./docs/certificates.md) describes cert-manager, Cloudflare credential setup, and production wildcard issuance.
-[Apollo gateway](./docs/gateway.md) describes the ingress foundation and pending LAN verification.
+[Apollo gateway](./docs/gateway.md) describes the ingress foundation and completed LAN verification.
+[Apollo DNS](./docs/dns.md) describes split-horizon records, Terraform tunnel setup, and external testing.
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, and hcc8 registration.
 [Apollo boot and disk security](./docs/talos-security.md) describes Secure Boot, TPM encryption, and node conversion.
 

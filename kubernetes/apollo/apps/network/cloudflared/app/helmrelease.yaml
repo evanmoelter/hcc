@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.1.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app cloudflared
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      cloudflared:
+        replicas: 2
+        strategy: RollingUpdate
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            runAsNonRoot: true
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: *app
+        containers:
+          app:
+            image:
+              repository: docker.io/cloudflare/cloudflared
+              tag: 2026.9.1@sha256:b269e8abd07a5bf6f3f4be65d5050b2174eca89c56a0241a8ff32a16aec454e4
+            args:
+              - tunnel
+              - --no-autoupdate
+              - --config
+              - /etc/cloudflared/config/config.yaml
+              - run
+              - "$(TUNNEL_ID)"
+            env:
+              TUNNEL_ID:
+                valueFrom:
+                  secretKeyRef:
+                    name: cloudflared-secret
+                    key: TUNNEL_ID
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /ready
+                    port: &port 8080
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /ready
+                    port: *port
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+    configMaps:
+      config:
+        includeInChecksum: true
+        data:
+          config.yaml: |-
+            credentials-file: /etc/cloudflared/creds/credentials.json
+            metrics: 0.0.0.0:8080
+            originRequest:
+              originServerName: external-apollo.${SECRET_DOMAIN}
+            ingress:
+              - hostname: "*.${SECRET_DOMAIN}"
+                service: https://envoy-external.network.svc.cluster.local:443
+              - service: http_status:404
+    service:
+      app:
+        controller: cloudflared
+        ports:
+          http:
+            port: *port
+    serviceMonitor:
+      app:
+        service:
+          identifier: app
+        endpoints:
+          - port: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    persistence:
+      config:
+        type: configMap
+        identifier: config
+        globalMounts:
+          - path: /etc/cloudflared/config
+            readOnly: true
+      creds:
+        type: secret
+        name: cloudflared-secret
+        globalMounts:
+          - path: /etc/cloudflared/creds
+            readOnly: true

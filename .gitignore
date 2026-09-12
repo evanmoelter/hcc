@@ -28,4 +28,7 @@ Brewfile.lock.json
 # wiki
 wiki
 .terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
 .env

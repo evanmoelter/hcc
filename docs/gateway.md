@@ -1,13 +1,13 @@
 # Apollo gateway
 
 Envoy Gateway provides Apollo's HTTP and HTTPS ingress in `network`. Household apps still run on
-`main`; Apollo has no automated DNS records or Cloudflare tunnel yet. Production issuance and the LAN
-checks below remain pending.
+`main`. Cloudflare and UniFi external-dns provide split-horizon records, and Apollo has its own locally
+managed Cloudflare tunnel. [DNS and tunnel integration](./dns.md) covers credentials and verification.
 
 | Gateway | LoadBalancer IP | Purpose |
 |---|---|---|
 | `envoy-internal` | `192.168.21.100` | LAN ingress |
-| `envoy-external` | `192.168.21.101` | Future tunnel origin, also reachable from the LAN |
+| `envoy-external` | `192.168.21.101` | Tunnel origin, also reachable from the LAN |
 
 These addresses follow [networking.md](./networking.md). Both Gateways use the `envoy` GatewayClass and
 EnvoyProxy, with two proxy replicas per Gateway. Cilium receives each pinned address through
@@ -36,12 +36,19 @@ TLS Secret in `network`, so no cross-namespace certificate grant is needed.
 
 Controller installation, certificates, and gateway configuration reconcile separately. The certificates
 Kustomization waits for `cert-manager-issuers`; configuration waits for the controller and certificate.
-The `echo-server` test route attaches `echo-apollo.${SECRET_DOMAIN}` to both HTTPS listeners. This tests
-both addresses without deciding the eventual DNS routing shape.
+The `echo-server` test route attaches `echo-apollo.${SECRET_DOMAIN}` to the external HTTPS listener for
+split-horizon testing. Public DNS sends it through the tunnel; UniFi sends it directly to the external
+Gateway's LAN address. After testing, move its parent to `envoy-internal` to remove public access.
 
 ## LAN verification
 
-Run these after Flux deploys the change. They inspect status without reading Secret contents:
+On 2026-09-11, the production wildcard was Ready, both Gateways were Accepted and Programmed with two
+ready replicas each, and echo-server was Accepted with ResolvedRefs on both parents. Both addresses
+returned HTTP 301 and successful HTTPS with certificate verification. `x-envoy-external-address` preserved
+the workstation's source address even with a forged X-Forwarded-For header. The LAN gate passed.
+
+During split-horizon testing, echo attaches only to `envoy-external`. Check HTTP redirects on both
+Gateways and HTTPS echo responses on `192.168.21.101`. These commands inspect status without reading Secret contents:
 
 ```sh
 flux --context apollo get kustomizations -A
@@ -52,7 +59,7 @@ kubectl --context apollo -n network describe httproute echo-server
 ```
 
 Confirm the certificate is Ready, both Gateways are Accepted and Programmed at their assigned addresses,
-and echo-server's route is Accepted with ResolvedRefs on both parents. Each Gateway should have two ready
+and echo-server's route is Accepted with ResolvedRefs on its external parent. Each Gateway should have two ready
 proxy replicas. Check that the generated Services have `externalTrafficPolicy: Cluster`:
 
 ```sh
@@ -68,12 +75,12 @@ gateway_test_host='echo-apollo.YOUR_DOMAIN'
 for gateway_test_ip in 192.168.21.100 192.168.21.101; do
   curl --noproxy '*' --resolve "${gateway_test_host}:80:${gateway_test_ip}" \
     --silent --show-error --dump-header - --output /dev/null "http://${gateway_test_host}/"
-  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
-    --fail --silent --show-error "https://${gateway_test_host}/"
-  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
-    --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
-    "https://${gateway_test_host}/"
 done
+curl --noproxy '*' --resolve "${gateway_test_host}:443:192.168.21.101" \
+  --fail --silent --show-error "https://${gateway_test_host}/"
+curl --noproxy '*' --resolve "${gateway_test_host}:443:192.168.21.101" \
+  --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
+  "https://${gateway_test_host}/"
 ```
 
 Expect an HTTP 301 with the same hostname and HTTPS scheme, then successful HTTPS responses without

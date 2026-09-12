@@ -5,6 +5,7 @@ metadata:
   name: https-redirect
   annotations:
     external-dns.alpha.kubernetes.io/controller: none
+    external-dns-cloudflare.kubernetes.io/controller: none
 spec:
   parentRefs:
     - name: envoy-internal
