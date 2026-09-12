@@ -54,6 +54,42 @@ spec:
         property: API_TOKEN
 ```
 
+## Configuration reloads
+
+Reloader watches Secrets and ConfigMaps across Apollo, but only opted-in workloads restart when referenced
+data changes. Cloudflare DNS, UniFi DNS, cloudflared, and 1Password Connect opt in. Reloader waits for
+`kube-prometheus-stack` to provide its PodMonitor CRD; these consumers depend on `reloader` for initial readiness.
+
+Put `reloader.stakater.com/auto: "true"` on the workload's `metadata.annotations`. In app-template, use
+`values.controllers.<controller>.annotations`; in the external-dns chart, use `values.deploymentAnnotations`.
+The Connect chart uses `values.connect.annotations`.
+An annotation on the HelmRelease or pod template does not opt in the Deployment. Future apps should opt in
+when they need pod replacement to pick up changed configuration or credentials.
+
+The controller uses the `annotations` reload strategy to trigger a rollout through pod-template metadata,
+avoiding injected environment variables in Flux-managed containers. Creation and deletion events retain the
+upstream disabled defaults. Reloader does not rotate credentials or update 1Password. For ESO-managed
+credentials, the rollout follows ESO's refresh of the Kubernetes Secret. Workloads that already reload
+their configuration can stay unannotated.
+
+After deployment, check the `reloader` Flux Kustomization and HelmRelease, its Deployment in `kube-system`,
+and its Prometheus target. End-to-end reload verification remains pending: during an operator-controlled
+credential rotation, confirm the ExternalSecret refresh and the affected Deployment's rollout without
+printing Secret contents.
+
+Connect reloads when its SOPS-managed credentials Secret changes; its replacement pod must rebuild the
+temporary cache. Cilium and Hubble already roll out for chart configuration changes through checksum
+annotations. CoreDNS, Prometheus, and Alertmanager handle configuration reloads themselves.
+Envoy Gateway, the ESO webhook, and Longhorn's manager also handle their configuration or certificate
+updates internally and remain unannotated.
+
+The official OCI chart and PodMonitor pattern follows
+[onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/kube-system/reloader) and
+[joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/kube-tools/reloader).
+[Reloader's documentation](https://github.com/stakater/Reloader#usage) describes opt-in and reload strategies.
+
+## References
+
 The OCI chart and readiness layout draws from
 [onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/external-secrets), and the combined
 bootstrap Secret follows

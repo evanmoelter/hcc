@@ -35,8 +35,9 @@ output into the `hcc-apollo` vault:
 | `cloudflare-dns` | `CF_API_TOKEN` | Zone DNS Edit and Zone Read, restricted to the hosted zone |
 | `unifi-dns` | `UNIFI_API_KEY` | Local UniFi Integration API key |
 
-ESO derives the tunnel ID from that JSON; no UUID needs copying into Git. Credential rotation currently
-requires pod replacement; reloader is not installed. Allow HCC → `192.168.4.1:443` per
+ESO derives the tunnel ID from that JSON; no UUID needs copying into Git. Both DNS deployments and cloudflared
+opt into [Reloader](./secrets.md#configuration-reloads), so changes to their referenced Secrets trigger rollouts.
+Allow HCC → `192.168.4.1:443` per
 [networking.md](./networking.md). The UniFi webhook currently skips controller TLS verification.
 
 ## Verify after deployment

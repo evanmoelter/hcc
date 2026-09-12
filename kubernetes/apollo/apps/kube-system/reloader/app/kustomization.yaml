@@ -1,10 +1,6 @@
----
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ./namespace.yaml
-  - ./cilium/ks.yaml
-  - ./cilium/ks-config.yaml
-  - ./reloader/ks.yaml
-  - ./spegel/ks.yaml
+  - ./ocirepository.yaml
+  - ./helmrelease.yaml

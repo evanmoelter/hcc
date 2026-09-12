@@ -238,6 +238,8 @@ path. Longhorn is defined on the parallel storage path;
 Snapshot-controller and `longhorn-snapclass` are defined after Longhorn;
 [docs/storage.md](../docs/storage.md#csi-snapshots) records configuration and pending snapshot/restore verification.
 VolSync follows snapshot-controller.
+Reloader and opt-ins for DNS, cloudflared, and 1Password Connect are defined;
+[docs/secrets.md](../docs/secrets.md#configuration-reloads) records the app pattern and pending reload verification.
 
 ## Networking and external state
 
