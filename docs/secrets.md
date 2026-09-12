@@ -58,7 +58,7 @@ spec:
 
 Reloader watches Secrets and ConfigMaps across Apollo, but only opted-in workloads restart when referenced
 data changes. Cloudflare DNS, UniFi DNS, cloudflared, and 1Password Connect opt in. Reloader waits for
-`kube-prometheus-stack` to provide its PodMonitor CRD; these consumers depend on `reloader` for initial readiness.
+`kube-prometheus-stack` to provide its PodMonitor CRD. Consumers can start independently of Reloader.
 
 Put `reloader.stakater.com/auto: "true"` on the workload's `metadata.annotations`. In app-template, use
 `values.controllers.<controller>.annotations`; in the external-dns chart, use `values.deploymentAnnotations`.
@@ -78,15 +78,7 @@ credential rotation, confirm the ExternalSecret refresh and the affected Deploym
 printing Secret contents.
 
 Connect reloads when its SOPS-managed credentials Secret changes; its replacement pod must rebuild the
-temporary cache. Cilium and Hubble already roll out for chart configuration changes through checksum
-annotations. CoreDNS, Prometheus, and Alertmanager handle configuration reloads themselves.
-Envoy Gateway, the ESO webhook, and Longhorn's manager also handle their configuration or certificate
-updates internally and remain unannotated.
-
-The official OCI chart and PodMonitor pattern follows
-[onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/kube-system/reloader) and
-[joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/kube-tools/reloader).
-[Reloader's documentation](https://github.com/stakater/Reloader#usage) describes opt-in and reload strategies.
+temporary cache.
 
 ## References
 
@@ -95,3 +87,8 @@ The OCI chart and readiness layout draws from
 bootstrap Secret follows
 [billimek](https://github.com/billimek/k8s-gitops/blob/master/kubernetes/kube-system/external-secrets/1password/1password.yaml).
 Provider details come from [ESO's Connect documentation](https://external-secrets.io/latest/provider/1password-automation/).
+
+The official Reloader OCI chart and PodMonitor pattern follows
+[onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/kube-system/reloader) and
+[joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/kube-tools/reloader).
+[Reloader's documentation](https://github.com/stakater/Reloader#usage) describes opt-in and reload strategies.

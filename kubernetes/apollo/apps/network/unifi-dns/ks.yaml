@@ -6,7 +6,6 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: reloader
     - name: onepassword-store
     - name: kube-prometheus-stack
     - name: envoy-gateway-config

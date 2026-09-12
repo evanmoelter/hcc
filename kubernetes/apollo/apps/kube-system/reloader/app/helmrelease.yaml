@@ -18,9 +18,6 @@ spec:
       retries: 3
   values:
     fullnameOverride: *app
-    image:
-      repository: ghcr.io/stakater/reloader
-      tag: v1.4.22
     reloader:
       autoReloadAll: false
       reloadStrategy: annotations
