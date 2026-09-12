@@ -15,6 +15,12 @@ Storage consumers should depend on `longhorn-config`, which waits for the config
 - V1 instance managers request 12% of each node's allocatable CPU; account for this when sizing workloads.
 - No offsite backup is configured by this component. Replicas alone do not provide one.
 
+## CSI snapshots
+
+Keep snapshot-controller installed while snapshots exist: its chart owns the CRDs as Helm resources,
+so uninstalling it deletes the snapshot API objects too. Snapshots stay on Longhorn's disks; offsite
+backups await VolSync. A snapshot-and-restore test remains pending before app migration.
+
 ## Operations
 
 Change managed disk settings through git; Flux reverts UI edits. Node resources have pruning disabled,

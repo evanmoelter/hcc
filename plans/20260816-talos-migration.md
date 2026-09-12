@@ -235,7 +235,9 @@ Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are define
 External-path testing, forwarded-header trust, and echo's return to internal-only access remain on the ingress
 path. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
-Snapshot-controller and VolSync follow Longhorn.
+Snapshot-controller and `longhorn-snapclass` are defined after Longhorn;
+[docs/storage.md](../docs/storage.md#csi-snapshots) records configuration and pending snapshot/restore verification.
+VolSync follows snapshot-controller.
 
 ## Networking and external state
 

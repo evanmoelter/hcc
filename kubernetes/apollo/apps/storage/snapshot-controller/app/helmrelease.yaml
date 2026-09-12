@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app snapshot-controller
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    installCRDs: true
+    controller:
+      podSecurityContext:
+        runAsUser: 568
+        runAsGroup: 568
+        runAsNonRoot: true
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
+      securityContext:
+        runAsUser: 568
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+      resources:
+        requests:
+          cpu: 20m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+      serviceMonitor:
+        create: true
+    webhook:
+      enabled: false
+    volumeSnapshotClasses:
+      - name: longhorn-snapclass
+        annotations:
+          snapshot.storage.kubernetes.io/is-default-class: "true"
+        driver: driver.longhorn.io
+        deletionPolicy: Delete
+        parameters:
+          type: snap
