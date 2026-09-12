@@ -171,6 +171,10 @@ Talos machine configuration is managed with `topf`, pinned in `mise.toml`, from 
 
 Part of your job is keeping this doc and the README up to date.
 
+Document decisions, non-obvious behavior, and operational context that cannot be inferred from the manifests.
+Avoid restating configuration or duplicating general procedures. Keep version pins in code; mention versions
+in docs only when they explain a compatibility constraint or historical verification result.
+
 Propose an edit when you:
 
 - Learn a convention these docs do not state, or find one they state wrongly.
