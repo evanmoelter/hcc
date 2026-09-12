@@ -17,25 +17,9 @@ Storage consumers should depend on `longhorn-config`, which waits for the config
 
 ## CSI snapshots
 
-[`snapshot-controller`](../kubernetes/apollo/apps/storage/snapshot-controller/) installs the snapshot CRDs,
-controller, and default `longhorn-snapclass` after `longhorn-config` and monitoring are ready.
-Future VolSync Kustomizations should depend on `snapshot-controller` as well as `longhorn-config`.
-
-The class uses `driver.longhorn.io` with `type: snap`, so snapshots stay on Longhorn's disks and do not
-require an S3 backup target. `deletionPolicy: Delete` removes the underlying snapshot when its Kubernetes
-VolumeSnapshot is deleted. These snapshots provide the local copy step for VolSync; they are not offsite
-backups. VolSync and restore verification remain migration work.
-
-The pinned [Piraeus chart](https://github.com/piraeusdatastore/helm-charts/tree/snapshot-controller-5.2.0/charts/snapshot-controller)
-owns the CRDs as Helm resources. Keep this release installed while snapshots exist. Its ServiceMonitor
-exposes controller metrics; the conversion webhook is disabled because Apollo has no legacy group snapshots.
-The class follows [Longhorn's local CSI snapshot configuration](https://longhorn.io/docs/1.11.1/snapshots-and-backups/csi-snapshot-support/csi-volume-snapshot-associated-with-longhorn-snapshot/).
-
-After deployment, confirm the `snapshot-controller` Flux Kustomization and HelmRelease are Ready, inspect
-`kubectl --context apollo get volumesnapshotclass longhorn-snapclass`, and check the controller's Prometheus
-target. Before using snapshots for migration, verify a snapshot reaches `readyToUse`, restore it into a
-separate PVC, compare file contents, and confirm cleanup. That disposable workload test requires operator
-approval to change cluster state and remains pending.
+Keep snapshot-controller installed while snapshots exist: its chart owns the CRDs as Helm resources,
+so uninstalling it deletes the snapshot API objects too. Snapshots stay on Longhorn's disks; offsite
+backups await VolSync. A snapshot-and-restore test remains pending before app migration.
 
 ## Operations
 
