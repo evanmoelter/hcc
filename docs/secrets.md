@@ -54,6 +54,21 @@ spec:
         property: API_TOKEN
 ```
 
+## Configuration reloads
+
+[Reloader](https://github.com/stakater/Reloader#usage) is opt-in. Enable it for workloads that need a restart
+when referenced Secrets or ConfigMaps change; leave apps that reload configuration themselves unannotated.
+
+Put `reloader.stakater.com/auto: "true"` on the workload's `metadata.annotations`. In app-template, use
+`values.controllers.<controller>.annotations`; in the external-dns chart, use `values.deploymentAnnotations`.
+The Connect chart uses `values.connect.annotations`. An annotation on the HelmRelease or pod template
+does not opt in the Deployment.
+
+ESO-managed credentials reach pods after ESO refreshes the Secret and Reloader triggers a rollout.
+End-to-end rotation verification remains pending.
+
+## References
+
 The OCI chart and readiness layout draws from
 [onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/external-secrets), and the combined
 bootstrap Secret follows

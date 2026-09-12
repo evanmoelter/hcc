@@ -19,6 +19,8 @@ spec:
   values:
     connect:
       applicationName: *app
+      annotations:
+        reloader.stakater.com/auto: "true"
       credentialsName: onepassword-connect
       credentialsKey: 1password-credentials.json
       serviceType: ClusterIP
