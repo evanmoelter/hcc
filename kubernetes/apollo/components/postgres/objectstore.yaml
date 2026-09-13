@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/barmancloud.cnpg.io/objectstore_v1.json
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: ${APP}-pg
+spec:
+  retentionPolicy: ${POSTGRES_RETENTION:-90d}
+  configuration:
+    destinationPath: s3://tf-hcc-apollo-cnpg/${APP}/
+    s3Credentials:
+      accessKeyId:
+        name: &secret ${APP}-pg-r2
+        key: R2_ACCESS_KEY_ID
+      secretAccessKey:
+        name: *secret
+        key: R2_SECRET_ACCESS_KEY
+    data:
+      compression: gzip
+    wal:
+      compression: gzip
+      maxParallel: 4
+  instanceSidecarConfiguration:
+    env:
+      - name: AWS_ENDPOINT_URL_S3
+        valueFrom:
+          secretKeyRef:
+            name: *secret
+            key: ENDPOINT_URL
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
