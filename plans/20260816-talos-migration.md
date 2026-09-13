@@ -198,7 +198,7 @@ flowchart TD
         spegel["Spegel"] --> metrics["Metrics"] --> eso["ESO and 1Password"]
         eso --> cert["cert-manager"] --> envoy["Envoy Gateway"]
         eso --> longhorn["Longhorn"] --> snapshots["snapshot-controller"] --> volsync["VolSync"]
-        longhorn --> cnpg["CNPG operator"] --> barman["Barman Cloud plugin"]
+        metrics --> cnpg["CNPG operator"] --> barman["Barman Cloud plugin"]
         cert --> barman
         envoy --> externaldns["Cloudflare and UniFi external-dns"] --> cloudflared["cloudflared"]
         multus["Multus"]
