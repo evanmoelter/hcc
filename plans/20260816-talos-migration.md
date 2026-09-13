@@ -352,9 +352,10 @@ Do not use a temporary `.new` hostname. It adds routes, certificates, and cleanu
 | TeslaMate | database in shared `cnpg-cluster` | logical CNPG import; update Grafana with it |
 
 VolSync-backed PVCs use the [VolSync lifecycle components](../kubernetes/apollo/components/volsync/).
-A preflight Job must confirm an existing backup before the restore Kustomization creates its
-`${APP}-bootstrap-${VOLSYNC_RESTORE_ID}` destination and applies the app-defined PVC with hydration attached.
-Use a new ID for each recovery attempt; new apps declare a PVC without restore configuration.
+A preflight Job must confirm an existing backup before the permanent storage Kustomization creates its
+`${APP}-bootstrap-${VOLSYNC_RESTORE_ID}` destination and applies the app-defined PVC with an explicit reference.
+Remove temporary restore machinery after verification, preserving the bound PVC and its reference.
+Future recovery requires a new ID and explicit setup; new apps declare a PVC without restore configuration.
 Backup jobs remain separate from app readiness.
 
 `mealie-pg` and `home-assistant-pg` already hold one app each on PostgreSQL 18.1. The `postgres` component defaults to `bootstrap.recovery`, so neither needs the switch that copied manifests used to need; what each needs is a source `ObjectStore` naming the old cluster's `mealie-pg-v1` or `home-assistant-pg-v1` server name, referenced from `externalClusters[].plugin`. Both back up weekly, so take an on-demand backup after disabling the app. Confirm Home Assistant recorder history after restore.

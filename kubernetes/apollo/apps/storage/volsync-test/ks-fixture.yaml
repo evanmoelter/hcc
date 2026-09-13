@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: volsync-test-fixture
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: longhorn-config
+  targetNamespace: storage
+  path: ./kubernetes/apollo/apps/storage/volsync-test/fixture
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: volsync-test-fixture-backup
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: volsync-test-fixture
+    - name: volsync
+    - name: onepassword-store
+  targetNamespace: storage
+  path: ./kubernetes/apollo/components/volsync/backup
+  patches:
+    - target:
+        group: volsync.backube
+        kind: ReplicationSource
+      patch: |-
+        - op: replace
+          path: /spec/trigger
+          value:
+            manual: v1
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  healthCheckExprs:
+    - apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationSource
+      current: >-
+        has(status.lastManualSync) &&
+        status.lastManualSync == spec.trigger.manual
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  postBuild:
+    substitute:
+      APP: volsync-test-fixture
+      CLAIM: "volsync-test-source"
+      VOLSYNC_CACHE_CAPACITY: "128Mi"
+      VOLSYNC_CREDENTIALS_ITEM: volsync-test
+      VOLSYNC_REPOSITORY_PATH: volsync-test/fixture

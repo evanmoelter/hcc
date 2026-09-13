@@ -23,27 +23,24 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 
 ## How an app is laid out
 
-Each app is a directory under `kubernetes/<cluster>/apps/<namespace>/<app>/`:
+Apollo apps live under `kubernetes/apollo/apps/<namespace>/<app>/`. A PVC-backed app uses:
 
 ```
 mealie/
-  ks.yaml                        Flux Kustomization: dependsOn, targetNamespace, postBuild vars
-  ks-backup.yaml                 second Kustomization for the backup config
+  ks.yaml                        app Flux Kustomization
+  ks-backup.yaml                 preflight, storage, backup Kustomizations (separate YAML documents)
   app/
     kustomization.yaml
     helmrelease.yaml             bjw-s app-template, pinned chart version
-    cluster.yaml                 CNPG Cluster, one per app
-    pvc.yaml
-    secret.sops.yaml
-  backup/
-    data-volsync-r2.yaml         VolSync ReplicationSource
-    data-volsync-r2.sops.yaml    restic repository credentials
+  storage/
+    kustomization.yaml
+    pvc.yaml                     app-owned PVC, explicit dataSourceRef when restored
 ```
 
 To add an app:
 
 1. Create the directory following the shape above.
-2. Register its `ks.yaml` in the namespace's `kustomization.yaml`. Flux cannot see an unregistered app.
+2. Register `ks.yaml` and its satellite files in the namespace's `kustomization.yaml`. Flux cannot see unregistered resources.
 3. List every dependency in `dependsOn`. Storage, database, and identity (`longhorn`, `cloudnative-pg`, `authentik`) all belong there, or the first reconcile races.
 4. Pass `APP: *app` through `postBuild.substitute` for VolSync. Apollo uses the
    [lifecycle components](./kubernetes/apollo/components/volsync/), including a required restore preflight;
@@ -81,7 +78,11 @@ Credentials arrive as environment variables from a secret, through `envFrom.secr
 
 ### One Flux Kustomization per lifecycle
 
-Split an app into `ks.yaml` plus a satellite for anything with a different failure mode: `ks-backup.yaml`, `ks-sftp.yaml`, `ks-restore.yaml`, `ks-cluster.yaml`. Point the satellite at its own subdirectory and give it a `dependsOn` back to the app. A backup can then fail, or be suspended for a cutover, without disturbing the workload that serves traffic.
+Use a separate Flux Kustomization for each lifecycle. Related Kustomizations may share a satellite file,
+such as preflight, storage, and backup in `ks-backup.yaml`. Point each at its own resource directory or a shared
+base and express the actual dependency order: preflight → storage → app → backup. Keep the storage owner
+permanent; remove temporary restore machinery after verification as described in the VolSync usage guide.
+A backup can fail or be suspended without disturbing the serving workload.
 
 ### Non-root with a hardened container context
 

@@ -2,17 +2,97 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
+  name: volsync-test-preflight
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: volsync-test-fixture-backup
+    - name: onepassword-store
+  targetNamespace: storage
+  path: ./kubernetes/apollo/components/volsync/restore-preflight
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  postBuild:
+    substitute:
+      APP: volsync-test
+      VOLSYNC_RESTORE_ID: "v1"
+      VOLSYNC_RESTORE_BUCKET: "tf-hcc-apollo-volsync"
+      VOLSYNC_RESTORE_PATH: volsync-test/fixture
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: volsync-test-storage
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: volsync-test-preflight
+    - name: volsync
+    - name: longhorn-config
+  targetNamespace: storage
+  path: ./kubernetes/apollo/apps/storage/volsync-test/storage
+  components:
+    - ../../../../components/volsync/restore
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  healthCheckExprs:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      current: >-
+        has(status.phase) && status.phase == 'Bound' &&
+        (metadata.name != 'volsync-test-restored' ||
+          (has(spec.dataSourceRef) &&
+           has(spec.dataSourceRef.apiGroup) && spec.dataSourceRef.apiGroup == 'volsync.backube' &&
+           spec.dataSourceRef.kind == 'ReplicationDestination' &&
+           spec.dataSourceRef.name == 'volsync-test-bootstrap-v1'))
+    - apiVersion: volsync.backube/v1alpha1
+      kind: ReplicationDestination
+      current: >-
+        has(status.lastManualSync) &&
+        status.lastManualSync == spec.trigger.manual &&
+        has(status.latestImage) && has(status.latestImage.name)
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  postBuild:
+    substitute:
+      APP: volsync-test
+      VOLSYNC_CAPACITY: "128Mi"
+      VOLSYNC_CACHE_CAPACITY: "128Mi"
+      VOLSYNC_RESTORE_ID: "v1"
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
   name: volsync-test-backup
   namespace: flux-system
 spec:
   dependsOn:
-    - name: volsync-test-seed
+    - name: volsync-test
     - name: volsync
     - name: onepassword-store
   targetNamespace: storage
-  path: ./kubernetes/apollo/apps/storage/volsync-test/backup
-  components:
-    - ../../../../components/volsync/backup
+  path: ./kubernetes/apollo/components/volsync/backup
+  patches:
+    - target:
+        group: volsync.backube
+        kind: ReplicationSource
+      patch: |-
+        - op: replace
+          path: /spec/trigger
+          value:
+            manual: v1
   prune: true
   sourceRef:
     kind: GitRepository
@@ -30,5 +110,6 @@ spec:
   postBuild:
     substitute:
       APP: volsync-test
-      CLAIM: "volsync-test-source"
+      CLAIM: "volsync-test-restored"
       VOLSYNC_CACHE_CAPACITY: "128Mi"
+      VOLSYNC_REPOSITORY_PATH: volsync-test/app

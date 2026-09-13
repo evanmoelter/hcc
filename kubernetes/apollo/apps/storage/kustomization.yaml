@@ -10,6 +10,4 @@ resources:
   - ./volsync/ks.yaml
   - ./volsync-test/ks.yaml
   - ./volsync-test/ks-backup.yaml
-  - ./volsync-test/ks-preflight.yaml
-  - ./volsync-test/ks-restore.yaml
-  - ./volsync-test/ks-verify.yaml
+  - ./volsync-test/ks-fixture.yaml

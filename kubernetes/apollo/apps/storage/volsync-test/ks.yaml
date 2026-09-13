@@ -2,13 +2,13 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: volsync-test-seed
+  name: volsync-test
   namespace: flux-system
 spec:
   dependsOn:
-    - name: longhorn-config
+    - name: volsync-test-storage
   targetNamespace: storage
-  path: ./kubernetes/apollo/apps/storage/volsync-test/seed
+  path: ./kubernetes/apollo/apps/storage/volsync-test/app
   prune: true
   sourceRef:
     kind: GitRepository
@@ -16,4 +16,4 @@ spec:
   wait: true
   interval: 30m
   retryInterval: 1m
-  timeout: 20m
+  timeout: 5m
