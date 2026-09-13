@@ -55,8 +55,16 @@ provider "aws" {
 
 resource "aws_s3_bucket" "volsync" {
   bucket = "tf-hcc-volsync"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "aws_s3_bucket" "cloudnativepg" {
   bucket = "tf-hcc-cloudnativepg"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
