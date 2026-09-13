@@ -24,8 +24,15 @@ Snapshots remain on Longhorn's disks; they are not offsite backups.
 ## VolSync
 
 The chart's ServiceMonitor supplies no bearer token, so metrics authentication is disabled and a NetworkPolicy
-restricts scraping to Prometheus. Verify the scrape after deployment. Backup jobs, the shared restore component,
-and snapshot/restic restore tests remain pending before app migration.
+restricts scraping to Prometheus. VolSync, snapshot-controller, and Longhorn scrapes were verified healthy.
+
+The [shared components](../kubernetes/apollo/components/volsync/) keep restore preflight, PVC hydration, and
+backups in separate Flux lifecycles. Apps own their PVCs in a permanent storage Kustomization and explicitly
+reference a restore destination after preflight confirms an existing backup. Following verification, a cleanup
+commit removes restore machinery while preserving the bound PVC and its immutable reference; future recovery
+requires explicit setup. New apps create plain PVCs. `volsync-test` exercises recovery, backup of the restored
+claim, and verification after restore cleanup before app migration.
+Its live result remains to be verified; controller and PVC readiness alone do not prove recovered data.
 
 The [OCI mirror](https://github.com/home-operations/charts-mirror) is temporary: switch to upstream OCI when
 available, before the mirror's six-month retirement window ends.
@@ -42,6 +49,8 @@ including old-cluster credentials; paths do not isolate apps sharing a credentia
 restore credentials and remove them after verification. Never back up or prune into an old repository.
 
 The operator supplies credentials through 1Password and runs Terraform plan/apply, which decrypts SOPS.
+VolSync reads the account ID from the shared `cloudflare-r2` item in `hcc-apollo`; `volsync-r2` holds
+shared Apollo VolSync bucket credentials, and app items hold separate restic passwords. [Component usage](../kubernetes/apollo/components/volsync/) lists the fields.
 Keep the old bucket resources through rollback: removing their blocks also removes `prevent_destroy` protection.
 
 ## Operations

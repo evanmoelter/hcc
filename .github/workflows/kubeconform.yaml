@@ -4,7 +4,11 @@ name: "Kubeconform"
 
 on:
   pull_request:
-    paths: ["kubernetes/**", "scripts/kubeconform.sh", ".github/workflows/kubeconform.yaml"]
+    paths:
+      - "kubernetes/**"
+      - "scripts/kubeconform.sh"
+      - "tests/**"
+      - ".github/workflows/kubeconform.yaml"
 
 jobs:
   kubeconform:
@@ -28,9 +32,25 @@ jobs:
         shell: bash
         run: bash ./scripts/kubeconform.sh ./kubernetes/${{ matrix.cluster }}
 
+  volsync-preflight:
+    name: VolSync Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Setup Homebrew
+        uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
+
+      - name: Setup Test Tools
+        run: brew install fluxcd/tap/flux kustomize yq
+
+      - name: Test VolSync preflight and lifecycle
+        run: python3 -m unittest discover -s tests
+
   kubeconform-status:
     name: Kubeconform Success
-    needs: ["kubeconform"]
+    needs: ["kubeconform", "volsync-preflight"]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

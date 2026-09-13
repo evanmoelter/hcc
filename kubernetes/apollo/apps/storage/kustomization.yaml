@@ -8,3 +8,6 @@ resources:
   - ./snapshot-controller/ks.yaml
   - ./snapshot-controller/ks-config.yaml
   - ./volsync/ks.yaml
+  - ./volsync-test/ks.yaml
+  - ./volsync-test/ks-storage.yaml
+  - ./volsync-test/ks-fixture.yaml

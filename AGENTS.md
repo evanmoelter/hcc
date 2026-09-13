@@ -23,29 +23,28 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 
 ## How an app is laid out
 
-Each app is a directory under `kubernetes/<cluster>/apps/<namespace>/<app>/`:
+Apollo apps live under `kubernetes/apollo/apps/<namespace>/<app>/`. A PVC-backed app uses:
 
 ```
 mealie/
-  ks.yaml                        Flux Kustomization: dependsOn, targetNamespace, postBuild vars
-  ks-backup.yaml                 second Kustomization for the backup config
+  ks.yaml                        app Flux Kustomization
+  ks-storage.yaml                preflight, storage, backup Kustomizations (separate YAML documents)
   app/
     kustomization.yaml
     helmrelease.yaml             bjw-s app-template, pinned chart version
-    cluster.yaml                 CNPG Cluster, one per app
-    pvc.yaml
-    secret.sops.yaml
-  backup/
-    data-volsync-r2.yaml         VolSync ReplicationSource
-    data-volsync-r2.sops.yaml    restic repository credentials
+  storage/
+    kustomization.yaml
+    pvc.yaml                     app-owned PVC, explicit dataSourceRef when restored
 ```
 
 To add an app:
 
 1. Create the directory following the shape above.
-2. Register its `ks.yaml` in the namespace's `kustomization.yaml`. Flux cannot see an unregistered app.
+2. Register `ks.yaml` and its satellite files in the namespace's `kustomization.yaml`. Flux cannot see unregistered resources.
 3. List every dependency in `dependsOn`. Storage, database, and identity (`longhorn`, `cloudnative-pg`, `authentik`) all belong there, or the first reconcile races.
-4. Pass `APP: *app` through `postBuild.substitute` if the app uses the shared VolSync template.
+4. Pass `APP: *app` through `postBuild.substitute` for VolSync. Apollo uses the
+   [lifecycle components](./kubernetes/apollo/components/volsync/), including a required restore preflight;
+   the old cluster retains its template.
 5. Validate with `task kubernetes:kubeconform` before opening a PR.
 
 ## Community resources
@@ -79,7 +78,9 @@ Credentials arrive as environment variables from a secret, through `envFrom.secr
 
 ### One Flux Kustomization per lifecycle
 
-Split an app into `ks.yaml` plus a satellite for anything with a different failure mode: `ks-backup.yaml`, `ks-sftp.yaml`, `ks-restore.yaml`, `ks-cluster.yaml`. Point the satellite at its own subdirectory and give it a `dependsOn` back to the app. A backup can then fail, or be suspended for a cutover, without disturbing the workload that serves traffic.
+Use a separate Flux Kustomization for each lifecycle. Related Kustomizations may share a satellite file,
+such as preflight, storage, and backup in `ks-storage.yaml`. Point each at its own resource directory or a shared
+base and express the actual dependency order: preflight → storage → app → backup.
 
 ### Non-root with a hardened container context
 
@@ -144,16 +145,21 @@ Caveats:
 
 Graphite is used to manage the branch/commit/PR lifecycle. The operator's Graphite skills document the current best practices.
 
-Never force push a branch. If the repo gets into a bad state, propose a fix for the operator (who is a git expert) to run manually.
-`gt sync` is generally safe and can be run frequently. `gt sync --force` and `gt submit --force` are not safe.
+Use Graphite for branch and PR management. `gt sync` and `gt submit` are authorized (without `--force`),
+including their normal rebasing and remote-history updates.
+
+Never use `gt sync --force`, `gt submit --force`, or raw Git force-push commands. If the normal Graphite
+commands cannot complete, explain the problem and ask the operator how to proceed.
 
 ## Gotchas
 
 Add new ones here as they are discovered. Remove existing ones when they have been solved.
 
-### VolSync fails on an empty PVC
+### Empty VolSync backups
 
-A restic `ReplicationSource` over a directory with no files errors out instead of taking an empty snapshot. Give the workload an init container that touches a placeholder file. Both `mealie` and `paperless-sftp` do this.
+Seed a file before expecting the first restic snapshot. Apollo's mover skips an empty directory successfully,
+so a successful sync alone does not establish a restore point. An init container can touch a placeholder;
+both `mealie` and `paperless-sftp` use this pattern.
 
 ### Stopping a stuck CNPG pod takes two steps
 

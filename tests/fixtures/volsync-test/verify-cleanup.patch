@@ -1,0 +1,11 @@
+--- a/kubernetes/apollo/apps/storage/volsync-test/app/job.yaml
++++ b/kubernetes/apollo/apps/storage/volsync-test/app/job.yaml
+@@ -2,7 +2,7 @@
+ apiVersion: batch/v1
+ kind: Job
+ metadata:
+-  name: volsync-test-verify-v1
++  name: volsync-test-verify-post-cleanup-v1
+   annotations:
+     kustomize.toolkit.fluxcd.io/force: enabled
+ spec:
