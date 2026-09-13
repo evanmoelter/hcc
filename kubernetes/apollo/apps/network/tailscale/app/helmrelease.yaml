@@ -6,14 +6,9 @@ metadata:
 spec:
   interval: 30m
   releaseName: *app
-  chart:
-    spec:
-      chart: tailscale-operator
-      version: 1.102.3
-      interval: 1h
-      sourceRef:
-        kind: HelmRepository
-        name: tailscale
+  chartRef:
+    kind: OCIRepository
+    name: *app
   install:
     remediation:
       retries: 3
