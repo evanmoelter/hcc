@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, Envoy Gateway, DNS, cloudflared, Tailscale, and echo-server; no household apps yet |
+| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Envoy Gateway, DNS, cloudflared, Tailscale, and echo-server; no household apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -24,6 +24,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo DNS](./docs/dns.md) describes split-horizon records, Terraform tunnel setup, and external testing.
 [Apollo Tailscale](./docs/tailscale.md) describes its separate identity, OAuth setup, and tailnet ingress testing.
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, CSI snapshots, VolSync, and hcc8 registration.
+[Apollo databases](./docs/databases.md) describes the CNPG operator, Barman Cloud plugin, and pending deployment checks.
 [Apollo boot and disk security](./docs/talos-security.md) describes Secure Boot, TPM encryption, and node conversion.
 
 ## Hardware

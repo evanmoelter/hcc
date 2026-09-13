@@ -248,6 +248,10 @@ remain outside this step.
 Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
 [docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
 
+The CNPG operator and Barman Cloud plugin are defined for Apollo;
+[docs/databases.md](../docs/databases.md) records their integration and pending deployment verification.
+The reusable Postgres component, ObjectStores, credentials, and per-app databases remain part of app migration.
+
 ## Networking and external state
 
 ### HCC VLAN
