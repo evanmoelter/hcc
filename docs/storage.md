@@ -10,6 +10,8 @@ Storage consumers should depend on `longhorn-config`, which waits for the config
   explicit per-app tradeoff. Both classes delete the volume when its PVC is deleted.
 - New volumes require enough capacity for every requested replica. Existing volumes can serve with fewer
   replicas during an outage. With three nodes, maintain one at a time and wait for healthy replicas before continuing.
+- Offline replica rebuilding restores redundancy for detached volumes, including idle apps and completed Jobs.
+  This permits background disk and network activity even when no workload is using the volume.
 - NVMe user volumes are mounted at `/var/mnt/longhorn`; hcc7 also contributes its SATA SSD at
   `/var/mnt/longhorn-sata`. Both flash types share one pool; the HDDs are excluded because Longhorn ignores disk speed.
 - V1 instance managers request 12% of each node's allocatable CPU; account for this when sizing workloads.

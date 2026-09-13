@@ -37,6 +37,7 @@ spec:
       defaultDataPath: /var/mnt/longhorn
       defaultReplicaCount: 3
       defaultDataLocality: best-effort
+      offlineReplicaRebuilding: true
       replicaAutoBalance: best-effort
       replicaSoftAntiAffinity: false
       storageOverProvisioningPercentage: 100
