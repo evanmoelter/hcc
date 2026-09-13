@@ -14,7 +14,8 @@ Household apps still use ingress-nginx on `main`.
    Provider-specific annotation prefixes now let Cloudflare read the external Gateway's tunnel target
    while UniFi reads its LAN status address. Echo attaches only to the external Gateway during this test.
    The operator chose unauthenticated public access during testing; afterward move echo to the internal
-   Gateway and verify it is unreachable through the tunnel. Tailscale access follows operator installation.
+   Gateway and verify it is unreachable through the tunnel. The Tailscale operator and echo Ingress are defined;
+   complete the credential setup and tailnet verification in [docs/tailscale.md](../docs/tailscale.md).
 3. Establish cloudflared's actual source address and the narrowest justified forwarded-header trust.
    Use `ClientTrafficPolicy.spec.clientIPDetection.xForwardedFor.trustedCIDRs` to bind trust to those proxy ranges.
    Keep the internal Gateway untrusted. Do not enable `numTrustedHops` alone on a Gateway reachable

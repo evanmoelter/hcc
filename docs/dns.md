@@ -51,7 +51,8 @@ The [LAN baseline](./gateway.md#lan-verification) passed. DNS and tunnel verific
 
 Echo is intentionally public during testing. Afterward, move its route to `envoy-internal`: LAN DNS should
 change to `192.168.21.100`, and the tunnel must stop serving echo. Remove its leftover public DNS and matching
-Apollo TXT record manually; `upsert-only` retains them. Tailscale access follows its operator deployment.
+Apollo TXT record manually; `upsert-only` retains them. [Tailscale](./tailscale.md) has a separate echo Ingress;
+complete its credential setup and tailnet verification independently.
 
 ## References
 

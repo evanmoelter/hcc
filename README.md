@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, Reloader, bootstrap metrics, ESO, Connect, cert-manager, Longhorn, snapshot-controller, Envoy Gateway, DNS, cloudflared, and echo-server; no household apps yet |
+| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, Reloader, bootstrap metrics, ESO, Connect, cert-manager, Longhorn, snapshot-controller, Envoy Gateway, DNS, cloudflared, Tailscale, and echo-server; no household apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -22,6 +22,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo certificates](./docs/certificates.md) describes cert-manager, Cloudflare credential setup, and production wildcard issuance.
 [Apollo gateway](./docs/gateway.md) describes the ingress foundation and completed LAN verification.
 [Apollo DNS](./docs/dns.md) describes split-horizon records, Terraform tunnel setup, and external testing.
+[Apollo Tailscale](./docs/tailscale.md) describes its separate identity, OAuth setup, and tailnet ingress testing.
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, CSI snapshots, and hcc8 registration.
 [Apollo boot and disk security](./docs/talos-security.md) describes Secure Boot, TPM encryption, and node conversion.
 
