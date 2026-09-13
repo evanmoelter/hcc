@@ -22,8 +22,11 @@ def main():
             for snapshot in snapshots
         ):
             raise ValueError("No compatible backup")
-    except (OSError, subprocess.SubprocessError, ValueError, TypeError):
-        print("Restore blocked: could not confirm an existing VolSync backup.", file=sys.stderr)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError) as exc:
+        reason = type(exc).__name__
+        if isinstance(exc, subprocess.CalledProcessError):
+            reason += f" (exit status {exc.returncode})"
+        print(f"Restore blocked: could not confirm an existing VolSync backup: {reason}.", file=sys.stderr)
         return 1
     print("Existing VolSync backup confirmed.")
     return 0

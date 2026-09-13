@@ -4,7 +4,11 @@ name: "Kubeconform"
 
 on:
   pull_request:
-    paths: ["kubernetes/**", "scripts/kubeconform.sh", ".github/workflows/kubeconform.yaml"]
+    paths:
+      - "kubernetes/**"
+      - "scripts/kubeconform.sh"
+      - "scripts/test-volsync-preflight.py"
+      - ".github/workflows/kubeconform.yaml"
 
 jobs:
   kubeconform:
@@ -28,9 +32,19 @@ jobs:
         shell: bash
         run: bash ./scripts/kubeconform.sh ./kubernetes/${{ matrix.cluster }}
 
+  volsync-preflight:
+    name: VolSync Preflight Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Test VolSync restore preflight
+        run: python3 scripts/test-volsync-preflight.py
+
   kubeconform-status:
     name: Kubeconform Success
-    needs: ["kubeconform"]
+    needs: ["kubeconform", "volsync-preflight"]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

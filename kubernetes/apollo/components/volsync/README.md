@@ -17,10 +17,11 @@ from the test's `ks-restore.yaml`; PVC readiness alone does not check the reques
 
 Set `APP` on every owner. It identifies one PVC backup stream; use a distinct name/path for each stream.
 `CLAIM` can name the actual PVC independently. Set `VOLSYNC_CAPACITY` on the PVC/restore owner.
+Size `VOLSYNC_CACHE_CAPACITY` for the existing repository's metadata before restoring.
 Workload claims are protected from Flux pruning; the disposable test explicitly removes that protection.
 
-For recovery, set `VOLSYNC_RESTORE_ID` on both preflight and restore owners, and `VOLSYNC_RESTORE_BUCKET`
-on preflight. `VOLSYNC_RESTORE_PATH` defaults to `APP`. Recovery uses the latest backup only.
+Recovery requires `VOLSYNC_RESTORE_ID` on both preflight and restore owners and `VOLSYNC_RESTORE_BUCKET`
+on preflight; neither has a default. `VOLSYNC_RESTORE_PATH` defaults to `APP`. Recovery uses the latest backup only.
 Use a new ID for every new recovery attempt, including after changing the source or credentials, correcting
 a failed preflight, or recreating a PVC. The ID gives the Job, restore Secret, and ReplicationDestination
 fresh names so old credentials/completion/images cannot satisfy a new attempt.
@@ -55,6 +56,10 @@ ID when a new recovery is needed. Keep recurring backup configuration in its own
 failures do not block the serving app.
 
 ## Disposable proof
+
+Before merge, create `volsync-test` in `hcc-apollo` with the app credential fields above and a new restic
+password. Its R2 credential needs Object Read & Write on `tf-hcc-apollo-volsync` only; the shared
+`cloudflare-r2` item must also exist.
 
 `volsync-test` seeds two files into `volsync-test-source`, takes one manual snapshot backup, passes preflight,
 hydrates `volsync-test-restored`, then verifies checksums, ownership, and private-file permissions using only
