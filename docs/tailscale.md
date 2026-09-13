@@ -6,7 +6,10 @@ and Funnel are disabled. Household app names remain owned by `main` until each a
 
 ## Operator setup
 
-Before deployment, merge these tag owners into the existing tailnet policy:
+Complete this setup before merging the Tailscale manifests: Flux starts reconciling them after merge.
+Missing credentials or tag ownership leave the operator and its dependent Kustomizations unready.
+
+Merge these tag owners into the existing tailnet policy:
 
 ```json
 {
@@ -42,7 +45,8 @@ the operator-managed `network/operator` Secret; preserve that state during routi
 
 Flux orders `onepassword-store` → `tailscale-operator` → `tailscale-config` → `echo-server-tailscale`.
 The echo satellite also waits for `echo-server`, keeping tailnet setup independent of its Gateway route.
-The config Kustomization waits for `ProxyClassReady`; the echo satellite waits for an Ingress hostname.
+The config Kustomization waits for `ProxyClassReady` at the current generation; the echo satellite waits
+for an Ingress hostname.
 An assigned hostname still needs an end-to-end HTTPS check.
 
 The operator and Ingress proxy run as UID/GID 568 with dropped capabilities and no privilege escalation.

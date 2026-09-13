@@ -20,7 +20,9 @@ spec:
   healthCheckExprs:
     - apiVersion: tailscale.com/v1alpha1
       kind: ProxyClass
-      current: status.conditions.exists(e, e.type == 'ProxyClassReady' && e.status == 'True')
+      current: >-
+        status.conditions.exists(e, e.type == 'ProxyClassReady' && e.status == 'True' &&
+        e.observedGeneration == metadata.generation)
   interval: 30m
   retryInterval: 1m
   timeout: 10m
