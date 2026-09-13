@@ -6,3 +6,5 @@ resources:
   - ./longhorn/ks.yaml
   - ./longhorn/ks-config.yaml
   - ./snapshot-controller/ks.yaml
+  - ./snapshot-controller/ks-config.yaml
+  - ./volsync/ks.yaml

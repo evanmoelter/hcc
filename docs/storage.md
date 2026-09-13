@@ -18,8 +18,63 @@ Storage consumers should depend on `longhorn-config`, which waits for the config
 ## CSI snapshots
 
 Keep snapshot-controller installed while snapshots exist: its chart owns the CRDs as Helm resources,
-so uninstalling it deletes the snapshot API objects too. Snapshots stay on Longhorn's disks; offsite
-backups await VolSync. A snapshot-and-restore test remains pending before app migration.
+so uninstalling it deletes the snapshot API objects too. `snapshot-controller-config` creates
+`longhorn-snapclass` only after the controller is ready. Rendering the class in the chart's first install
+fails because Helm cannot discover the snapshot API before the templated CRDs exist.
+Snapshots stay on Longhorn's disks. A snapshot-and-restore test remains pending before app migration.
+
+## VolSync
+
+The VolSync controller waits for `snapshot-controller-config` and bootstrap monitoring. Its upstream chart
+pins the controller and all mover images to the chart's application version. Apollo uses upstream restic;
+the old cluster's custom image is not carried forward. The controller runs as UID/GID 568; each future
+ReplicationSource and ReplicationDestination must set its mover ownership to match the application volume.
+
+The chart creates an HTTPS ServiceMonitor when the Prometheus CRDs are available. Metrics authentication
+is disabled because that monitor supplies no bearer token; a NetworkPolicy restricts controller ingress
+to Prometheus in `monitoring` on port 8443. The monitor accepts the controller's self-signed certificate.
+Prometheus rules report missing or unreachable metrics and out-of-sync volumes.
+
+Controller installation does not create backup jobs or repository credentials. Before the first PVC-backed
+app moves, add the planned reusable `volsync` component, with a one-time restore destination and hydrating
+claim plus a separately reconciled backup source. ESO should provide separate restore and backup Secrets
+using the bucket separation below. The operator supplies the existing repository password and R2 credentials
+through 1Password. Never run an Apollo backup or prune against the old repository.
+
+After deployment, verify `snapshot-controller`, `snapshot-controller-config`, and `volsync` are Ready,
+`longhorn-snapclass` exists, and Prometheus can scrape `volsync-metrics`. Before app migration, exercise a
+Longhorn snapshot restore, then a restic backup and one-time PVC restore using disposable data in an
+Apollo-only repository. Check file contents and ownership. Those tests and the shared component remain pending.
+
+The controller monitoring pattern draws from
+[onedr0p's historical VolSync release](https://github.com/onedr0p/home-ops/blob/63c93686994429bcd2c283a5963decec7fe5441d/kubernetes/apps/volsync-system/volsync/app/helmrelease.yaml)
+and [joryirving's historical release](https://github.com/joryirving/home-ops/blob/0c1279556bf9638781b6936597f8f2dbcb6e9ffc/kubernetes/apps/base/storage/volsync/helmrelease.yaml).
+Their mover forks are not the migration backend. See the
+[upstream permission model](https://volsync.readthedocs.io/en/stable/usage/permissionmodel.html) for mover ownership.
+
+## R2 backup separation
+
+Each cluster has separate VolSync and CNPG buckets, with paths per app. Terraform owns Apollo's buckets in
+[`apollo-backups.tf`](../terraform/cloudflare/apollo-backups.tf); the old buckets retain their existing names.
+
+| Backup | Old restore source | Apollo write location |
+|---|---|---|
+| VolSync | `s3://tf-hcc-volsync/<app>` | `s3://tf-hcc-apollo-volsync/<app>` |
+| CNPG | `s3://tf-hcc-cloudnativepg/` with the existing server name | `s3://tf-hcc-apollo-cnpg/<app>/` with server name `<app>-pg-apollo-v1` |
+
+For CNPG, the app path is the ObjectStore's `destinationPath`; Barman appends the server-name directory.
+Source ObjectStores keep the old path and server name for recovery.
+
+Use separate Object Read & Write credentials for the two Apollo buckets, each scoped to its own bucket.
+Restrict old-cluster runtime credentials to the old buckets too; an all-buckets token would defeat this
+separation. R2's regular tokens enforce permissions at the
+[bucket boundary](https://developers.cloudflare.com/r2/api/tokens/), so app paths organize repositories
+but do not isolate apps sharing a bucket credential. Keep migration restore credentials separate from
+Apollo's backup credentials and remove them after the restores are verified.
+
+The operator creates the scoped credentials in 1Password for ESO to consume. Terraform plan and apply are
+also operator steps: this stack decrypts its existing SOPS datasource. Review the plan for the two added
+buckets before applying; existing backup buckets and objects must remain intact.
 
 ## Operations
 
