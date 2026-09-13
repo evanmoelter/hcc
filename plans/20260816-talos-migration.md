@@ -235,9 +235,10 @@ Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are define
 External-path testing, forwarded-header trust, and echo's return to internal-only access remain on the ingress
 path. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
-Snapshot-controller and `longhorn-snapclass` are defined after Longhorn;
-[docs/storage.md](../docs/storage.md#csi-snapshots) records configuration and pending snapshot/restore verification.
-VolSync follows snapshot-controller.
+Snapshot-controller, its separately reconciled `longhorn-snapclass`, and the VolSync controller are defined
+after Longhorn; [docs/storage.md](../docs/storage.md) records configuration and pending snapshot/backup/restore
+verification. The reusable VolSync component and per-app repository credentials remain to be added before
+the first PVC-backed app rebuild.
 Reloader and opt-ins for DNS, cloudflared, and 1Password Connect are defined;
 [docs/secrets.md](../docs/secrets.md#configuration-reloads) records the app pattern and pending reload verification.
 Tailscale's operator and `echo-apollo` test Ingress are defined with Apollo-specific tags and OAuth credentials;
@@ -303,13 +304,16 @@ Apollo reads old backups but writes new ones:
 
 | Resource | Apollo handling |
 |---|---|
-| VolSync | Hydrate from `s3://tf-hcc-volsync/<app>`; write to `s3://tf-hcc-volsync/apollo/<app>` |
-| CNPG | Recover through a read-only `ObjectStore` naming the existing server name; write through a second `ObjectStore` as `<app>-pg-apollo-v1` |
+| VolSync | Hydrate from `s3://tf-hcc-volsync/<app>`; write to `s3://tf-hcc-apollo-volsync/<app>` |
+| CNPG | Recover through a read-only `ObjectStore` naming the existing bucket, path, and server name; write to `s3://tf-hcc-apollo-cnpg/<app>/` as `<app>-pg-apollo-v1` |
 | Cloudflare | Use owner `apollo`, a new tunnel alias, and upsert-only in Wave 1 |
 | Tailscale | Use a distinct operator identity; release and reclaim each app hostname |
 | Flux webhook | Use a distinct receiver hostname and token |
 
 Suspend each old `ReplicationSource` after its final sync. Two writers or pruners against one restic repository can damage the rollback copy.
+
+[docs/storage.md](../docs/storage.md#r2-backup-separation) records the bucket layout, Terraform ownership,
+and credential scoping. Provision the Apollo buckets and their scoped credentials before enabling backups.
 
 ## App migration
 
@@ -446,7 +450,7 @@ Platform:
 - [ ] Set the `cluster-apps` defaults, and give each one a `labelSelector` escape hatch where an app may legitimately differ.
 - [ ] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
 - [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
-- [ ] Configure Apollo-specific restic and Barman write paths before any new backup runs.
+- [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.
 - [ ] Confirm hcc-tablet1 is decommissioned.
 
 Per app:

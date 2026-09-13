@@ -141,9 +141,11 @@ The migration's rule that exactly one cluster writes each archive survives as tw
 | Store | Points at | Used by |
 |---|---|---|
 | `<app>-pg-source` | the old cluster's `destinationPath` and server name | `externalClusters[].plugin`, read only |
-| `<app>-pg` | Apollo's path, server name `<app>-pg-apollo-v1` | `spec.plugins`, the only writer |
+| `<app>-pg` | `s3://tf-hcc-apollo-cnpg/<app>/`, server name `<app>-pg-apollo-v1` | `spec.plugins`, the only writer |
 
 The source store exists only for the cutover. Delete it once the app is verified on Apollo, so nothing can be pointed back at an archive the old cluster still owns.
+Use separate source and destination credentials, with Apollo's backup credential scoped to its CNPG bucket.
+[Apollo storage](../docs/storage.md#r2-backup-separation) records the bucket layout and credential handoff.
 
 ### Prerequisites
 
