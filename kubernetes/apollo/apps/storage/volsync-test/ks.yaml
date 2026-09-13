@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: volsync-test-seed
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: longhorn-config
+  targetNamespace: storage
+  path: ./kubernetes/apollo/apps/storage/volsync-test/seed
+  components:
+    - ../../../../components/volsync/pvc
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  postBuild:
+    substitute:
+      APP: volsync-test
+      CLAIM: "volsync-test-source"
+      VOLSYNC_CAPACITY: "128Mi"

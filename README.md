@@ -75,7 +75,7 @@ A new cluster is built in two stages. `task talos:apply CLUSTER=apollo` installs
 
 ```
 kubernetes/main/       old cluster manifests: bootstrap/, flux/, apps/, templates/
-kubernetes/apollo/     new cluster manifests: bootstrap/, flux/, apps/
+kubernetes/apollo/     new cluster manifests: bootstrap/, flux/, apps/, components/
 ansible/               node provisioning for the old cluster
 terraform/             Cloudflare R2 buckets and tunnel
 docs/                  reference docs for how things are, not how they will change

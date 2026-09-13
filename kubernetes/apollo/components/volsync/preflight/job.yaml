@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/job_v1.json
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ${APP}-preflight-${VOLSYNC_RESTORE_ID}
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      annotations:
+        volsync.home.arpa/credentials-item: ${VOLSYNC_RESTORE_CREDENTIALS_ITEM:-${APP}}
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsUser: ${VOLSYNC_UID:-568}
+        runAsGroup: ${VOLSYNC_GID:-568}
+        runAsNonRoot: true
+        fsGroup: ${VOLSYNC_GID:-568}
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: preflight
+          image: quay.io/backube/volsync:0.16.0
+          command: [python3, /scripts/preflight.py]
+          envFrom:
+            - secretRef:
+                name: ${APP}-volsync-restore-${VOLSYNC_RESTORE_ID}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: scripts
+          configMap:
+            name: ${APP}-restore-preflight
+        - name: tmp
+          emptyDir: {}

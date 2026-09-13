@@ -24,8 +24,12 @@ Snapshots remain on Longhorn's disks; they are not offsite backups.
 ## VolSync
 
 The chart's ServiceMonitor supplies no bearer token, so metrics authentication is disabled and a NetworkPolicy
-restricts scraping to Prometheus. Verify the scrape after deployment. Backup jobs, the shared restore component,
-and snapshot/restic restore tests remain pending before app migration.
+restricts scraping to Prometheus. VolSync, snapshot-controller, and Longhorn scrapes were verified healthy.
+
+The [shared components](../kubernetes/apollo/components/volsync/) keep restore preflight, PVC hydration, and
+backups in separate Flux lifecycles. Restoration requires an existing backup; new apps explicitly request
+an empty PVC. `volsync-test` provides a disposable snapshot → R2 → restored-file verification before app migration.
+Its live result remains to be verified; controller and PVC readiness alone do not prove recovered data.
 
 The [OCI mirror](https://github.com/home-operations/charts-mirror) is temporary: switch to upstream OCI when
 available, before the mirror's six-month retirement window ends.
@@ -42,6 +46,8 @@ including old-cluster credentials; paths do not isolate apps sharing a credentia
 restore credentials and remove them after verification. Never back up or prune into an old repository.
 
 The operator supplies credentials through 1Password and runs Terraform plan/apply, which decrypts SOPS.
+VolSync reads the account ID from the shared `cloudflare-r2` item in `hcc-apollo`; app items hold bucket-scoped
+credentials and restic passwords. [Component usage](../kubernetes/apollo/components/volsync/) lists the fields.
 Keep the old bucket resources through rollback: removing their blocks also removes `prevent_destroy` protection.
 
 ## Operations

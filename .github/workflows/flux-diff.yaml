@@ -139,6 +139,9 @@ jobs:
       - name: Run flate test
         run: flate test all --path ./kubernetes/apollo/flux
 
+      - name: Test VolSync restore preflight
+        run: python3 scripts/test-volsync-preflight.py
+
       - name: Run flate diff
         env:
           BASE: ${{ github.base_ref }}

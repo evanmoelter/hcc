@@ -115,7 +115,7 @@ Three components cover the migration:
 
 | Component | Replaces | Provides |
 |---|---|---|
-| `volsync` | `templates/volsync` | Bootstrap `ReplicationDestination`, hydrating claim, and `ReplicationSource` |
+| `volsync` | `templates/volsync` | Separate preflight, restore/PVC, empty PVC, and backup lifecycle components; [usage](../kubernetes/apollo/components/volsync/) |
 | `postgres` | a hand-written `cluster.yaml` per app | CNPG `Cluster`, its `ObjectStore`, `ScheduledBackup`, and a `HelmRelease.dependsOn` on the CNPG operator release |
 | `namespace` | a `namespace.yaml` per namespace | The `Namespace`, annotated `kustomize.toolkit.fluxcd.io/prune: disabled` |
 
@@ -237,8 +237,9 @@ path. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
 Snapshot-controller, its separately reconciled `longhorn-snapclass`, and the VolSync controller are defined
 after Longhorn; [docs/storage.md](../docs/storage.md) records configuration and pending snapshot/backup/restore
-verification. The reusable VolSync component and per-app repository credentials remain to be added before
-the first PVC-backed app rebuild.
+verification. The reusable VolSync components and disposable R2 restore proof are defined;
+[component usage](../kubernetes/apollo/components/volsync/) records the preflight gate, credentials,
+and verification procedure. Verify the live proof and supply per-app credentials before the first PVC-backed rebuild.
 Reloader and opt-ins for DNS, cloudflared, and 1Password Connect are defined;
 [docs/secrets.md](../docs/secrets.md#configuration-reloads) records the app pattern and pending reload verification.
 Tailscale's operator and `echo-apollo` test Ingress are defined with Apollo-specific tags and OAuth credentials;
@@ -350,7 +351,10 @@ Do not use a temporary `.new` hostname. It adds routes, certificates, and cleanu
 | authentik | database in shared `cnpg-cluster` | logical CNPG import |
 | TeslaMate | database in shared `cnpg-cluster` | logical CNPG import; update Grafana with it |
 
-VolSync-backed PVCs use the `volsync` component. Its claim references a one-time `${APP}-bootstrap` `ReplicationDestination`, allowing the CSI populator to hydrate the PVC when created.
+VolSync-backed PVCs use the [VolSync lifecycle components](../kubernetes/apollo/components/volsync/).
+A preflight Job must confirm an existing backup before the restore Kustomization creates its
+`${APP}-bootstrap-${VOLSYNC_RESTORE_ID}` destination and hydrating PVC. Use a new ID for each recovery
+attempt; new apps explicitly select the empty-PVC component. Backup jobs remain separate from app readiness.
 
 `mealie-pg` and `home-assistant-pg` already hold one app each on PostgreSQL 18.1. The `postgres` component defaults to `bootstrap.recovery`, so neither needs the switch that copied manifests used to need; what each needs is a source `ObjectStore` naming the old cluster's `mealie-pg-v1` or `home-assistant-pg-v1` server name, referenced from `externalClusters[].plugin`. Both back up weekly, so take an on-demand backup after disabling the app. Confirm Home Assistant recorder history after restore.
 

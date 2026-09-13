@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/volsync.backube/replicationsource_v1alpha1.json
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: ${APP}-r2
+spec:
+  sourcePVC: ${CLAIM:-${APP}}
+  trigger:
+    schedule: "${VOLSYNC_SCHEDULE:-0 2 * * *}"
+  restic:
+    repository: ${APP}-volsync
+    copyMethod: Snapshot
+    volumeSnapshotClassName: longhorn-snapclass
+    storageClassName: ${VOLSYNC_STORAGECLASS:-longhorn}
+    accessModes: [ReadWriteOnce]
+    cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:-1Gi}
+    cacheStorageClassName: ${VOLSYNC_STORAGECLASS:-longhorn}
+    cacheAccessModes: [ReadWriteOnce]
+    pruneIntervalDays: 7
+    retain:
+      daily: 7
+      weekly: 4
+      monthly: 12
+    moverSecurityContext:
+      runAsUser: ${VOLSYNC_UID:-568}
+      runAsGroup: ${VOLSYNC_GID:-568}
+      runAsNonRoot: true
+      fsGroup: ${VOLSYNC_GID:-568}
+      fsGroupChangePolicy: OnRootMismatch
+      seccompProfile:
+        type: RuntimeDefault
+    moverResources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        memory: 1Gi

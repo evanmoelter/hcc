@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/job_v1.json
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: volsync-test-verify-v1
+  annotations:
+    kustomize.toolkit.fluxcd.io/force: enabled
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 240
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 568
+        runAsGroup: 568
+        runAsNonRoot: true
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: verify
+          image: quay.io/backube/volsync:0.16.0
+          command: [python3, /scripts/verify.py]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: volsync-test-restored
+            readOnly: true
+        - name: scripts
+          configMap:
+            name: volsync-test-verify

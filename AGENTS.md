@@ -45,7 +45,9 @@ To add an app:
 1. Create the directory following the shape above.
 2. Register its `ks.yaml` in the namespace's `kustomization.yaml`. Flux cannot see an unregistered app.
 3. List every dependency in `dependsOn`. Storage, database, and identity (`longhorn`, `cloudnative-pg`, `authentik`) all belong there, or the first reconcile races.
-4. Pass `APP: *app` through `postBuild.substitute` if the app uses the shared VolSync template.
+4. Pass `APP: *app` through `postBuild.substitute` for VolSync. Apollo uses the
+   [lifecycle components](./kubernetes/apollo/components/volsync/), including a required restore preflight;
+   the old cluster retains its template.
 5. Validate with `task kubernetes:kubeconform` before opening a PR.
 
 ## Community resources
@@ -151,9 +153,11 @@ Never force push a branch. If the repo gets into a bad state, propose a fix for 
 
 Add new ones here as they are discovered. Remove existing ones when they have been solved.
 
-### VolSync fails on an empty PVC
+### Empty VolSync backups
 
-A restic `ReplicationSource` over a directory with no files errors out instead of taking an empty snapshot. Give the workload an init container that touches a placeholder file. Both `mealie` and `paperless-sftp` do this.
+Seed a file before expecting the first restic snapshot. Apollo's mover skips an empty directory successfully,
+so a successful sync alone does not establish a restore point. An init container can touch a placeholder;
+both `mealie` and `paperless-sftp` use this pattern.
 
 ### Stopping a stuck CNPG pod takes two steps
 
