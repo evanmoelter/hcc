@@ -80,9 +80,7 @@ Credentials arrive as environment variables from a secret, through `envFrom.secr
 
 Use a separate Flux Kustomization for each lifecycle. Related Kustomizations may share a satellite file,
 such as preflight, storage, and backup in `ks-storage.yaml`. Point each at its own resource directory or a shared
-base and express the actual dependency order: preflight → storage → app → backup. Keep the storage owner
-permanent; remove temporary restore machinery after verification as described in the VolSync usage guide.
-A backup can fail or be suspended without disturbing the serving workload.
+base and express the actual dependency order: preflight → storage → app → backup.
 
 ### Non-root with a hardened container context
 
