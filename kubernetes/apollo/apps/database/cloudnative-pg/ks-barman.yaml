@@ -12,7 +12,7 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apollo/apps/database/plugin-barman-cloud/app
+  path: ./kubernetes/apollo/apps/database/cloudnative-pg/barman
   prune: true
   sourceRef:
     kind: GitRepository
