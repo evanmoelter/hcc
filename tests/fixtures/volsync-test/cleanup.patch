@@ -24,7 +24,7 @@
 -  postBuild:
 -    substitute:
 -      APP: volsync-test
--      VOLSYNC_RESTORE_ID: "v1"
+-      VOLSYNC_RESTORE_ID: "v2"
 -      VOLSYNC_RESTORE_BUCKET: "tf-hcc-apollo-volsync"
 -      VOLSYNC_RESTORE_PATH: volsync-test/fixture
 ----
@@ -48,7 +48,7 @@
 @@ -55,21 +24,9 @@
             has(spec.dataSourceRef.apiGroup) && spec.dataSourceRef.apiGroup == 'volsync.backube' &&
             spec.dataSourceRef.kind == 'ReplicationDestination' &&
-            spec.dataSourceRef.name == 'volsync-test-bootstrap-v1'))
+            spec.dataSourceRef.name == 'volsync-test-bootstrap-v2'))
 -    - apiVersion: volsync.backube/v1alpha1
 -      kind: ReplicationDestination
 -      current: >-
@@ -63,7 +63,7 @@
 -      APP: volsync-test
 -      VOLSYNC_CAPACITY: "128Mi"
 -      VOLSYNC_CACHE_CAPACITY: "128Mi"
--      VOLSYNC_RESTORE_ID: "v1"
+-      VOLSYNC_RESTORE_ID: "v2"
  ---
  # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
  apiVersion: kustomize.toolkit.fluxcd.io/v1

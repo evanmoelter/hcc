@@ -63,7 +63,7 @@ class VolsyncLifecycleTest(unittest.TestCase):
             owners = yaml_documents((root / APP / "ks-storage.yaml").read_bytes())
             if "volsync-test-preflight" not in [owner["metadata"]["name"] for owner in owners]:
                 job = yaml_documents((root / APP / "app/job.yaml").read_bytes())[0]
-                if job["metadata"]["name"] == "volsync-test-verify-post-cleanup-v1":
+                if job["metadata"]["name"] == "volsync-test-verify-post-cleanup-v2":
                     command("git", "apply", "--reverse", str(PATCHES / "verify-cleanup.patch"), cwd=root)
                 command("git", "apply", "--reverse", str(PATCHES / "cleanup.patch"), cwd=root)
             cls.recovery = render(root)
@@ -95,19 +95,37 @@ class VolsyncLifecycleTest(unittest.TestCase):
             "apiGroup": "volsync.backube", "kind": "ReplicationDestination",
             "name": destination["metadata"]["name"],
         })
-        self.assertEqual(destination["spec"]["trigger"], {"manual": "v1"})
+        self.assertEqual(destination["spec"]["trigger"], {"manual": "v2"})
         checks = self.recovery[0]["volsync-test-storage"]["spec"]["healthCheckExprs"]
         self.assertEqual({c["kind"] for c in checks}, {"PersistentVolumeClaim", "ReplicationDestination"})
 
+    def test_restore_retains_clone_source_until_cleanup(self):
+        destination = self.resource(self.recovery, "volsync-test-storage", "ReplicationDestination")
+        restic = destination["spec"]["restic"]
+        self.assertEqual(restic["copyMethod"], "Snapshot")
+        self.assertFalse(restic["cleanupTempPVC"])
+        self.assertTrue(restic["cleanupCachePVC"])
+
+    def test_retry_uses_fresh_preflight_and_matching_credentials(self):
+        job = self.resource(self.recovery, "volsync-test-preflight", "Job")
+        secret = self.resource(self.recovery, "volsync-test-preflight", "ExternalSecret")
+        destination = self.resource(self.recovery, "volsync-test-storage", "ReplicationDestination")
+        self.assertEqual(job["metadata"]["name"], "volsync-test-preflight-v2")
+        self.assertEqual(destination["metadata"]["name"], "volsync-test-bootstrap-v2")
+        repository = destination["spec"]["restic"]["repository"]
+        self.assertEqual(repository, secret["spec"]["target"]["name"])
+        container = job["spec"]["template"]["spec"]["containers"][0]
+        self.assertEqual(container["envFrom"], [{"secretRef": {"name": repository}}])
+
     def test_backups_use_distinct_paths_and_correct_claims(self):
-        for owner, claim, path in [
-            ("volsync-test-fixture-backup", "volsync-test-source", "volsync-test/fixture"),
-            ("volsync-test-backup", "volsync-test-restored", "volsync-test/app"),
+        for owner, claim, path, trigger in [
+            ("volsync-test-fixture-backup", "volsync-test-source", "volsync-test/fixture", "v1"),
+            ("volsync-test-backup", "volsync-test-restored-v2", "volsync-test/app", "v2"),
         ]:
             source = self.resource(self.recovery, owner, "ReplicationSource")
             secret = self.resource(self.recovery, owner, "ExternalSecret")
             self.assertEqual(source["spec"]["sourcePVC"], claim)
-            self.assertEqual(source["spec"]["trigger"], {"manual": "v1"})
+            self.assertEqual(source["spec"]["trigger"], {"manual": trigger})
             self.assertTrue(secret["spec"]["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
                 "/tf-hcc-apollo-volsync/" + path,
             ))
@@ -139,7 +157,7 @@ class VolsyncLifecycleTest(unittest.TestCase):
         self.assertEqual([r["metadata"]["name"] for r in remaining if r["kind"] == "ExternalSecret"],
                          ["volsync-test-volsync"])
         self.assertEqual([r["metadata"]["name"] for r in remaining if r["kind"] == "Job"],
-                         ["volsync-test-verify-v1"])
+                         ["volsync-test-verify-v2"])
         self.assertEqual([r["metadata"]["name"] for r in remaining if r["kind"] == "ReplicationSource"],
                          ["volsync-test-r2"])
 
@@ -147,11 +165,11 @@ class VolsyncLifecycleTest(unittest.TestCase):
         before = self.resource(self.cleaned, "volsync-test", "Job")
         after = self.resource(self.verified, "volsync-test", "Job")
         expected = copy.deepcopy(before)
-        expected["metadata"]["name"] = "volsync-test-verify-post-cleanup-v1"
+        expected["metadata"]["name"] = "volsync-test-verify-post-cleanup-v2"
         self.assertEqual(after, expected)
         claims = [v["persistentVolumeClaim"] for v in after["spec"]["template"]["spec"]["volumes"]
                   if "persistentVolumeClaim" in v]
-        self.assertEqual(claims, [{"claimName": "volsync-test-restored", "readOnly": True}])
+        self.assertEqual(claims, [{"claimName": "volsync-test-restored-v2", "readOnly": True}])
         self.assertEqual(self.cleaned[1]["volsync-test-backup"], self.verified[1]["volsync-test-backup"])
 
 

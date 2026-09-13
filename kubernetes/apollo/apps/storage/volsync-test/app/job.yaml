@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: volsync-test-verify-v1
+  name: volsync-test-verify-v2
   annotations:
     kustomize.toolkit.fluxcd.io/force: enabled
 spec:
@@ -45,7 +45,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: volsync-test-restored
+            claimName: volsync-test-restored-v2
             readOnly: true
         - name: scripts
           configMap:

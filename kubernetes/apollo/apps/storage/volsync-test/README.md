@@ -5,6 +5,11 @@ The normal app is a verifier Job with permanent storage and a separate backup Ku
 The chain is **fixture → fixture backup → preflight → storage → app verifier → app backup**.
 Both backups are manual-only; the final one backs up the restored claim.
 
+Restore attempt `v2` reuses the successful fixture backup. It replaces the failed test claim with
+`volsync-test-restored-v2` and runs a fresh preflight and verifier; fixture resources remain unchanged.
+Flux prunes the previous attempt's claim, destination, preflight resources, and verifier as their replacements
+reconcile. Confirm those old resources are gone before proceeding to cleanup.
+
 Create the [shared 1Password items](../../../components/volsync/#1password-prerequisites) and a `volsync-test`
 item with a new `RESTIC_PASSWORD`. This disposable proof uses that password for both test repositories,
 `volsync-test/fixture` and `volsync-test/app`, within `tf-hcc-apollo-volsync`.
@@ -13,14 +18,20 @@ item with a new `RESTIC_PASSWORD`. This disposable proof uses that password for 
 
 After deployment, require all six test Kustomizations to be Ready and the destination to name a ready snapshot.
 The verifier must pass checksums, UID/GID, and private-file permission checks using only the restored PVC.
-The final backup's `status.lastManualSync` must equal `v1`.
+The fixture backup's `status.lastManualSync` must equal `v1`; the restore and final backup must equal `v2`.
 
 ```sh
 flux get kustomizations --context apollo
-kubectl --context apollo -n storage logs job/volsync-test-verify-v1
-kubectl --context apollo -n storage get replicationdestination volsync-test-bootstrap-v1 -o yaml
-kubectl --context apollo -n storage get replicationsource volsync-test-r2 -o yaml
+kubectl --context apollo -n storage logs job/volsync-test-verify-v2
+kubectl --context apollo -n storage get replicationdestination volsync-test-bootstrap-v2 \
+  -o 'custom-columns=NAME:.metadata.name,MANUAL:.status.lastManualSync,RESULT:.status.latestMoverStatus.result,SNAPSHOT:.status.latestImage.name'
+kubectl --context apollo -n storage get replicationsource volsync-test-r2 \
+  -o 'custom-columns=NAME:.metadata.name,MANUAL:.status.lastManualSync,RESULT:.status.latestMoverStatus.result'
 ```
+
+Check the named VolumeSnapshot's `status.readyToUse` and the restored Longhorn volume's completed clone status.
+The destination's temporary data PVC must still exist before cleanup. Avoid dumping full VolSync status:
+embedded mover logs include the private R2 endpoint.
 
 ## Remove restore machinery
 
@@ -50,7 +61,7 @@ This gives the verifier a new Job name, ensuring it runs again against the same 
 Wait for `volsync-test` to be Ready and inspect its logs:
 
 ```sh
-kubectl --context apollo -n storage logs job/volsync-test-verify-post-cleanup-v1
+kubectl --context apollo -n storage logs job/volsync-test-verify-post-cleanup-v2
 ```
 
 Keep these as separate deployments so the new verifier cannot run before restore cleanup has completed.

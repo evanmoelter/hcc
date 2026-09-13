@@ -33,10 +33,16 @@ as a successful restore. Preflight requires an existing snapshot for host `volsy
 initializing or locking the repository. Keep source backup/prune writers stopped during migration and verify
 application data before enabling traffic and Apollo backups. Recovery uses the latest backup.
 
+The restore keeps its temporary data PVC until cleanup. Longhorn needs that volume while cloning the local
+snapshot into the app PVC; deleting it when the restic mover finishes can strand the clone
+([upstream report](https://github.com/backube/volsync/issues/1504)). Allow capacity for both volumes until the
+app can mount and verify its data. The restic cache can be removed immediately.
+
 After data verification and the first Apollo backup, make a cleanup commit: remove preflight, the storage
 restore component, and storage's preflight/VolSync dependencies and destination health check. Keep the same
 storage Kustomization, PVC manifest, and PVC readiness check. Flux prunes the temporary destination and
-restore credentials. Preserve the PVC's immutable `dataSourceRef` exactly; it remains valid on the bound PVC.
+restore credentials; deleting the destination also garbage-collects its retained temporary PVC.
+Preserve the PVC's immutable `dataSourceRef` exactly; it remains valid on the bound PVC.
 With its destination gone, a newly provisioned replacement claim blocks until recovery is explicitly configured.
 
 A future recovery requires a new ID, source/credentials, fresh preflight, and an explicitly provisioned replacement
