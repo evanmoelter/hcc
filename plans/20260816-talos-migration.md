@@ -241,6 +241,9 @@ verification. The reusable VolSync component and per-app repository credentials 
 the first PVC-backed app rebuild.
 Reloader and opt-ins for DNS, cloudflared, and 1Password Connect are defined;
 [docs/secrets.md](../docs/secrets.md#configuration-reloads) records the app pattern and pending reload verification.
+Tailscale's operator and `echo-apollo` test Ingress are defined with Apollo-specific tags and OAuth credentials;
+[docs/tailscale.md](../docs/tailscale.md) records setup and pending tailnet verification. API access and subnet routing
+remain outside this step.
 
 ## Networking and external state
 
