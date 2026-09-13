@@ -9,9 +9,6 @@ spec:
     - name: flux-instance
     - name: onepassword-store
     - name: envoy-gateway-config
-    - name: cloudflare-dns
-    - name: unifi-dns
-    - name: cloudflared
   targetNamespace: flux-system
   commonMetadata:
     labels:
