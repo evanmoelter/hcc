@@ -21,7 +21,7 @@ enabling their metrics where needed and adding monitors remains follow-up work. 
 pod admission because node-exporter uses host networking, PID access, and read-only host mounts. Containers run as
 UID/GID 568 with privilege escalation disabled and all capabilities dropped.
 
-Services are ClusterIP-only. Once Flux has deployed the stack, access each UI with a separate local port-forward:
+Prometheus and Alertmanager Services are ClusterIP-only. Access each UI with a separate local port-forward:
 
 ```sh
 kubectl --context apollo -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
@@ -32,10 +32,20 @@ Open `http://localhost:9090/targets` to verify scraping and `http://localhost:90
 nodes appear and each enabled control-plane target is up before treating bootstrap metrics as operational.
 
 After Longhorn lands, move Prometheus and Alertmanager to PVCs and revisit retention. Add Grafana, authenticated
-Gateway routes, and notification credentials when storage, ingress, and ESO are ready. Metrics-server remains a
-separate platform task; kube-prometheus-stack does not provide the API used by `kubectl top` or resource-based HPAs.
+Gateway routes, and notification credentials when storage, ingress, and ESO are ready.
 
 The Talos etcd discovery and cross-namespace monitor settings follow
 [onedr0p's stack](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/o11y/kube-prometheus-stack/app/helmrelease.yaml)
 and [joryirving's stack](https://github.com/joryirving/home-ops/blob/main/kubernetes/apps/base/observability/kube-prometheus-stack/helmrelease.yaml).
 Chart values and generated security settings were checked against kube-prometheus-stack 90.0.0 and Prometheus Operator v0.93.1.
+
+## Cluster dashboard
+
+Open `https://kube-ops-view-apollo.${SECRET_DOMAIN}` on the LAN or use `kube-ops-view-apollo` in Tailscale.
+The distinct names keep the old cluster's dashboard available during migration. LAN access has no application
+login; tailnet access follows the existing Tailscale policy.
+
+Deployment verification is pending. From the LAN, confirm the dashboard hostname resolves to `192.168.21.100`.
+Check `kubectl --context apollo top nodes`, then confirm that both dashboard
+URLs show Apollo's nodes and pods with CPU/memory usage and continuing updates. The `/health` probe only checks
+the web process, so a Ready pod does not prove that Kubernetes API queries work.

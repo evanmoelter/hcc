@@ -19,7 +19,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` runs Cilium, Flux, Spegel, Reloader, bootstrap metrics, ESO, 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, Envoy Gateway, Cloudflare and UniFi external-dns, cloudflared, Tailscale, and echo-server; [docs/secrets.md](./docs/secrets.md) describes secret setup, app integration, and opt-in configuration reloads, and [docs/certificates.md](./docs/certificates.md) covers certificate issuance. [docs/storage.md](./docs/storage.md) covers Longhorn disk configuration, CSI snapshots, VolSync, and node registration. [docs/gateway.md](./docs/gateway.md) covers ingress and LAN verification; [docs/dns.md](./docs/dns.md) covers DNS ownership, Terraform tunnel setup, and external testing. [docs/tailscale.md](./docs/tailscale.md) covers Apollo's tailnet identity, OAuth setup, and Ingress proxy security. [docs/talos-security.md](./docs/talos-security.md) covers Secure Boot, TPM encryption, and node conversion. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+`kubernetes/apollo/` runs Cilium, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, Envoy Gateway, Cloudflare and UniFi external-dns, cloudflared, Tailscale, and echo-server; [docs/secrets.md](./docs/secrets.md) describes secret setup, app integration, and opt-in configuration reloads, and [docs/certificates.md](./docs/certificates.md) covers certificate issuance. [docs/storage.md](./docs/storage.md) covers Longhorn disk configuration, CSI snapshots, VolSync, and node registration. [docs/gateway.md](./docs/gateway.md) covers ingress and LAN verification; [docs/dns.md](./docs/dns.md) covers DNS ownership, Terraform tunnel setup, and external testing. [docs/tailscale.md](./docs/tailscale.md) covers Apollo's tailnet identity, OAuth setup, and Ingress proxy security. [docs/talos-security.md](./docs/talos-security.md) covers Secure Boot, TPM encryption, and node conversion. [docs/monitoring.md](./docs/monitoring.md) covers metrics and the LAN/Tailscale cluster dashboard. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
@@ -66,6 +66,10 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 ### Manifest conventions
 
 New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
+
+Keep one chart `OCIRepository` per app beside its `HelmRelease`, so apps can upgrade independently.
+Set both `spec.ref.tag` and `spec.ref.digest`: the tag identifies the version for readers and Renovate;
+Flux pulls the digest, which takes precedence. Update both together on version bumps and retain signature verification where configured.
 
 ### Config in git, credentials in secrets
 

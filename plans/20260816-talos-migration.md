@@ -245,6 +245,9 @@ Tailscale's operator and `echo-apollo` test Ingress are defined with Apollo-spec
 [docs/tailscale.md](../docs/tailscale.md) records setup and pending tailnet verification. API access and subnet routing
 remain outside this step.
 
+Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
+[docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
+
 ## Networking and external state
 
 ### HCC VLAN
