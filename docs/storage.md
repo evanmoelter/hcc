@@ -17,9 +17,32 @@ Storage consumers should depend on `longhorn-config`, which waits for the config
 
 ## CSI snapshots
 
-Keep snapshot-controller installed while snapshots exist: its chart owns the CRDs as Helm resources,
-so uninstalling it deletes the snapshot API objects too. Snapshots stay on Longhorn's disks; offsite
-backups await VolSync. A snapshot-and-restore test remains pending before app migration.
+The chart templates its CRDs, so Helm cannot install `longhorn-snapclass` alongside them on a fresh cluster.
+Its separate Kustomization waits for the controller. Uninstalling the chart also deletes the snapshot APIs.
+Snapshots remain on Longhorn's disks; they are not offsite backups.
+
+## VolSync
+
+The chart's ServiceMonitor supplies no bearer token, so metrics authentication is disabled and a NetworkPolicy
+restricts scraping to Prometheus. Verify the scrape after deployment. Backup jobs, the shared restore component,
+and snapshot/restic restore tests remain pending before app migration.
+
+The [OCI mirror](https://github.com/home-operations/charts-mirror) is temporary: switch to upstream OCI when
+available, before the mirror's six-month retirement window ends.
+
+## R2 backup separation
+
+| Backup | Old restore source | Apollo write location |
+|---|---|---|
+| VolSync | `s3://tf-hcc-volsync/<app>` | `s3://tf-hcc-apollo-volsync/<app>` |
+| CNPG | `s3://tf-hcc-cloudnativepg/` with the existing server name | `s3://tf-hcc-apollo-cnpg/<app>/` with server name `<app>-pg-apollo-v1` |
+
+Barman appends the server-name directory to the app path. Scope each backup credential to its own bucket,
+including old-cluster credentials; paths do not isolate apps sharing a credential. Use separate migration
+restore credentials and remove them after verification. Never back up or prune into an old repository.
+
+The operator supplies credentials through 1Password and runs Terraform plan/apply, which decrypts SOPS.
+Keep the old bucket resources through rollback: removing their blocks also removes `prevent_destroy` protection.
 
 ## Operations
 

@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/prometheusrule_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: volsync
+spec:
+  groups:
+    - name: volsync
+      rules:
+        - alert: VolSyncMetricsUnavailable
+          expr: absent(up{namespace="storage", service="volsync-metrics"}) or max(up{namespace="storage", service="volsync-metrics"}) == 0
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: VolSync metrics are unavailable.
+        - alert: VolSyncVolumeOutOfSync
+          expr: volsync_volume_out_of_sync == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: '{{ $labels.obj_namespace }}/{{ $labels.obj_name }} volume is out of sync.'
