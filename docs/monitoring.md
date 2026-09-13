@@ -21,7 +21,7 @@ enabling their metrics where needed and adding monitors remains follow-up work. 
 pod admission because node-exporter uses host networking, PID access, and read-only host mounts. Containers run as
 UID/GID 568 with privilege escalation disabled and all capabilities dropped.
 
-Services are ClusterIP-only. Once Flux has deployed the stack, access each UI with a separate local port-forward:
+Prometheus and Alertmanager Services are ClusterIP-only. Access each UI with a separate local port-forward:
 
 ```sh
 kubectl --context apollo -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
@@ -32,8 +32,46 @@ Open `http://localhost:9090/targets` to verify scraping and `http://localhost:90
 nodes appear and each enabled control-plane target is up before treating bootstrap metrics as operational.
 
 After Longhorn lands, move Prometheus and Alertmanager to PVCs and revisit retention. Add Grafana, authenticated
-Gateway routes, and notification credentials when storage, ingress, and ESO are ready. Metrics-server remains a
-separate platform task; kube-prometheus-stack does not provide the API used by `kubectl top` or resource-based HPAs.
+Gateway routes, and notification credentials when storage, ingress, and ESO are ready.
+
+## Cluster dashboard
+
+kube-ops-view provides Apollo's node and pod overview at `https://kube-ops-view-apollo.${SECRET_DOMAIN}` on the LAN
+and as `kube-ops-view-apollo` in Tailscale. These cluster-specific names let the old cluster keep its
+existing dashboard during migration. The HTTPRoute attaches only to `envoy-internal`, with UniFi DNS and the shared
+wildcard certificate. LAN access has no application login; tailnet access follows the existing Tailscale policy.
+The route disables request timeouts for kube-ops-view's server-sent event stream.
+
+One replica keeps its state in memory and needs neither Redis nor a PVC. Its service account can only list nodes,
+pods, and their resource metrics. The Tailscale Ingress reconciles separately, after the dashboard and ProxyClass.
+The upstream image is pinned because home-operations does not currently publish kube-ops-view.
+
+Metrics-server supplies the `metrics.k8s.io` API used by kube-ops-view, `kubectl top`, and resource-based HPAs;
+Prometheus serves a separate purpose. Metrics-server waits for the Prometheus stack's ServiceMonitor CRD, and
+kube-ops-view waits for metrics-server and the internal Gateway. Both workloads use non-root UID/GID 568,
+read-only root filesystems, and writable `/tmp` volumes.
+
+Metrics-server skips kubelet serving-certificate verification, matching the existing Prometheus kubelet TLS exception.
+Its aggregated API also uses the chart's default self-signed certificate with APIService verification disabled.
+Removing these exceptions requires separate certificate work; no kubelet CSR approver is introduced here.
+The metrics-server configuration follows
+[billimek](https://github.com/billimek/k8s-gitops/blob/master/kubernetes/kube-system/metrics-server/metrics-server.yaml)
+and [szinn](https://github.com/szinn/k8s-homelab/tree/main/kubernetes/main/apps/kube-system/metrics-server/app).
+
+Deployment and browser verification remain pending. After Flux deploys the changes:
+
+```sh
+kubectl --context apollo get apiservice v1beta1.metrics.k8s.io
+kubectl --context apollo top nodes
+kubectl --context apollo top pods -A
+kubectl --context apollo -n monitoring get helmrelease kube-ops-view
+kubectl --context apollo -n monitoring get httproute kube-ops-view
+kubectl --context apollo -n monitoring get ingress kube-ops-view-tailscale
+```
+
+Confirm the metrics API is Available and all three nodes report usage. Open the dashboard over both LAN HTTPS and
+the Ingress's assigned tailnet HTTPS hostname, verify that Apollo's nodes and pods appear with CPU and memory usage,
+and leave it open to confirm updates continue. The `/health` probe checks the web process, not Kubernetes API access.
 
 The Talos etcd discovery and cross-namespace monitor settings follow
 [onedr0p's stack](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/o11y/kube-prometheus-stack/app/helmrelease.yaml)
