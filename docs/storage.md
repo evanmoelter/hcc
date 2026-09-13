@@ -47,8 +47,8 @@ including old-cluster credentials; paths do not isolate apps sharing a credentia
 restore credentials and remove them after verification. Never back up or prune into an old repository.
 
 The operator supplies credentials through 1Password and runs Terraform plan/apply, which decrypts SOPS.
-VolSync reads the account ID from the shared `cloudflare-r2` item in `hcc-apollo`; app items hold bucket-scoped
-credentials and restic passwords. [Component usage](../kubernetes/apollo/components/volsync/) lists the fields.
+VolSync reads the account ID from the shared `cloudflare-r2` item in `hcc-apollo`; `volsync-r2` holds
+shared Apollo VolSync bucket credentials, and app items hold separate restic passwords. [Component usage](../kubernetes/apollo/components/volsync/) lists the fields.
 Keep the old bucket resources through rollback: removing their blocks also removes `prevent_destroy` protection.
 
 ## Operations

@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: seed
-          image: quay.io/backube/volsync:0.16.0
+          image: quay.io/backube/volsync:0.16.0@sha256:0d03a6aad57569eba2c0eaa0848cf4a908d9744b372ff2224bb291a320f36d76
           command: [python3, /scripts/seed.py]
           securityContext:
             allowPrivilegeEscalation: false

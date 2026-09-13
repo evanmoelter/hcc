@@ -19,10 +19,19 @@ spec:
     name: home-kubernetes
   wait: true
   healthCheckExprs:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      current: >-
+        has(status.phase) && status.phase == 'Bound' &&
+        (metadata.name != 'volsync-test-restored' ||
+          (has(spec.dataSourceRef) &&
+           has(spec.dataSourceRef.apiGroup) && spec.dataSourceRef.apiGroup == 'volsync.backube' &&
+           spec.dataSourceRef.kind == 'ReplicationDestination' &&
+           spec.dataSourceRef.name == 'volsync-test-bootstrap-v1'))
     - apiVersion: volsync.backube/v1alpha1
       kind: ReplicationDestination
       current: >-
-        has(status) && has(status.lastManualSync) &&
+        has(status.lastManualSync) &&
         status.lastManualSync == spec.trigger.manual &&
         has(status.latestImage) && has(status.latestImage.name)
   interval: 30m

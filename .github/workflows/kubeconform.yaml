@@ -7,7 +7,7 @@ on:
     paths:
       - "kubernetes/**"
       - "scripts/kubeconform.sh"
-      - "scripts/test-volsync-preflight.py"
+      - "tests/test_volsync_preflight.py"
       - ".github/workflows/kubeconform.yaml"
 
 jobs:
@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Test VolSync restore preflight
-        run: python3 scripts/test-volsync-preflight.py
+        run: python3 tests/test_volsync_preflight.py
 
   kubeconform-status:
     name: Kubeconform Success

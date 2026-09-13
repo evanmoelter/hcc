@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 
-source = Path(__file__).resolve().parents[1] / "kubernetes/apollo/components/volsync/preflight/preflight.py"
+source = Path(__file__).resolve().parents[1] / "kubernetes/apollo/components/volsync/restore-preflight/preflight.py"
 spec = importlib.util.spec_from_file_location("preflight", source)
 preflight = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preflight)

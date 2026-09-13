@@ -11,7 +11,7 @@ spec:
   targetNamespace: storage
   path: ./kubernetes/apollo/apps/storage/volsync-test/preflight
   components:
-    - ../../../../components/volsync/preflight
+    - ../../../../components/volsync/restore-preflight
   prune: true
   sourceRef:
     kind: GitRepository
