@@ -60,7 +60,7 @@ class VolsyncLifecycleTest(unittest.TestCase):
             shutil.copytree(ROOT / APP, root / APP)
             shutil.copytree(ROOT / COMPONENTS, root / COMPONENTS)
             shutil.copy2(ROOT / APP.parent / "kustomization.yaml", root / APP.parent)
-            owners = yaml_documents((root / APP / "ks-backup.yaml").read_bytes())
+            owners = yaml_documents((root / APP / "ks-storage.yaml").read_bytes())
             if "volsync-test-preflight" not in [owner["metadata"]["name"] for owner in owners]:
                 job = yaml_documents((root / APP / "app/job.yaml").read_bytes())[0]
                 if job["metadata"]["name"] == "volsync-test-verify-post-cleanup-v1":

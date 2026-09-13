@@ -5,7 +5,7 @@ The [disposable test](../../apps/storage/volsync-test/) follows the normal app l
 ```text
 app-name/
   ks.yaml          app Kustomization
-  ks-backup.yaml   preflight, storage, and backup Kustomizations (separate YAML documents)
+  ks-storage.yaml  preflight, storage, and backup Kustomizations (separate YAML documents)
   app/             workload manifests
   storage/         app-owned PVC manifests
 ```

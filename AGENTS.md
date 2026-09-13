@@ -28,7 +28,7 @@ Apollo apps live under `kubernetes/apollo/apps/<namespace>/<app>/`. A PVC-backed
 ```
 mealie/
   ks.yaml                        app Flux Kustomization
-  ks-backup.yaml                 preflight, storage, backup Kustomizations (separate YAML documents)
+  ks-storage.yaml                preflight, storage, backup Kustomizations (separate YAML documents)
   app/
     kustomization.yaml
     helmrelease.yaml             bjw-s app-template, pinned chart version
@@ -79,7 +79,7 @@ Credentials arrive as environment variables from a secret, through `envFrom.secr
 ### One Flux Kustomization per lifecycle
 
 Use a separate Flux Kustomization for each lifecycle. Related Kustomizations may share a satellite file,
-such as preflight, storage, and backup in `ks-backup.yaml`. Point each at its own resource directory or a shared
+such as preflight, storage, and backup in `ks-storage.yaml`. Point each at its own resource directory or a shared
 base and express the actual dependency order: preflight → storage → app → backup. Keep the storage owner
 permanent; remove temporary restore machinery after verification as described in the VolSync usage guide.
 A backup can fail or be suspended without disturbing the serving workload.

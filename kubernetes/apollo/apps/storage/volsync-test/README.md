@@ -58,7 +58,7 @@ The patches are covered by local/CI render tests; they perform no live mutations
 
 ## Teardown
 
-After the second verification, remove the remaining two registrations (`ks.yaml` and `ks-backup.yaml`) and the
+After the second verification, remove the remaining two registrations (`ks.yaml` and `ks-storage.yaml`) and the
 test directory in a follow-up commit. Flux prunes the remaining disposable resources and PVC. Remove the patch
 fixtures and lifecycle test with it. The operator removes both R2 test paths and the `volsync-test` 1Password
 item separately, keeping the shared credential items. A fresh full proof needs new app/repository names.
