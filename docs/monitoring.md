@@ -45,6 +45,7 @@ Open `https://kube-ops-view-apollo.${SECRET_DOMAIN}` on the LAN or use `kube-ops
 The distinct names keep the old cluster's dashboard available during migration. LAN access has no application
 login; tailnet access follows the existing Tailscale policy.
 
-Deployment verification is pending. Check `kubectl --context apollo top nodes`, then confirm that both dashboard
+Deployment verification is pending. From the LAN, confirm the dashboard hostname resolves to `192.168.21.100`.
+Check `kubectl --context apollo top nodes`, then confirm that both dashboard
 URLs show Apollo's nodes and pods with CPU/memory usage and continuing updates. The `/health` probe only checks
 the web process, so a Ready pod does not prove that Kubernetes API queries work.

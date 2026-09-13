@@ -7,5 +7,6 @@ resources:
   - ./cilium/ks.yaml
   - ./cilium/ks-config.yaml
   - ./metrics-server/ks.yaml
+  - ./metrics-server/ks-monitoring.yaml
   - ./reloader/ks.yaml
   - ./spegel/ks.yaml

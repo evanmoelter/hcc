@@ -223,8 +223,6 @@ flowchart TD
 | Longhorn taints | Drop the Odroid-specific `dedicated=storage` taint and matching toleration. |
 | Other | Keep Dragonfly, cert-manager, Authentik, Multus, Cilium, reloader, and metrics-server. Do not carry OpenEBS scaffold cruft forward. |
 
-Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
-[docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
 Bootstrap metrics are deployed and their active scrape targets were verified healthy on 2026-09-09;
 [docs/monitoring.md](../docs/monitoring.md) records the configuration and follow-up work. ESO and 1Password
 Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bootstrap credentials.
@@ -246,6 +244,9 @@ Reloader and opt-ins for DNS, cloudflared, and 1Password Connect are defined;
 Tailscale's operator and `echo-apollo` test Ingress are defined with Apollo-specific tags and OAuth credentials;
 [docs/tailscale.md](../docs/tailscale.md) records setup and pending tailnet verification. API access and subnet routing
 remain outside this step.
+
+Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
+[docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
 
 ## Networking and external state
 

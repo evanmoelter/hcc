@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/monitoring.coreos.com/servicemonitor_v1.json
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: &app metrics-server
+spec:
+  jobLabel: app.kubernetes.io/instance
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: *app
+      app.kubernetes.io/name: *app
+  endpoints:
+    - port: https
+      scheme: https
+      path: /metrics
+      interval: 1m
+      scrapeTimeout: 10s
+      tlsConfig:
+        insecureSkipVerify: true
