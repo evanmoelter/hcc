@@ -146,8 +146,12 @@ Caveats:
 
 Graphite is used to manage the branch/commit/PR lifecycle. The operator's Graphite skills document the current best practices.
 
-Never force push a branch. If the repo gets into a bad state, propose a fix for the operator (who is a git expert) to run manually.
-`gt sync` is generally safe and can be run frequently. `gt sync --force` and `gt submit --force` are not safe.
+Use Graphite for branch and PR management. `gt sync` and `gt submit` are authorized without `--force`,
+including their normal rebasing and remote-history updates.
+
+Never use `gt sync --force`, `gt submit --force`, or raw Git force-push commands. Do not add merge commits
+merely to preserve history rewritten by Graphite. If the normal Graphite commands cannot complete,
+explain the problem and ask the operator how to proceed.
 
 ## Gotchas
 

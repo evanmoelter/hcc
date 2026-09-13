@@ -1,6 +1,5 @@
 [env]
 _.file = '.env'
-_.python.venv = ".venv"
 
 [tools]
 "node" = "24"
