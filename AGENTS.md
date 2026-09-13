@@ -146,12 +146,11 @@ Caveats:
 
 Graphite is used to manage the branch/commit/PR lifecycle. The operator's Graphite skills document the current best practices.
 
-Use Graphite for branch and PR management. `gt sync` and `gt submit` are authorized without `--force`,
+Use Graphite for branch and PR management. `gt sync` and `gt submit` are authorized (without `--force`),
 including their normal rebasing and remote-history updates.
 
-Never use `gt sync --force`, `gt submit --force`, or raw Git force-push commands. Do not add merge commits
-merely to preserve history rewritten by Graphite. If the normal Graphite commands cannot complete,
-explain the problem and ask the operator how to proceed.
+Never use `gt sync --force`, `gt submit --force`, or raw Git force-push commands. If the normal Graphite
+commands cannot complete, explain the problem and ask the operator how to proceed.
 
 ## Gotchas
 
