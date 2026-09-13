@@ -11,10 +11,7 @@ spec:
     repository: ${APP}-volsync
     copyMethod: Snapshot
     volumeSnapshotClassName: longhorn-snapclass
-    storageClassName: ${VOLSYNC_STORAGECLASS:-longhorn}
-    accessModes: [ReadWriteOnce]
     cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:-1Gi}
-    cacheStorageClassName: ${VOLSYNC_STORAGECLASS:-longhorn}
     cacheAccessModes: [ReadWriteOnce]
     pruneIntervalDays: 7
     retain:

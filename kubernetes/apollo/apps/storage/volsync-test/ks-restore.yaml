@@ -31,7 +31,6 @@ spec:
   postBuild:
     substitute:
       APP: volsync-test
-      CLAIM: "volsync-test-restored"
       VOLSYNC_CAPACITY: "128Mi"
       VOLSYNC_CACHE_CAPACITY: "128Mi"
       VOLSYNC_RESTORE_ID: "v1"

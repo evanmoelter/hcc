@@ -7,7 +7,6 @@ Use separate Flux Kustomizations for each lifecycle. The
 |---|---|
 | `volsync/preflight` | Wait for `onepassword-store`; `wait: true` checks the repository Job and ExternalSecret. |
 | `volsync/restore` | Depend on preflight, `volsync`, and `longhorn-config`; wait for the destination and PVC. |
-| `volsync/pvc` | Explicit empty-volume initialization for a new app; depend on `longhorn-config`. |
 | `volsync/backup` | Depend on the serving app, `volsync`, and `onepassword-store`. |
 
 Attach through `spec.components`, relative to the owning Kustomization's `spec.path`.
@@ -15,10 +14,17 @@ The app depends on its restore Kustomization. Keep `dependsOn` and `healthCheckE
 a component cannot patch the Flux Kustomization that includes it. Copy the destination readiness expression
 from the test's `ks-restore.yaml`; PVC readiness alone does not check the requested restore attempt.
 
-Set `APP` on every owner. It identifies one PVC backup stream; use a distinct name/path for each stream.
-`CLAIM` can name the actual PVC independently. Set `VOLSYNC_CAPACITY` on the PVC/restore owner.
+Apps declare their own PVCs, including capacity, storage class, access modes, and pruning policy.
+For recovery, include the app's PVC in its storage/restore Kustomization and label exactly one claim
+`volsync.home.arpa/restore: "true"`. The restore component attaches `dataSourceRef` to that claim.
+Set `VOLSYNC_CAPACITY` to the claim's size for VolSync's temporary restore volume; its storage class is
+configured separately through `VOLSYNC_STORAGECLASS` and must support the same CSI snapshot driver.
+A new app creates its PVC without the restore component and depends on `longhorn-config`.
+
+Set `APP` on each VolSync owner. It identifies one PVC backup stream; use a distinct name/path for each stream.
+On the backup owner, `CLAIM` names the existing app PVC and defaults to `APP`.
 Size `VOLSYNC_CACHE_CAPACITY` for the existing repository's metadata before restoring.
-Workload claims are protected from Flux pruning; the disposable test explicitly removes that protection.
+Protect durable app claims with `kustomize.toolkit.fluxcd.io/prune: disabled`; the disposable test omits it.
 
 Recovery requires `VOLSYNC_RESTORE_ID` on both preflight and restore owners and `VOLSYNC_RESTORE_BUCKET`
 on preflight; neither has a default. `VOLSYNC_RESTORE_PATH` defaults to `APP`. Recovery uses the latest backup only.

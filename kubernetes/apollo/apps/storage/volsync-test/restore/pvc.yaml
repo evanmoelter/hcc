@@ -2,14 +2,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ${CLAIM:-${APP}}
+  name: volsync-test-restored
   labels:
-    volsync.home.arpa/claim: "true"
-  annotations:
-    kustomize.toolkit.fluxcd.io/prune: disabled
+    volsync.home.arpa/restore: "true"
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: ${VOLSYNC_STORAGECLASS:-longhorn}
+  storageClassName: longhorn
   resources:
     requests:
-      storage: ${VOLSYNC_CAPACITY}
+      storage: 128Mi

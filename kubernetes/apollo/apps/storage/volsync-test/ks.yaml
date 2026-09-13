@@ -9,8 +9,6 @@ spec:
     - name: longhorn-config
   targetNamespace: storage
   path: ./kubernetes/apollo/apps/storage/volsync-test/seed
-  components:
-    - ../../../../components/volsync/pvc
   prune: true
   sourceRef:
     kind: GitRepository
@@ -19,8 +17,3 @@ spec:
   interval: 30m
   retryInterval: 1m
   timeout: 20m
-  postBuild:
-    substitute:
-      APP: volsync-test
-      CLAIM: "volsync-test-source"
-      VOLSYNC_CAPACITY: "128Mi"

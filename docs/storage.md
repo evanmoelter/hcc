@@ -27,8 +27,9 @@ The chart's ServiceMonitor supplies no bearer token, so metrics authentication i
 restricts scraping to Prometheus. VolSync, snapshot-controller, and Longhorn scrapes were verified healthy.
 
 The [shared components](../kubernetes/apollo/components/volsync/) keep restore preflight, PVC hydration, and
-backups in separate Flux lifecycles. Restoration requires an existing backup; new apps explicitly request
-an empty PVC. `volsync-test` provides a disposable snapshot → R2 → restored-file verification before app migration.
+backups in separate Flux lifecycles. Apps declare their PVCs; the restore component attaches hydration to an
+explicitly selected claim after preflight confirms an existing backup. New apps create their claims without
+restore configuration. `volsync-test` provides a disposable snapshot → R2 → restored-file verification before app migration.
 Its live result remains to be verified; controller and PVC readiness alone do not prove recovered data.
 
 The [OCI mirror](https://github.com/home-operations/charts-mirror) is temporary: switch to upstream OCI when

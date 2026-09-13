@@ -115,7 +115,7 @@ Three components cover the migration:
 
 | Component | Replaces | Provides |
 |---|---|---|
-| `volsync` | `templates/volsync` | Separate preflight, restore/PVC, empty PVC, and backup lifecycle components; [usage](../kubernetes/apollo/components/volsync/) |
+| `volsync` | `templates/volsync` | Preflight, restore wiring for app-defined PVCs, and backup lifecycle components; [usage](../kubernetes/apollo/components/volsync/) |
 | `postgres` | a hand-written `cluster.yaml` per app | CNPG `Cluster`, its `ObjectStore`, `ScheduledBackup`, and a `HelmRelease.dependsOn` on the CNPG operator release |
 | `namespace` | a `namespace.yaml` per namespace | The `Namespace`, annotated `kustomize.toolkit.fluxcd.io/prune: disabled` |
 
@@ -353,8 +353,9 @@ Do not use a temporary `.new` hostname. It adds routes, certificates, and cleanu
 
 VolSync-backed PVCs use the [VolSync lifecycle components](../kubernetes/apollo/components/volsync/).
 A preflight Job must confirm an existing backup before the restore Kustomization creates its
-`${APP}-bootstrap-${VOLSYNC_RESTORE_ID}` destination and hydrating PVC. Use a new ID for each recovery
-attempt; new apps explicitly select the empty-PVC component. Backup jobs remain separate from app readiness.
+`${APP}-bootstrap-${VOLSYNC_RESTORE_ID}` destination and applies the app-defined PVC with hydration attached.
+Use a new ID for each recovery attempt; new apps declare a PVC without restore configuration.
+Backup jobs remain separate from app readiness.
 
 `mealie-pg` and `home-assistant-pg` already hold one app each on PostgreSQL 18.1. The `postgres` component defaults to `bootstrap.recovery`, so neither needs the switch that copied manifests used to need; what each needs is a source `ObjectStore` naming the old cluster's `mealie-pg-v1` or `home-assistant-pg-v1` server name, referenced from `externalClusters[].plugin`. Both back up weekly, so take an on-demand backup after disabling the app. Confirm Home Assistant recorder history after restore.
 

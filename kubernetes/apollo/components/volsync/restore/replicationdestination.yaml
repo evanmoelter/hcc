@@ -14,7 +14,6 @@ spec:
     accessModes: [ReadWriteOnce]
     capacity: ${VOLSYNC_CAPACITY}
     cacheCapacity: ${VOLSYNC_CACHE_CAPACITY:-1Gi}
-    cacheStorageClassName: ${VOLSYNC_STORAGECLASS:-longhorn}
     cacheAccessModes: [ReadWriteOnce]
     cleanupCachePVC: true
     cleanupTempPVC: true
