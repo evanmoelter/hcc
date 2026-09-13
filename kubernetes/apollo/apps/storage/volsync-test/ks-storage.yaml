@@ -21,7 +21,7 @@ spec:
   postBuild:
     substitute:
       APP: volsync-test
-      VOLSYNC_RESTORE_ID: "v1"
+      VOLSYNC_RESTORE_ID: "v2"
       VOLSYNC_RESTORE_BUCKET: "tf-hcc-apollo-volsync"
       VOLSYNC_RESTORE_PATH: volsync-test/fixture
 ---
@@ -50,11 +50,11 @@ spec:
       kind: PersistentVolumeClaim
       current: >-
         has(status.phase) && status.phase == 'Bound' &&
-        (metadata.name != 'volsync-test-restored' ||
+        (metadata.name != 'volsync-test-restored-v2' ||
           (has(spec.dataSourceRef) &&
            has(spec.dataSourceRef.apiGroup) && spec.dataSourceRef.apiGroup == 'volsync.backube' &&
            spec.dataSourceRef.kind == 'ReplicationDestination' &&
-           spec.dataSourceRef.name == 'volsync-test-bootstrap-v1'))
+           spec.dataSourceRef.name == 'volsync-test-bootstrap-v2'))
     - apiVersion: volsync.backube/v1alpha1
       kind: ReplicationDestination
       current: >-
@@ -69,7 +69,7 @@ spec:
       APP: volsync-test
       VOLSYNC_CAPACITY: "128Mi"
       VOLSYNC_CACHE_CAPACITY: "128Mi"
-      VOLSYNC_RESTORE_ID: "v1"
+      VOLSYNC_RESTORE_ID: "v2"
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -92,7 +92,7 @@ spec:
         - op: replace
           path: /spec/trigger
           value:
-            manual: v1
+            manual: v2
   prune: true
   sourceRef:
     kind: GitRepository
@@ -110,6 +110,6 @@ spec:
   postBuild:
     substitute:
       APP: volsync-test
-      CLAIM: "volsync-test-restored"
+      CLAIM: "volsync-test-restored-v2"
       VOLSYNC_CACHE_CAPACITY: "128Mi"
       VOLSYNC_REPOSITORY_PATH: volsync-test/app

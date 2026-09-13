@@ -2,12 +2,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: volsync-test-restored
+  name: volsync-test-restored-v2
 spec:
   dataSourceRef:
     apiGroup: volsync.backube
     kind: ReplicationDestination
-    name: volsync-test-bootstrap-v1
+    name: volsync-test-bootstrap-v2
   accessModes: [ReadWriteOnce]
   storageClassName: longhorn
   resources:

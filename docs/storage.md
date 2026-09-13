@@ -33,6 +33,9 @@ commit removes restore machinery while preserving the bound PVC and its immutabl
 requires explicit setup. New apps create plain PVCs. `volsync-test` exercises recovery, backup of the restored
 claim, and verification after restore cleanup before app migration.
 Its live result remains to be verified; controller and PVC readiness alone do not prove recovered data.
+Restore volumes remain allocated until verified application recovery and the cleanup commit: Longhorn must
+finish cloning their local snapshots before those source volumes can be deleted. See the component's
+[restore lifecycle](../kubernetes/apollo/components/volsync/#restore-lifecycle).
 
 The [OCI mirror](https://github.com/home-operations/charts-mirror) is temporary: switch to upstream OCI when
 available, before the mirror's six-month retirement window ends.
