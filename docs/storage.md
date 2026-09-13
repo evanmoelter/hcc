@@ -75,6 +75,8 @@ Apollo's backup credentials and remove them after the restores are verified.
 The operator creates the scoped credentials in 1Password for ESO to consume. Terraform plan and apply are
 also operator steps: this stack decrypts its existing SOPS datasource. Review the plan for the two added
 buckets before applying; existing backup buckets and objects must remain intact.
+The buckets' Terraform destruction guards disappear if their resource blocks are removed. Keep those blocks
+through the rollback window; the guards do not prevent object deletion through backup credentials.
 
 ## Operations
 
