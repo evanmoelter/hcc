@@ -67,6 +67,10 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 
 New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 
+Keep one chart `OCIRepository` per app beside its `HelmRelease`, so apps can upgrade independently.
+Set both `spec.ref.tag` and `spec.ref.digest`: the tag identifies the version for readers and Renovate;
+Flux pulls the digest, which takes precedence. Update both together on version bumps and retain signature verification where configured.
+
 ### Config in git, credentials in secrets
 
 Configure an app through the chart's Helm values where it supports them, so the whole configuration sits in the HelmRelease. Fall back to a committed file rendered with `configMapGenerator` only when the app needs one the chart cannot produce, as Home Assistant does with `configs/configuration.yaml`.

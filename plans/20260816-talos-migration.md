@@ -224,7 +224,7 @@ flowchart TD
 | Other | Keep Dragonfly, cert-manager, Authentik, Multus, Cilium, reloader, and metrics-server. Do not carry OpenEBS scaffold cruft forward. |
 
 Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
-[docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access, TLS exceptions, and pending verification.
+[docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
 Bootstrap metrics are deployed and their active scrape targets were verified healthy on 2026-09-09;
 [docs/monitoring.md](../docs/monitoring.md) records the configuration and follow-up work. ESO and 1Password
 Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bootstrap credentials.
