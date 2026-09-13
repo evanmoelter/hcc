@@ -34,7 +34,8 @@ reference a restore destination after preflight confirms an existing backup. Fol
 commit removes restore machinery while preserving the bound PVC and its immutable reference; future recovery
 requires explicit setup. New apps create plain PVCs. `volsync-test` exercises recovery, backup of the restored
 claim, and verification after restore cleanup before app migration.
-Its live result remains to be verified; controller and PVC readiness alone do not prove recovered data.
+The live proof verified restored checksums, ownership, permissions, and a new R2 backup of the restored claim.
+Verification after restore cleanup remains pending; controller and PVC readiness alone do not prove recovered data.
 Restore volumes remain allocated until verified application recovery and the cleanup commit: Longhorn must
 finish cloning their local snapshots before those source volumes can be deleted. See the component's
 [restore lifecycle](../kubernetes/apollo/components/volsync/#restore-lifecycle).
