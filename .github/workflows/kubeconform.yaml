@@ -48,7 +48,7 @@ jobs:
         shell: bash
         run: bash ./scripts/kubeconform.sh ./kubernetes/${{ matrix.cluster }}
 
-  volsync-preflight:
+  component-tests:
     name: Component Tests
     needs: pre-job
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
@@ -68,7 +68,7 @@ jobs:
 
   kubeconform-status:
     name: Kubeconform Success
-    needs: ["pre-job", "kubeconform", "volsync-preflight"]
+    needs: ["pre-job", "kubeconform", "component-tests"]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

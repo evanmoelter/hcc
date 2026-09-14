@@ -10,6 +10,9 @@ including its platform dependencies and readiness check, and make the app depend
 Health checks cannot order resources applied by the same Kustomization. `Ready=False` during bootstrap
 means wait; it is not a terminal failure.
 
+`cluster-apps` skips parent substitution to preserve the initialization patch's `$${...}` expressions;
+variables added there must be intended for downstream builds, since the parent will leave them unexpanded.
+
 Set `APP` and a tag-and-digest-pinned `POSTGRES_IMAGE` per app. Check the source PostgreSQL major and
 extensions before physical recovery. Set `POSTGRES_DATABASE` and `POSTGRES_USERNAME` when they differ
 from `APP` (Home Assistant uses `home_assistant`). CNPG creates `${APP}-pg-app` connection credentials;
