@@ -124,6 +124,9 @@ jobs:
     name: Flate (apollo)
     needs: pre-job
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
     steps:
       - name: Checkout
@@ -140,16 +143,28 @@ jobs:
         run: flate test all --path ./kubernetes/apollo/flux
 
       - name: Run flate diff
+        id: diff
         env:
           BASE: ${{ github.base_ref }}
         run: |
           if git cat-file -e "origin/${BASE}:kubernetes/apollo/flux" 2>/dev/null; then
+            echo '### apollo changes' > "$RUNNER_TEMP/flate-diff.md"
             flate diff all --path ./kubernetes/apollo/flux --output github \
-              >> "$GITHUB_STEP_SUMMARY"
+              >> "$RUNNER_TEMP/flate-diff.md"
+            cat "$RUNNER_TEMP/flate-diff.md" >> "$GITHUB_STEP_SUMMARY"
+            echo 'generated=true' >> "$GITHUB_OUTPUT"
           else
             echo "No apollo tree on ${BASE} yet; nothing to diff against." \
               >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Add Comment
+        if: ${{ steps.diff.outputs.generated == 'true' }}
+        continue-on-error: true
+        uses: mshick/add-pr-comment@b8f338c590a895d50bcbfa6c5859251edc8952fc # v2.8.2
+        with:
+          message-id: "${{ github.event.pull_request.number }}/kubernetes/apollo/flate"
+          message-path: ${{ runner.temp }}/flate-diff.md
 
   flux-local-status:
     name: Flux Local Success
