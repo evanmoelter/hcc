@@ -209,6 +209,8 @@ remain outside this step.
 
 Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
 [docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
+The Flux Operator UI is exposed read-only on the LAN and Tailscale;
+[docs/monitoring.md](../docs/monitoring.md#flux-dashboard) records access and pending verification.
 
 The CNPG operator, Barman Cloud plugin, and reusable Postgres component are implemented;
 [docs/databases.md](../docs/databases.md) records integration, verification, and consumer setup.

@@ -49,3 +49,22 @@ Deployment verification is pending. From the LAN, confirm the dashboard hostname
 Check `kubectl --context apollo top nodes`, then confirm that both dashboard
 URLs show Apollo's nodes and pods with CPU/memory usage and continuing updates. The `/health` probe only checks
 the web process, so a Ready pod does not prove that Kubernetes API queries work.
+
+## Flux dashboard
+
+Open `https://flux-apollo.${SECRET_DOMAIN}` on the LAN or use `flux-apollo` in Tailscale.
+The Flux Operator's built-in UI has no application login and stays in its default read-only mode;
+reconcile, suspend, resume, and other user actions are disabled. LAN access relies on the trusted network,
+and tailnet access follows the existing Tailscale policy. Adding login and actions is a separate decision.
+
+The routes reconcile separately from the operator so Flux can start before Envoy Gateway or Tailscale.
+Both use the operator's `http-web` Service port, 9080; its `http` port serves metrics.
+The internal HTTPRoute follows [szinn's configuration](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-operator/app/httproute.yaml)
+and Apollo's existing dashboard routing pattern.
+
+Deployment verification is pending. Confirm the LAN hostname resolves to `192.168.21.100`, then open both
+HTTPS URLs and verify the UI shows Apollo's Flux resources and their current status without action controls.
+Get the full tailnet URL with
+`kubectl --context apollo -n flux-system get ingress flux-operator-tailscale`.
+Check that the HTTPRoute is Accepted with ResolvedRefs and the Tailscale Ingress has an assigned hostname;
+neither status alone proves the browser can load live data.

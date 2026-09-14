@@ -9,6 +9,7 @@ spec:
   interval: 1h
   path: ./kubernetes/apollo/apps/flux-system/flux-operator/app
   prune: true
+  wait: true
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
