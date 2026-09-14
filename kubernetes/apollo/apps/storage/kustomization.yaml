@@ -10,4 +10,3 @@ resources:
   - ./volsync/ks.yaml
   - ./volsync-test/ks.yaml
   - ./volsync-test/ks-storage.yaml
-  - ./volsync-test/ks-fixture.yaml
