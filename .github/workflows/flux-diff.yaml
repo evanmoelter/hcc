@@ -25,6 +25,9 @@ jobs:
         with:
           files: kubernetes/**
 
+      - name: Test flate diff formatter
+        run: python3 .github/scripts/test_format_flate_diff.py
+
   test:
     name: Flux Local Test (${{ matrix.cluster }})
     needs: pre-job
@@ -148,9 +151,10 @@ jobs:
           BASE: ${{ github.base_ref }}
         run: |
           if git cat-file -e "origin/${BASE}:kubernetes/apollo/flux" 2>/dev/null; then
-            echo '### apollo changes' > "$RUNNER_TEMP/flate-diff.md"
-            flate diff all --path ./kubernetes/apollo/flux --output github \
-              >> "$RUNNER_TEMP/flate-diff.md"
+            flate diff all --path ./kubernetes/apollo/flux --output diff \
+              > "$RUNNER_TEMP/flate-diff.patch"
+            python3 .github/scripts/format_flate_diff.py "$RUNNER_TEMP/flate-diff.patch" \
+              > "$RUNNER_TEMP/flate-diff.md"
             cat "$RUNNER_TEMP/flate-diff.md" >> "$GITHUB_STEP_SUMMARY"
             echo 'generated=true' >> "$GITHUB_OUTPUT"
           else
@@ -168,7 +172,7 @@ jobs:
 
   flux-local-status:
     name: Flux Local Success
-    needs: ["test", "diff", "flate"]
+    needs: ["pre-job", "test", "diff", "flate"]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:
