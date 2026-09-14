@@ -10,9 +10,6 @@ including its platform dependencies and readiness check, and make the app depend
 Health checks cannot order resources applied by the same Kustomization. `Ready=False` during bootstrap
 means wait; it is not a terminal failure.
 
-`cluster-apps` skips parent substitution to preserve the initialization patch's `$${...}` expressions;
-variables added there must be intended for downstream builds, since the parent will leave them unexpanded.
-
 Set `APP` and a tag-and-digest-pinned `POSTGRES_IMAGE` per app. Check the source PostgreSQL major and
 extensions before physical recovery. Set `POSTGRES_DATABASE` and `POSTGRES_USERNAME` when they differ
 from `APP` (Home Assistant uses `home_assistant`). CNPG creates `${APP}-pg-app` connection credentials;
@@ -37,13 +34,22 @@ ESO constructs the private endpoint; Barman receives it through `AWS_ENDPOINT_UR
 Secret. Source and destination stores share that endpoint during migration. A different source account
 needs an explicit source `endpointURL`, because the plugin shares environment variables between stores.
 
-The default bootstrap recovers from the app's Apollo archive. For a new database, label its
-database Kustomization `components.postgres/cnpg: init`. For a logical import, omit that label and replace
+The default bootstrap recovers from the app's Apollo archive. For a new database, add the
+[initialization component](../kubernetes/apollo/components/postgres/init/) after the base in its database Kustomization:
+
+```yaml
+spec:
+  components:
+    - ../../../../components/postgres
+    - ../../../../components/postgres/init
+```
+
+For a logical import, use only the base component and replace
 `spec.bootstrap` and `spec.externalClusters` in the app's build; also remove `cnpg.io/skipEmptyWalArchiveCheck`.
 For physical migration, add a temporary source ObjectStore with no retention policy and separate read-only
 old-bucket credentials, then point `externalClusters[].plugin` at it with the old server name.
 
-After checking app data and the first Apollo backup, remove the init label, import patch, or temporary
+After checking app data and the first Apollo backup, remove the init component reference, import patch, or temporary
 source configuration and credentials. Keep the Cluster and its owning Kustomization. The default recovery
 bypasses the empty-archive check to reuse its own archive; never run another writer against that server name.
 Cluster pruning is disabled, so removing the component does not delete its database.

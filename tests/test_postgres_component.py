@@ -39,7 +39,7 @@ def render(mode="recovery", substitutions=None):
         owner = read(owner_path)
         owner["spec"]["postBuild"]["substitute"].update(substitutions or {})
         if mode == "init":
-            owner["metadata"]["labels"] = {"components.postgres/cnpg": "init"}
+            owner["spec"]["components"].append("../../../../components/postgres/init")
         write(owner_path, owner)
         config_path = root / APP / "cluster/kustomization.yaml"
         config = read(config_path)

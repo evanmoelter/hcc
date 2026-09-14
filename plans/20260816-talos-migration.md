@@ -129,7 +129,7 @@ Apollo's `cluster-apps` Kustomization patches defaults into every child `Kustomi
 The trap is that the parent wins. Flux applies `spec.patches` to the rendered output of `spec.path`, so a defaulted field overrides whatever the app wrote in its own file. An app cannot opt out by setting the field locally: the value it writes is replaced, and only the rendered diff shows it happened. Three rules keep that manageable.
 
 - Default only what is universal, where an app disagreeing is a smell rather than a requirement. Remediation policy, CRD handling, and deletion policy qualify. Resource requests, replica counts, and timeouts do not.
-- Give any default with a legitimate exception a `labelSelector` escape hatch on the patch target, the way the `postgres` component's `init` label works. The opt-out is then declared in the app's own `ks.yaml` and greppable across the tree. The repo already uses this idiom in `kubernetes/main/flux/apps.yaml`: `substitution.flux.home.arpa/disabled notin (true)`.
+- Give any default with a legitimate exception a `labelSelector` escape hatch on the patch target. The opt-out is then declared in the app's own `ks.yaml` and greppable across the tree. The repo already uses this idiom in `kubernetes/main/flux/apps.yaml`: `substitution.flux.home.arpa/disabled notin (true)`.
 - Read defaults through the rendered diff. CI renders the effective manifest, so a default that surprises an app surfaces in the PR that adds the app rather than at reconcile time.
 
 Add a default once two apps need it. A default introduced for one app is a patch in the wrong place.
@@ -436,7 +436,7 @@ Per app:
 - [ ] Use Barman recovery for Mealie and Home Assistant, with a fresh on-demand backup; verify recorder history after Home Assistant restores.
 - [ ] Prove on Mealie, before any other database moves, that the plugin recovers from an archive the old cluster wrote with the in-tree integration. The object-store format is unchanged, but Mealie is the first real use of it.
 - [ ] Put every CNPG cluster and its `ObjectStore` in the app namespace, and check the supported PostgreSQL major and required extensions before import.
-- [ ] Remove the `components.postgres/cnpg: init` label once a net-new database's first backup lands.
+- [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
 - [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.
 - [ ] Verify external OIDC login to Mealie after Authentik moves.
 

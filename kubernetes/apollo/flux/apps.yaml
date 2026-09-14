@@ -5,8 +5,6 @@ kind: Kustomization
 metadata:
   name: cluster-apps
   namespace: flux-system
-  annotations:
-    kustomize.toolkit.fluxcd.io/substitute: disabled
 spec:
   interval: 30m
   path: ./kubernetes/apollo/apps
@@ -45,28 +43,3 @@ spec:
         group: kustomize.toolkit.fluxcd.io
         kind: Kustomization
         labelSelector: substitution.flux.home.arpa/disabled notin (true)
-    - patch: |-
-        apiVersion: kustomize.toolkit.fluxcd.io/v1
-        kind: Kustomization
-        metadata:
-          name: not-used
-        spec:
-          patches:
-            - target:
-                group: postgresql.cnpg.io
-                kind: Cluster
-              patch: |-
-                - op: replace
-                  path: /spec/bootstrap
-                  value:
-                    initdb:
-                      database: $${POSTGRES_DATABASE:-$${APP}}
-                      owner: $${POSTGRES_USERNAME:-$${APP}}
-                - op: remove
-                  path: /spec/externalClusters
-                - op: remove
-                  path: /metadata/annotations/cnpg.io~1skipEmptyWalArchiveCheck
-      target:
-        group: kustomize.toolkit.fluxcd.io
-        kind: Kustomization
-        labelSelector: components.postgres/cnpg=init

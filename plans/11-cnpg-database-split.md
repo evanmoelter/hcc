@@ -189,8 +189,8 @@ For TeslaMate, Paperless, and Authentik, replace `spec.bootstrap` with `initdb.i
 `microservice` method and only the app's database. Replace `spec.externalClusters` with a connection
 to `192.168.6.21:5432`, using a separate operator-provided import Secret. Remove
 `cnpg.io/skipEmptyWalArchiveCheck` so the new database must start with an empty destination archive.
-Put these patches in the app's `cluster/kustomization.yaml`. Do not add the `components.postgres/cnpg: init`
-label: its root patch would replace the import with plain initialization.
+Put these patches in the app's `cluster/kustomization.yaml`, using only the base Postgres component.
+The optional `postgres/init` component is for empty databases, not imports.
 
 A logical import does not need a source ObjectStore. Mealie and Home Assistant instead use physical
 recovery with a temporary source ObjectStore and read-only old-bucket credentials, as described in
