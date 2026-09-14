@@ -1,6 +1,6 @@
 # VolSync
 
-The [disposable test](../../apps/storage/volsync-test/) follows the normal app layout:
+PVC-backed apps use this layout:
 
 ```text
 app-name/
@@ -14,11 +14,12 @@ Preflight and backup point `spec.path` directly at the shared `volsync/restore-p
 bases here. Storage includes `volsync/restore` through `spec.components` only during recovery.
 The ordering is **preflight → storage → app → backup**. Preflight needs `onepassword-store`; storage needs
 `longhorn-config` and, during recovery, `volsync`; backup needs `volsync` and `onepassword-store`.
-Use `wait: true` and copy the test's storage readiness expressions, adapting the PVC/destination names.
+Use `wait: true` and adapt the PVC/destination names in the
+[verified proof's storage readiness expressions](https://github.com/evanmoelter/hcc/blob/ae99787081248ec0a513bd5d70fe32804c9c9849/kubernetes/apollo/apps/storage/volsync-test/ks-storage.yaml).
 
 Apps declare the PVC's `dataSourceRef` explicitly for recovery. A new app instead creates a plain PVC and
 omits preflight and the restore component. Protect durable claims with
-`kustomize.toolkit.fluxcd.io/prune: disabled`; the disposable test omits it.
+`kustomize.toolkit.fluxcd.io/prune: disabled`.
 
 Set `APP` for each backup stream; backup `CLAIM` and repository paths default to `APP`.
 Recovery requires `VOLSYNC_RESTORE_ID` on preflight and storage, `VOLSYNC_RESTORE_BUCKET` on preflight,
@@ -67,4 +68,4 @@ Backups always write to Apollo's bucket. For migration, set `VOLSYNC_RESTORE_BUC
 and original restic password (one item may hold all three fields). Restore needs Object Read & Write for locks;
 revoke the old-bucket key after verification. Bucket names and paths stay in git.
 
-The [proof procedure](../../apps/storage/volsync-test/README.md) covers deployment, restore cleanup, and teardown.
+The disposable live proof is complete; [storage documentation](../../../../docs/storage.md#volsync) records its result.
