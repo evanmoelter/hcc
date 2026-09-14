@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: volsync-test-verify-v2
+  name: volsync-test-verify-post-cleanup-v2
   annotations:
     kustomize.toolkit.fluxcd.io/force: enabled
 spec:
