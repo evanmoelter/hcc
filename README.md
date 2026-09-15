@@ -17,7 +17,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 
 Apps cut over one at a time from verified backups. `kubernetes/main` stays intact for rollback until the last app has moved. [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) holds the full design: node topology, storage, networking, and per-app data migration.
 
-[Apollo monitoring](./docs/monitoring.md) describes the bootstrap metrics stack, temporary retention, and LAN/Tailscale cluster dashboard.
+[Apollo monitoring](./docs/monitoring.md) describes the bootstrap metrics stack, temporary retention, and LAN/Tailscale cluster and Flux dashboards.
 [Apollo secrets](./docs/secrets.md) describes ESO, the dedicated `hcc-apollo` vault, Connect credentials, and opt-in configuration reloads.
 [Apollo certificates](./docs/certificates.md) describes cert-manager, Cloudflare credential setup, and production wildcard issuance.
 [Apollo gateway](./docs/gateway.md) describes the ingress foundation and completed LAN verification.

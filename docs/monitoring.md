@@ -49,3 +49,10 @@ Deployment verification is pending. From the LAN, confirm the dashboard hostname
 Check `kubectl --context apollo top nodes`, then confirm that both dashboard
 URLs show Apollo's nodes and pods with CPU/memory usage and continuing updates. The `/health` probe only checks
 the web process, so a Ready pod does not prove that Kubernetes API queries work.
+
+## Flux dashboard
+
+Open `https://flux-ui.${SECRET_DOMAIN}` on the LAN or use `flux-ui` in Tailscale.
+The Flux Operator's built-in UI has no application login and stays in its default read-only mode;
+reconcile, suspend, resume, and other user actions are disabled. LAN access relies on the trusted network,
+and tailnet access follows the existing Tailscale policy. Adding login and actions is a separate decision.
