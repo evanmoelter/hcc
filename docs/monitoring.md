@@ -57,7 +57,8 @@ The Flux Operator's built-in UI has no application login and stays in its defaul
 reconcile, suspend, resume, and other user actions are disabled. LAN access relies on the trusted network,
 and tailnet access follows the existing Tailscale policy. Adding login and actions is a separate decision.
 
-The routes reconcile separately from the operator so Flux can start before Envoy Gateway or Tailscale.
+Both routes share one UI Kustomization that waits for Envoy Gateway and Tailscale. It reconciles separately
+from the operator so Flux can start before either routing dependency.
 Both use the operator's `http-web` Service port, 9080; its `http` port serves metrics.
 The internal HTTPRoute follows [szinn's configuration](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-operator/app/httproute.yaml)
 and Apollo's existing dashboard routing pattern.
