@@ -4,7 +4,12 @@ kind: Kustomization
 metadata:
   name: cnpg-smoke-cluster
   namespace: flux-system
+  labels:
+    cnpg-rehearsal.home.arpa/stage: &stage seed
 spec:
+  commonMetadata:
+    labels:
+      cnpg-rehearsal.home.arpa/stage: *stage
   dependsOn:
     - name: plugin-barman-cloud
     - name: longhorn-config
