@@ -5,7 +5,7 @@ metadata:
   name: cnpg-smoke-cluster
   namespace: flux-system
   labels:
-    cnpg-rehearsal.home.arpa/stage: &stage seed
+    cnpg-rehearsal.home.arpa/stage: &stage restore
 spec:
   commonMetadata:
     labels:
