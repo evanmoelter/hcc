@@ -7,6 +7,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
+  retryInterval: 1m
+  timeout: 10m
   path: ./kubernetes/apollo/apps/flux-system/flux-operator/app
   prune: true
   wait: true
