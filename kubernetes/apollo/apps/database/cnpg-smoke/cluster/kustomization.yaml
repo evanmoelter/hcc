@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
+patches:
+  - target:
+      group: postgresql.cnpg.io
+      kind: Cluster
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/kustomize.toolkit.fluxcd.io~1prune
+        value: enabled
+      - op: add
+        path: /spec/postgresql
+        value:
+          parameters:
+            archive_timeout: 60s
+  - target:
+      group: barmancloud.cnpg.io
+      kind: ObjectStore
+    patch: |-
+      - op: replace
+        path: /spec/configuration/wal/maxParallel
+        value: 1

@@ -5,3 +5,4 @@ resources:
   - ./namespace.yaml
   - ./cloudnative-pg/ks.yaml
   - ./cloudnative-pg/ks-barman.yaml
+  - ./cnpg-smoke/ks-cluster.yaml

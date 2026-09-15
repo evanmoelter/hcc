@@ -101,9 +101,11 @@ Three things make this cheaper than it sounds:
 
 Independently of the app, confirm `cube` and `earthdistance` (teslamate's extensions; `earthdistance` depends on `cube`) ship in the CNPG image for whichever major is chosen.
 
-### Backup-chain rehearsal (declined)
+### Backup-chain rehearsal
 
-A one-off Barman restore into a throwaway cluster was also considered as a rehearsal of the R2 backup chain, and **declined**: during the migration the old cluster is itself the fallback, still running and never modified by an import, which is a stronger safety net than a restore test. Worth noting the residual: this leaves the R2 recovery path unexercised, so the first real use of those backups would also be the first proof they work. That matters only after the old cluster is decommissioned (Step 8), not during the migration.
+The [CNPG rehearsal](20260915-cnpg-rehearsal.md) exercises Apollo's plugin backup and recovery path
+with a disposable SQL workload before app migration. Mealie still proves recovery from the old
+cluster's in-tree Barman archive.
 
 ## Backups move to the Barman Cloud plugin
 
