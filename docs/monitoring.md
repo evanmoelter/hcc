@@ -56,16 +56,3 @@ Open `https://flux-ui.${SECRET_DOMAIN}` on the LAN or use `flux-ui` in Tailscale
 The Flux Operator's built-in UI has no application login and stays in its default read-only mode;
 reconcile, suspend, resume, and other user actions are disabled. LAN access relies on the trusted network,
 and tailnet access follows the existing Tailscale policy. Adding login and actions is a separate decision.
-
-Both routes share one UI Kustomization that waits for Envoy Gateway and Tailscale. It reconciles separately
-from the operator so Flux can start before either routing dependency.
-Both use the operator's `http-web` Service port, 9080; its `http` port serves metrics.
-The internal HTTPRoute follows [szinn's configuration](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-operator/app/httproute.yaml)
-and Apollo's existing dashboard routing pattern.
-
-Deployment verification is pending. Confirm the LAN hostname resolves to `192.168.21.100`, then open both
-HTTPS URLs and verify the UI shows Apollo's Flux resources and their current status without action controls.
-Get the full tailnet URL with
-`kubectl --context apollo -n flux-system get ingress flux-operator-tailscale`.
-Check that the HTTPRoute is Accepted with ResolvedRefs and the Tailscale Ingress has an assigned hostname;
-neither status alone proves the browser can load live data.
