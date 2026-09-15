@@ -6,6 +6,3 @@ resources:
   - ./cloudnative-pg/ks.yaml
   - ./cloudnative-pg/ks-barman.yaml
   - ./cnpg-smoke/ks-cluster.yaml
-  - ./cnpg-smoke/ks-backup.yaml
-  - ./cnpg-smoke/ks-seed.yaml
-  - ./cnpg-smoke/ks-wal.yaml
