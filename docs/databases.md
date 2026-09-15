@@ -60,9 +60,11 @@ Seeded-data backup and recovery remain unverified; Mealie is the first proof tha
 old cluster's in-tree Barman archive. The [local fixtures](../tests/test_postgres_component.py) exercise
 rendering and bootstrap cleanup without deploying a database.
 
-The [disposable SQL rehearsal](../plans/20260915-cnpg-rehearsal.md) tests Apollo's own backup and recovery
-path before app migration. Its `cnpg-smoke` Cluster explicitly permits pruning so each deletion is
-performed through Flux. Merge its stages individually and verify each gate before advancing.
+The [disposable SQL rehearsal](../plans/20260915-cnpg-rehearsal.md) defines the merge gates for testing
+Apollo's own backup and recovery path before app migration. It deletes the database before removing
+the ObjectStore and ExternalSecret, allowing shutdown to finish while archive credentials remain
+available. Kubernetes cleanup leaves the `cnpg-smoke/` R2 prefix intact; remove that prefix separately
+before repeating initialization with the same archive identity.
 
 SQL ConfigMaps containing dollar-quoted blocks need the annotation
 `kustomize.toolkit.fluxcd.io/substitute: disabled`: Flux substitution otherwise reduces `$$` to `$`.
