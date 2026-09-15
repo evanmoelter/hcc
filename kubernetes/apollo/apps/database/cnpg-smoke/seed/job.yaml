@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cnpg-smoke-seed
+  name: cnpg-smoke-seed-v2
   labels:
     app.kubernetes.io/name: &app cnpg-smoke
 spec:

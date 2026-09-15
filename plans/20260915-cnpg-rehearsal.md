@@ -49,6 +49,7 @@ and passing CI establish only that the changes render, not that backup and recov
 |---|---|---|
 | 1: Initialize | Register the disposable database with explicit init and pruning enabled. | Database Ready, credentials synchronized, initial scheduled backup completed. |
 | 2: Seed and back up | Suspend the schedule; seed 1,000 deterministic rows; take `cnpg-smoke-seed` after the Job completes. | Seed Job Complete, named Backup completed, no other backup running. |
+| 2a: Retry seed | Preserve SQL ConfigMaps during Flux substitution; replace the failed seed Job with `cnpg-smoke-seed-v2`. | Retry Job Complete and `cnpg-smoke-seed` Backup completed before PR3. |
 | 3: Exercise WAL | Remove the init reference; run the post-backup insert/update/delete workload and wait for its WAL to archive. | Database Kustomization Ready with PR3's revision and recovery bootstrap applied; WAL Job Complete; record its counts and WAL filename; schedule remains suspended. |
 | 4: Remove database | Prune the SQL Jobs, named Backup, Cluster, and ScheduledBackup while retaining the archive configuration and credentials. | Old Cluster, pods, and PVCs absent; old Longhorn volumes detached/deleted; no writer remains. |
 | 5: Restore and write | Recreate the Cluster using the base component's default recovery; validate both datasets, then make and check new writes. | New Cluster/PVC UIDs; restore logs show Barman recovery; verifier authenticates using the recreated application Secret, validates recovered data, and completes. |
@@ -81,9 +82,9 @@ Read-only inspection commands use the explicit `apollo` context:
 kubectl --context apollo -n flux-system get kustomizations
 kubectl --context apollo -n database get cluster cnpg-smoke-pg
 kubectl --context apollo -n database get scheduledbackup cnpg-smoke-pg
-kubectl --context apollo -n database get backups -l cnpg.io/cluster=cnpg-smoke-pg
+kubectl --context apollo -n database get backups.postgresql.cnpg.io
 kubectl --context apollo -n database get jobs -l app.kubernetes.io/name=cnpg-smoke
-kubectl --context apollo -n database logs job/cnpg-smoke-seed
+kubectl --context apollo -n database logs job/cnpg-smoke-seed-v2
 kubectl --context apollo -n database logs job/cnpg-smoke-wal
 kubectl --context apollo -n database logs job/cnpg-smoke-verify
 kubectl --context apollo -n database get pods,pvc -l cnpg.io/cluster=cnpg-smoke-pg
@@ -123,5 +124,14 @@ failover, and migration from the old archive remain separate tests.
 
 ## Run record
 
-Pending. Attach the observed backup IDs, Job results, and old/new resource UIDs during execution.
+Initialization passed: credentials synchronized, database and Flux owner Ready, continuous archiving healthy,
+and scheduled backup `20260915T213601` completed on 2026-09-15 at 21:36:08 UTC.
+Initial Cluster UID: `248f8c88-3be3-4de0-a49e-2f5ceceb448a`.
+Initial PVC UID: `e5e05ac0-bcde-4fa6-9e86-11a75dcf9b2a`.
+
+The first seed Job failed because Flux substitution reduced SQL dollar-quote delimiters from `$$` to `$`.
+Its transaction rolled back and the dependent named backup did not start. PR2a retries the seed with
+substitution disabled on its SQL ConfigMap. Later SQL stages use the same protection.
+
+Attach the remaining backup IDs, Job results, and restored resource UIDs during execution.
 After cleanup, move the durable outcome to `docs/databases.md` and replace this plan with a pointer.
