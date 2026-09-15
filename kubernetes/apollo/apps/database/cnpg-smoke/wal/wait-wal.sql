@@ -1,6 +1,6 @@
 DO $$
 DECLARE
-    committed_wal text := pg_walfile_name(pg_current_wal_insert_lsn());
+    committed_wal text := pg_walfile_name(pg_current_wal_lsn() - 1);
     archived_wal text;
 BEGIN
     FOR attempt IN 1..120 LOOP
