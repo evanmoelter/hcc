@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/cluster_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: ${APP}-pg
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled
+    cnpg.io/skipEmptyWalArchiveCheck: enabled
+spec:
+  instances: ${POSTGRES_INSTANCES:-1}
+  imageName: ${POSTGRES_IMAGE:-REQUIRED}
+  enableSuperuserAccess: false
+  storage:
+    storageClass: ${POSTGRES_STORAGE_CLASS:-longhorn}
+    size: ${POSTGRES_CAPACITY:-5Gi}
+  postgresUID: &uid ${POSTGRES_UID:-26}
+  postgresGID: &gid ${POSTGRES_GID:-102}
+  podSecurityContext:
+    runAsUser: *uid
+    runAsGroup: *gid
+    runAsNonRoot: true
+    fsGroup: *gid
+    fsGroupChangePolicy: OnRootMismatch
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  resources:
+    requests:
+      cpu: ${POSTGRES_CPU_REQUEST:-100m}
+      memory: ${POSTGRES_MEMORY_REQUEST:-256Mi}
+    limits:
+      memory: ${POSTGRES_MEMORY_LIMIT:-1Gi}
+  bootstrap:
+    recovery:
+      source: ${APP}-pg-backup
+      database: ${POSTGRES_DATABASE:-${APP}}
+      owner: ${POSTGRES_USERNAME:-${APP}}
+  externalClusters:
+    - name: ${APP}-pg-backup
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: ${APP}-pg
+          serverName: ${APP}-pg-apollo-v1
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: ${APP}-pg
+        serverName: ${APP}-pg-apollo-v1
+  monitoring:
+    enablePodMonitor: true

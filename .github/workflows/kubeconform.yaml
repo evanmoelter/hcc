@@ -48,8 +48,8 @@ jobs:
         shell: bash
         run: bash ./scripts/kubeconform.sh ./kubernetes/${{ matrix.cluster }}
 
-  volsync-preflight:
-    name: VolSync Tests
+  component-tests:
+    name: Component Tests
     needs: pre-job
     if: ${{ needs.pre-job.outputs.any_changed == 'true' }}
     runs-on: ubuntu-latest
@@ -57,12 +57,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
-      - name: Test VolSync preflight
+      - name: Setup Homebrew
+        uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
+
+      - name: Setup Test Tools
+        run: brew install fluxcd/tap/flux kubeconform kustomize yq
+
+      - name: Test component rendering and lifecycle
         run: python3 -m unittest discover -s tests
 
   kubeconform-status:
     name: Kubeconform Success
-    needs: ["pre-job", "kubeconform", "volsync-preflight"]
+    needs: ["pre-job", "kubeconform", "component-tests"]
     runs-on: ubuntu-latest
     if: ${{ always() }}
     steps:

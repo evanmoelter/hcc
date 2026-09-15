@@ -109,57 +109,18 @@ Use `topf` for machine configuration. Hand-author `topf.yaml` and strategic-merg
 
 Apollo replaces `kubernetes/main/templates/` with `kubernetes/apollo/components/`, holding Kustomize `Component` resources rather than plain bases. A component attaches through the consuming Flux `Kustomization`'s `spec.components` and can patch what it composes with, so shared configuration is written once instead of retyped per app.
 
-Know what a component can reach, because it is narrower than it looks. A component composes into the build of `spec.path`. It can add resources there and patch them, including `HelmRelease.spec.dependsOn`, which is how an app's release comes to wait on the CNPG operator release. It cannot touch the `ks.yaml` that references it: that file is rendered by `cluster-apps`, a different build. `dependsOn` and `healthCheckExprs` on the owning Kustomization stay written out by hand, or arrive from a root patch selected by label.
+Components compose into the consuming `spec.path`; they cannot patch their owning Flux Kustomization
+or an app release in another build. Dependencies and readiness checks stay on the owning Kustomizations.
 
-Three components cover the migration:
+| Component | Provides |
+|---|---|
+| `volsync` | Preflight, restore wiring for app-defined PVCs, and backup lifecycles; [usage](../kubernetes/apollo/components/volsync/) |
+| `postgres` | Per-app database, backup credentials, archive, and schedule; [usage and recovery lifecycle](../docs/databases.md) |
+| `namespace` | Planned shared Namespace with pruning disabled |
 
-| Component | Replaces | Provides |
-|---|---|---|
-| `volsync` | `templates/volsync` | Preflight, restore wiring for app-defined PVCs, and backup lifecycle components; [usage](../kubernetes/apollo/components/volsync/) |
-| `postgres` | a hand-written `cluster.yaml` per app | CNPG `Cluster`, its `ObjectStore`, `ScheduledBackup`, and a `HelmRelease.dependsOn` on the CNPG operator release |
-| `namespace` | a `namespace.yaml` per namespace | The `Namespace`, annotated `kustomize.toolkit.fluxcd.io/prune: disabled` |
-
-A database-backed app gets two Kustomizations, following "One Flux Kustomization per lifecycle" in AGENTS.md. The satellite renders the component and waits; the app depends on it:
-
-```yaml
-# ks-cluster.yaml
-spec:
-  components:
-    - ../../../../components/postgres
-  path: ./kubernetes/apollo/apps/default/mealie/cluster
-  wait: true
-  healthCheckExprs:
-    - apiVersion: postgresql.cnpg.io/v1
-      kind: Cluster
-      current: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'True')
-      failed: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'False')
-  postBuild:
-    substitute:
-      APP: *app
----
-# ks.yaml
-spec:
-  dependsOn:
-    - name: mealie-cluster
-```
-
-Rendering the cluster and the app together would not work. Health checks gate a Kustomization's own readiness; they do not order resources within one. A single Kustomization applies the CNPG `Cluster` and the `HelmRelease` in the same pass, so the app would start against a database still restoring.
-
-The `postgres` component defaults to `bootstrap.recovery`, not `initdb`. This inverts the trap recorded under "Data migration methods": copying a manifest forward and forgetting to switch it produces an empty but healthy database, and nothing reports a problem. With recovery as the default, a net-new database is the case that must be declared, and a forgotten switch fails loudly with no target backup found rather than quietly succeeding. Declare it with a label that the root Kustomization turns into a plain `initdb`:
-
-```yaml
-metadata:
-  name: &app teslamate
-  labels:
-    components.postgres/cnpg: init
-```
-
-Drop the label once the app's first backup lands, so a later rebuild recovers instead of reinitializing.
-
-Two details are easy to lose:
-
-- `cnpg.io/skipEmptyWalArchiveCheck: enabled` goes on the `Cluster`, so the component carries it. Recovery into a cluster whose destination archive is non-empty is refused by default, which is exactly the case when a rebuilt cluster reuses its own server name. Safe here, because the recovered cluster inherits the source's system identifier and writes new WAL on a new timeline.
-- `healthCheckExprs` goes on a Kustomization, so the component cannot carry it. It belongs in `ks-cluster.yaml` above, together with `wait: true`; expressions alone define how to judge a custom resource and do not select anything to wait for.
+The Postgres component and its explicit initialization opt-in are implemented. Per-app cutovers must
+supply compatible images and credentials, verify restored data and the first Apollo backup, then remove
+one-time bootstrap configuration. Mealie remains the first live proof of recovery from the old Barman archive.
 
 ### Root Kustomization defaults
 
@@ -168,7 +129,7 @@ Apollo's `cluster-apps` Kustomization patches defaults into every child `Kustomi
 The trap is that the parent wins. Flux applies `spec.patches` to the rendered output of `spec.path`, so a defaulted field overrides whatever the app wrote in its own file. An app cannot opt out by setting the field locally: the value it writes is replaced, and only the rendered diff shows it happened. Three rules keep that manageable.
 
 - Default only what is universal, where an app disagreeing is a smell rather than a requirement. Remediation policy, CRD handling, and deletion policy qualify. Resource requests, replica counts, and timeouts do not.
-- Give any default with a legitimate exception a `labelSelector` escape hatch on the patch target, the way the `postgres` component's `init` label works. The opt-out is then declared in the app's own `ks.yaml` and greppable across the tree. The repo already uses this idiom in `kubernetes/main/flux/apps.yaml`: `substitution.flux.home.arpa/disabled notin (true)`.
+- Give any default with a legitimate exception a `labelSelector` escape hatch on the patch target. The opt-out is then declared in the app's own `ks.yaml` and greppable across the tree. The repo already uses this idiom in `kubernetes/main/flux/apps.yaml`: `substitution.flux.home.arpa/disabled notin (true)`.
 - Read defaults through the rendered diff. CI renders the effective manifest, so a default that surprises an app surfaces in the PR that adds the app rather than at reconcile time.
 
 Add a default once two apps need it. A default introduced for one app is a patch in the wrong place.
@@ -249,9 +210,9 @@ remain outside this step.
 Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
 [docs/monitoring.md](../docs/monitoring.md#cluster-dashboard) records access and pending verification.
 
-The CNPG operator and Barman Cloud plugin are defined for Apollo;
-[docs/databases.md](../docs/databases.md) records their integration and pending deployment verification.
-The reusable Postgres component, ObjectStores, credentials, and per-app databases remain part of app migration.
+The CNPG operator, Barman Cloud plugin, and reusable Postgres component are implemented;
+[docs/databases.md](../docs/databases.md) records integration, verification, and consumer setup.
+Per-app database deployment and backup/restore verification remain part of app migration.
 
 ## Networking and external state
 
@@ -461,7 +422,7 @@ Platform:
 - [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, and `longhorn-snapclass`.
 - [ ] Create `kubernetes/apollo/components/` with the `volsync`, `postgres`, and `namespace` components before the first app rebuild.
 - [ ] Set the `cluster-apps` defaults, and give each one a `labelSelector` escape hatch where an app may legitimately differ.
-- [ ] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
+- [x] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
 - [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.
 - [ ] Confirm hcc-tablet1 is decommissioned.
@@ -475,7 +436,7 @@ Per app:
 - [ ] Use Barman recovery for Mealie and Home Assistant, with a fresh on-demand backup; verify recorder history after Home Assistant restores.
 - [ ] Prove on Mealie, before any other database moves, that the plugin recovers from an archive the old cluster wrote with the in-tree integration. The object-store format is unchanged, but Mealie is the first real use of it.
 - [ ] Put every CNPG cluster and its `ObjectStore` in the app namespace, and check the supported PostgreSQL major and required extensions before import.
-- [ ] Remove the `components.postgres/cnpg: init` label once a net-new database's first backup lands.
+- [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
 - [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.
 - [ ] Verify external OIDC login to Mealie after Authentik moves.
 
