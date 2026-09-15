@@ -23,14 +23,20 @@ Deletion and recreation are separate merged revisions, with an absence check bet
 exercises the default recovery path with the original archive identity and newly provisioned storage.
 The database Kustomization, ObjectStore, and backup ExternalSecret survive the gap.
 
-Scheduled backups are suspended while testing WAL recovery. A named base backup follows the seed Job;
+Scheduled backups stay suspended from the seed stage through teardown. A named base backup follows the seed Job;
 a later Job inserts, updates, and deletes records. Recovering those later changes proves WAL replay.
 The test sets `archive_timeout` to one minute and uses serial WAL archiving so the workload can wait
 for the WAL segment containing its committed changes to appear in `pg_stat_archiver`. This is a bounded
 wait with a failure exit, not a fixed delay treated as success.
 
+Removing the init component after the seed backup exercises the documented transition of a running
+database to recovery configuration. PR3 verifies that the owning Kustomization accepts this change
+before the database is deleted; deferring it until recreation would omit that lifecycle check.
+
 The restore Job checks all expected records before writing anything. It cannot initialize an empty
 database or repair missing rows. It then performs another transaction and checks the new state.
+It connects using the recreated application Secret, proving CNPG reconciles those credentials with
+the restored database owner. An authentication failure blocks this gate before data checks begin.
 A second named backup proves the restored database can still back up.
 
 ## PR stack and merge gates
@@ -43,10 +49,10 @@ and passing CI establish only that the changes render, not that backup and recov
 |---|---|---|
 | 1: Initialize | Register the disposable database with explicit init and pruning enabled. | Database Ready, credentials synchronized, initial scheduled backup completed. |
 | 2: Seed and back up | Suspend the schedule; seed 1,000 deterministic rows; take `cnpg-smoke-seed` after the Job completes. | Seed Job Complete, named Backup completed, no other backup running. |
-| 3: Exercise WAL | Remove the init reference; run the post-backup insert/update/delete workload and wait for its WAL to archive. | WAL Job Complete; record its counts and WAL filename; schedule remains suspended. |
+| 3: Exercise WAL | Remove the init reference; run the post-backup insert/update/delete workload and wait for its WAL to archive. | Database Kustomization Ready with PR3's revision and recovery bootstrap applied; WAL Job Complete; record its counts and WAL filename; schedule remains suspended. |
 | 4: Remove database | Prune the SQL Jobs, named Backup, Cluster, and ScheduledBackup while retaining the archive configuration and credentials. | Old Cluster, pods, and PVCs absent; old Longhorn volumes detached/deleted; no writer remains. |
-| 5: Restore and write | Recreate the Cluster using the base component's default recovery; validate both datasets, then make and check new writes. | New Cluster/PVC UIDs, restore logs show Barman recovery, verifier Job Complete. |
-| 6: Back up restored database | Resume scheduling and take `cnpg-smoke-restored` after verification. | Named Backup completed; WAL archiving healthy on the restored database. |
+| 5: Restore and write | Recreate the Cluster using the base component's default recovery; validate both datasets, then make and check new writes. | New Cluster/PVC UIDs; restore logs show Barman recovery; verifier authenticates using the recreated application Secret, validates recovered data, and completes. |
+| 6: Back up restored database | Keep scheduling suspended and take `cnpg-smoke-restored` after verification. | Named Backup completed; WAL archiving healthy on the restored database; schedule remains suspended. |
 | 7: Retire database | Prune the verifier, backup, Cluster, and ScheduledBackup; retain the ObjectStore and credentials until shutdown finishes. | Cluster, pods, and PVCs absent; no remaining Longhorn volume for the test. |
 | 8: Remove scaffolding | Remove the remaining Flux owner, ObjectStore, ExternalSecret, and test directory. | Test resources absent; record the observed results in `docs/databases.md`. |
 
@@ -68,7 +74,6 @@ otherwise use a new application/archive identity throughout a new rehearsal.
 
 Every stage runs `task kubernetes:kubeconform CLUSTER=apollo` and renders Apollo's Flux Kustomizations.
 The existing Postgres component tests cover the common initialization and recovery manifests.
-The SQL is also exercised locally with missing/corrupt-data cases to verify that checks fail closed.
 
 Read-only inspection commands use the explicit `apollo` context:
 
