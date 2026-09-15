@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cnpg-smoke-cluster
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: plugin-barman-cloud
+    - name: longhorn-config
+    - name: onepassword-store
+  targetNamespace: database
+  path: ./kubernetes/apollo/apps/database/cnpg-smoke/cluster
+  components:
+    - ../../../../components/postgres
+    - ../../../../components/postgres/init
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  healthCheckExprs:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      current: >-
+        has(status.conditions) &&
+        status.conditions.exists(e, e.type == 'Ready' && e.status == 'True')
+  interval: 30m
+  retryInterval: 1m
+  timeout: 30m
+  postBuild:
+    substitute:
+      APP: cnpg-smoke
+      POSTGRES_DATABASE: smoke
+      POSTGRES_USERNAME: smoke
+      POSTGRES_IMAGE: ghcr.io/cloudnative-pg/postgresql:18.1-system-trixie@sha256:51bc94428be3df3e234447278e33803544a93d27a57a4b6af737f218d6472d12

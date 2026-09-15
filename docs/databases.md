@@ -59,5 +59,9 @@ Database backup and recovery remain unverified; Mealie is the first proof that t
 old cluster's in-tree Barman archive. The [local fixtures](../tests/test_postgres_component.py) exercise
 rendering and bootstrap cleanup without deploying a database.
 
+The [disposable SQL rehearsal](../plans/20260915-cnpg-rehearsal.md) tests Apollo's own backup and recovery
+path before app migration. Its `cnpg-smoke` Cluster explicitly permits pruning so each deletion is
+performed through Flux. Merge its stages individually and verify each gate before advancing.
+
 [Storage](storage.md#r2-backup-separation) records backup bucket separation.
 The [migration plan](../plans/20260816-talos-migration.md) tracks per-app cutovers.
