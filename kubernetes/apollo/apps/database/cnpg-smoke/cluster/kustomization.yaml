@@ -22,3 +22,10 @@ patches:
       - op: replace
         path: /spec/configuration/wal/maxParallel
         value: 1
+  - target:
+      group: postgresql.cnpg.io
+      kind: ScheduledBackup
+    patch: |-
+      - op: add
+        path: /spec/suspend
+        value: true
