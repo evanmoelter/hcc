@@ -54,75 +54,25 @@ source configuration and credentials. Keep the Cluster and its owning Kustomizat
 bypasses the empty-archive check to reuse its own archive; never run another writer against that server name.
 Cluster pruning is disabled, so removing the component does not delete its database.
 
-## Backup and recovery verification
+## Lifecycle checks
 
-Operator deployment, plugin registration, certificates, and the operator scrape were verified on 2026-09-13.
-The disposable `cnpg-smoke` rehearsal verified Apollo backup and recovery on 2026-09-15–16 UTC using
-PostgreSQL 18.1, CNPG 1.30.0, and Barman Cloud plugin 0.15.0. The
-[component fixtures](../tests/test_postgres_component.py) continue to cover rendering and bootstrap configuration.
+For a disposable database with pruning enabled, remove the Cluster before its ObjectStore and
+ExternalSecret so shutdown can finish while archive credentials remain available. Check that its pods,
+PVC/PV, and associated Longhorn storage are gone before removing the archive configuration or starting
+recovery. Flux Ready alone does not establish that deletion has completed.
 
-The live run passed initialization, application authentication, a seeded base backup, post-backup WAL
-replay onto fresh storage, authentication with recreated application credentials, new writes after recovery,
-and a backup of the restored database. Point-in-time targets, multi-instance failover, and recovery from
-the old cluster's in-tree Barman archive remain unverified; Mealie's migration will test that archive path.
-
-### Run evidence
-
-All completion times below are UTC. Each backup reached `completed` through the Barman plugin.
-
-| Backup | Backup ID | Completed |
-|---|---|---|
-| Initial scheduled backup | `20260915T213601` | 2026-09-15 21:36:08 |
-| `cnpg-smoke-seed` | `20260915T215741` | 2026-09-15 21:57:50 |
-| `cnpg-smoke-restored` | `20260916T043810` | 2026-09-16 04:38:15 |
-
-Each SQL Job checked the exact expected records. The checksums are MD5 over ordered `id:payload` pairs.
-
-| Completed Job | Rows | Checksum |
-|---|---|---|
-| `cnpg-smoke-seed-v2` | 1,000 | `d550ccd7b455b94ba92e911a03de6cb8` |
-| `cnpg-smoke-wal` | 1,000 | `9d581269d82da82678be38ce4338d570` |
-| `cnpg-smoke-verify` | 1,000 | `15b7611293b2064a36c35a1c9ec917cf` |
-
-The WAL Job updated, deleted, and inserted 100 rows each after the seed backup. Its committed segment
-`00000001000000000000000E` was archived, and the recovery logs confirmed replay of that segment before
-promotion to timeline 2. The verifier authenticated using the recreated `cnpg-smoke-pg-app` Secret and
-checked the recovered dataset before making another 100 updates, deletes, and inserts. Its new segment
-`000000020000000000000012` archived successfully; the restored backup used timeline 2.
-
-| Resource | Original UID | Restored UID |
-|---|---|---|
-| Cluster | `248f8c88-3be3-4de0-a49e-2f5ceceb448a` | `fa34026d-a389-46c9-bd78-3b65bd8e8ffd` |
-| PVC | `e5e05ac0-bcde-4fa6-9e86-11a75dcf9b2a` | `18163c67-31a9-4755-bae0-5ea125e13882` |
-
-Before recovery and again at retirement, read-only checks confirmed the Cluster, pods, PVC/PV, and
-associated Longhorn volume, engine, and replicas were absent. The
-[removal](https://github.com/evanmoelter/hcc/pull/279) and
-[retirement](https://github.com/evanmoelter/hcc/pull/282) revisions retained the ObjectStore and ExternalSecret
-until shutdown and storage removal finished. Flux Ready alone did not establish that deletion had completed.
-
-The workload and Kubernetes scaffolding are removed by the
-[final cleanup](https://github.com/evanmoelter/hcc/pull/283). R2 deletion is separate operator work:
-`s3://tf-hcc-apollo-cnpg/cnpg-smoke/` remains until explicitly removed. Confirm that prefix is empty before
-repeating initialization with the same archive identity; retention does not clean up a retired database.
-
-### Observed issues
-
-The first seed attempt failed because Flux substitution changed SQL dollar-quote delimiters from `$$` to `$`.
-Its transaction rolled back and the dependent backup stayed blocked. The
-[corrective PR](https://github.com/evanmoelter/hcc/pull/284) disabled substitution for the SQL ConfigMaps and
-created `cnpg-smoke-seed-v2` for the retry. A regression test reproduced the failure with Flux substitution
-enabled and was removed with the disposable SQL files during cleanup.
-
-The first post-restore workload WAL archived at 23:20:05 UTC, alongside the first timed checkpoint,
-about five minutes after PostgreSQL started despite `archive_timeout=60s`. The ten-minute verifier wait
-passed without intervention. The cause was not isolated; this run does not establish a one-minute upper
-bound on archive latency immediately after recovery.
+Kubernetes cleanup leaves R2 archives intact. Remove an archive prefix separately and confirm it is empty
+before repeating initialization with the same archive identity. Retention does not clean up a retired database.
+Gate recovery and backup stages on confirmed WAL archiving; the first segment after recovery can take
+longer than `archive_timeout` to archive.
 
 SQL ConfigMaps containing dollar-quoted blocks need the annotation
 `kustomize.toolkit.fluxcd.io/substitute: disabled`: Flux substitution otherwise reduces `$$` to `$`.
 Render SQL with post-build variables enabled when validating it locally; dry-run builds omit values
 loaded from cluster Secrets and ConfigMaps and can skip substitution entirely.
+
+The [completed rehearsal](../plans/done/20260915-cnpg-rehearsal.md) records backup and recovery coverage,
+observed limitations, and execution evidence.
 
 [Storage](storage.md#r2-backup-separation) records backup bucket separation.
 The [migration plan](../plans/20260816-talos-migration.md) tracks per-app cutovers.
