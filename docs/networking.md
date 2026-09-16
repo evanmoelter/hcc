@@ -96,8 +96,28 @@ Home Assistant needs no rule. Its IoT interface is an attachment on VLAN 2 rathe
 
 ## Home Assistant and the IoT VLAN
 
-Matter discovery is mDNS over IPv6, and with no IPv6 subnet configured it runs on link-local addresses. Those are scoped to a single L2 segment and cannot be routed or reflected between VLANs. A macvlan attachment onto VLAN 2 is therefore the only mechanism that works, not a convenience.
+Home Assistant and its Matter Server need local IPv6 connectivity and multicast discovery on the IoT network.
+The chosen Apollo design keeps their pod on VLAN 2 through a Multus macvlan attachment while its primary
+interface remains on the cluster network. An Apple TV routes between Thread and VLAN 2; it does not provide
+the pod's path from the cluster network to VLAN 2. An mDNS reflector alone would not provide that IPv6 path.
+[Home Assistant's Matter guidance](https://www.home-assistant.io/integrations/matter/#general-recommendations)
+recommends keeping the server and Thread border routers on the same LAN; IPv6 internet access is not required.
 
-Home Assistant is pinned to hcc6, which needs VLAN 6 untagged and VLAN 2 tagged on its switch port. hcc6 carries the IoT path rather than hcc7 because it has a dual NIC: if the tagged trunk proves awkward, the second port can take VLAN 2 untagged without moving the workload again. The attachment takes `192.168.6.100/22`: the upper half of VLAN 2, outside the DHCP range, with the `/22` mask the subnet actually uses. The current cluster uses `192.168.4.100/24`, which sits inside the DHCP range with no reservation and carries the wrong mask.
+The Apollo scheduling design requires a verified IoT attachment and prefers hcc6; USB hardware is optional.
+hcc5 and hcc7 are the initial additional candidates, with workers eligible after the same network verification.
+Each eligible node needs VLAN 6 untagged and VLAN 2 tagged on its switch port, a Talos `bond0.2` link, and the
+Multus CNI prerequisites. The shared NetworkAttachmentDefinition uses `bond0.2` as its macvlan parent, so
+physical NIC names can differ between nodes. Only verified nodes receive the IoT capability label used by
+HA's required node affinity; hcc6 uses preferred affinity. The existing Talos VLAN patch covers only hcc6;
+extending it and deploying Apollo's Multus and HA workloads remain migration work.
 
-Any other workload needing IoT discovery needs its own attachment and the same node pinning.
+The attachment takes `192.168.6.100/22`: the upper half of VLAN 2, outside the DHCP range, with the `/22`
+mask the subnet actually uses. It follows the single HA/Matter Server pod between eligible nodes. The current
+cluster uses `192.168.4.100/24`, which sits inside the DHCP range with no reservation and carries the wrong mask.
+Other workloads needing IoT discovery require their own attachment and address and the same node eligibility.
+
+A Thread-capable Apple TV on VLAN 2 supplies the initial Thread border router and Apple home hub. Pair the
+planned Aqara U400 directly with Apple Home for Home Key, then share it with HA through Matter. A future USB
+radio runs with OTBR in a separate workload pinned to its hardware node, with its own IoT address and the
+same Thread network credentials. It is not an HA sidecar or startup dependency; HA and Matter Server need
+no USB mounts. This keeps HA movable even when the optional radio or its host is unavailable.
