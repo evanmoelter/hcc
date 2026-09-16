@@ -54,20 +54,15 @@ source configuration and credentials. Keep the Cluster and its owning Kustomizat
 bypasses the empty-archive check to reuse its own archive; never run another writer against that server name.
 Cluster pruning is disabled, so removing the component does not delete its database.
 
-Operator deployment, plugin registration, certificates, and the operator scrape were verified on 2026-09-13.
-Disposable database initialization, WAL archiving, and its initial base backup were verified on 2026-09-15.
-Seeded-data backup and recovery remain unverified; Mealie is the first proof that the plugin can read the
-old cluster's in-tree Barman archive. The [local fixtures](../tests/test_postgres_component.py) exercise
-rendering and bootstrap cleanup without deploying a database.
-
-The [disposable SQL rehearsal](../plans/20260915-cnpg-rehearsal.md) tests Apollo's own backup and recovery
-path before app migration. Its `cnpg-smoke` Cluster explicitly permits pruning so each deletion is
-performed through Flux. Merge its stages individually and verify each gate before advancing.
+## SQL workloads
 
 SQL ConfigMaps containing dollar-quoted blocks need the annotation
 `kustomize.toolkit.fluxcd.io/substitute: disabled`: Flux substitution otherwise reduces `$$` to `$`.
 Render SQL with post-build variables enabled when validating it locally; dry-run builds omit values
 loaded from cluster Secrets and ConfigMaps and can skip substitution entirely.
+
+The [completed rehearsal](../plans/done/20260915-cnpg-rehearsal.md) records backup and recovery coverage,
+observed limitations, and execution evidence.
 
 [Storage](storage.md#r2-backup-separation) records backup bucket separation.
 The [migration plan](../plans/20260816-talos-migration.md) tracks per-app cutovers.

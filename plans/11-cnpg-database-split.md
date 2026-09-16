@@ -103,7 +103,7 @@ Independently of the app, confirm `cube` and `earthdistance` (teslamate's extens
 
 ### Backup-chain rehearsal
 
-The [CNPG rehearsal](20260915-cnpg-rehearsal.md) exercises Apollo's plugin backup and recovery path
+The [CNPG rehearsal](done/20260915-cnpg-rehearsal.md) exercised Apollo's plugin backup and recovery path
 with a disposable SQL workload before app migration. Mealie still proves recovery from the old
 cluster's in-tree Barman archive.
 
