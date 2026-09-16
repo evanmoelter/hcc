@@ -226,7 +226,7 @@ VLAN 6, `192.168.20.0/22`, with Apollo in `192.168.21.0/24`. [docs/networking.md
 - Isolate the HCC and IoT VLANs in both directions by default.
 - Temporarily allow Apollo to reach `192.168.6.21:5432` for the authentik, Paperless, and TeslaMate imports. Remove the rule after all three migrate.
 - Allow Apollo to reach only the UCG Fiber Integration API needed by external-dns.
-- Give Home Assistant one intentional IoT path through multus on hcc6. Trunk the IoT VLAN to hcc6, create the tagged link in hcc6's `topf` node patch, and set the same tag in the NAD.
+- Give Home Assistant and Matter Server an IoT path through Multus on each eligible node. Extend the existing hcc6 Talos VLAN patch to hcc5 and hcc7, trunk VLAN 2 to their switch ports, and use the common `bond0.2` parent in the NAD. Label nodes eligible only after verifying that path; workers can join the eligible set later. [docs/networking.md](../docs/networking.md#home-assistant-and-the-iot-vlan) records the network and Thread decisions.
 
 A separate Longhorn replication VLAN and BGP load-balancer announcements remain out of scope.
 
@@ -331,7 +331,7 @@ Logical import permits a PostgreSQL major-version change, but check each app's s
 
 | App | Required review |
 |---|---|
-| Home Assistant | Assign an IoT VLAN address; pin it to hcc6 and keep it there for the foreseeable future; reserve a USB port for the future Thread antenna; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
+| Home Assistant | Require verified IoT networking; prefer hcc6 but allow other eligible nodes without USB; use Apple TV for Thread and keep any future USB/OTBR workload separate; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
 | Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 50Gi for the library PVC |
 | Mealie | Restore LAN reachability using the chosen Gateway pattern; consider adding its missing Tailscale Ingress; recover the database instead of using initdb |
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
@@ -340,7 +340,19 @@ Logical import permits a PostgreSQL major-version change, but check each app's s
 | App-template and raw-manifest workloads | Check `home-operations/containers` for a compatible replacement, especially for images currently built under `ghcr.io/evanmoelter`; verify user IDs, paths, arguments, and security context before switching |
 | TeslaMate | Confirm `teslamate_db_2024-03-18.sql` in `teslamate-backup-pvc` is no longer needed |
 
-Home Assistant moves in Wave 1 and stays pinned to hcc6 for the foreseeable future, so hcc6 must have a trunked IoT VLAN port before app migration starts. Keep `postgres-lb` until every logical import finishes; then decide whether external database access remains useful.
+Home Assistant moves in Wave 1 after the IoT path is verified on hcc6 and at least one alternative node.
+Use required node affinity for a verified IoT capability label and `preferredDuringSchedulingIgnoredDuringExecution`
+for hcc6. Keep HA and Matter Server together as one replica with a `Recreate` deployment strategy and persistent
+config and Matter state, so their IoT address and Matter identity survive a move. A preference does not move an
+already-running pod back to hcc6. Rescheduling includes downtime for pod startup and Longhorn volume attachment;
+do not start a replacement until the old instance is confirmed stopped or its node fenced.
+
+Start with the Apple TV border router and no USB dependency. If USB/OTBR is added later, give it a separate
+workload and Flux lifecycle, hard affinity to the radio's node, its own IoT address, and membership in Apple's
+Thread network. HA must not mount the radio, require OTBR readiness, or depend on OTBR's Flux Kustomization.
+The radio's location is at most a placement preference for HA; network eligibility remains mandatory.
+
+Keep `postgres-lb` until every logical import finishes; then decide whether external database access remains useful.
 
 Migrate in this order:
 
@@ -348,7 +360,7 @@ Migrate in this order:
 2. Mealie, to prove the smaller hybrid and Barman recovery.
 3. Paperless, after VolSync and Barman recovery have been exercised.
 4. TeslaMate and Grafana together.
-5. Home Assistant, after its hcc6 network path is ready.
+5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
 
 ## Execution waves
@@ -370,7 +382,7 @@ Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on
 2. Shut down the old cluster as a unit. Power off hcc and hcc2 for disposal.
 3. Wipe hcc3 and hcc4, install Talos, and join them as workers.
 4. Wipe the two 1TB SSDs from the Odroids and install them in hcc5 and hcc6 in place of the unused HDDs. Work one node at a time and wait for Longhorn rebuilds.
-5. Recheck hcc6's multus interface name, driver, VLAN tag, and cabling after the worker expansion. Home Assistant remains pinned there for the foreseeable future.
+5. Verify the Multus parent link, VLAN trunk, and IPv6 discovery on each worker intended to host Home Assistant before adding its IoT capability label. Confirm HA can move between eligible nodes without USB hardware.
 6. Return Apollo's Cloudflare external-dns to `policy: sync`.
 7. Delete `kubernetes/main`, `ansible/`, system-upgrade-controller, its k3s Plan, and taskfiles used only by ansible or k3s.
 8. Revoke the old Cloudflare tunnel credentials and Tailscale OAuth client. Wipe every retired or repurposed disk.
@@ -401,7 +413,8 @@ Network and hardware:
 - [ ] Create the HCC VLAN, addressing, and firewall rules described above.
 - [ ] Generate the UniFi API key, allow Apollo to reach the Integration API, and prove record creation. UniFi OS 5.1.19 and Network 10.5.67 already satisfy the webhook requirements.
 - [ ] Open the temporary path to `192.168.6.21:5432`.
-- [ ] Provision hcc6's trunked IoT path and assign the IoT VLAN ID in Talos and the NAD.
+- [ ] Provision VLAN 2 trunks and the common Talos `bond0.2` link on hcc6, hcc5, and hcc7; deploy Multus and its NAD, then label only nodes with a verified IoT path.
+- [ ] Put the Thread-capable Apple TV on VLAN 2 and verify Matter Server's local IPv6 connectivity, Thread routes, and multicast discovery from each eligible node.
 
 Cluster bootstrap:
 
@@ -440,6 +453,7 @@ Per app:
 - [ ] Put every CNPG cluster and its `ObjectStore` in the app namespace, and check the supported PostgreSQL major and required extensions before import.
 - [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
 - [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.
+- [ ] Verify HA/Matter Server rescheduling from hcc6 to another eligible node without USB or OTBR: preserve the IoT address, both PVCs, existing Matter pairings, and device control. Schedule the disruptive test with operator approval.
 - [ ] Verify external OIDC login to Mealie after Authentik moves.
 
 Wave 2:
@@ -461,8 +475,6 @@ Before Wave 2, cluster-wide rollback means leaving all four old nodes untouched.
 # Open questions
 
 - Does the echo-server test choose split-horizon or dual-route?
-- Should Home Assistant be the Thread border router at all? OTBR must send router advertisements and forward IPv6 on its infrastructure link, which needs `NET_ADMIN` and sysctl changes that fight the hardened non-root security context this repo standardizes on. A dedicated border router or an existing HomePod on VLAN 2 would leave Home Assistant a plain Matter controller. Decide before reserving hcc6's USB port for a Thread antenna, and before assuming the pinning to hcc6 is permanent.
-- Does the Home Assistant pod's macvlan interface get an IPv6 link-local address? Matter discovery is mDNS over IPv6 and finds nothing without one. Testable on the current cluster.
 - Should ad blocking return through UniFi or a non-primary pihole?
 - Future work: consider a dedicated Longhorn replication VLAN after the migration stabilizes.
 - Future work: revisit `kopiur` as a VolSync replacement once Apollo is stable. Three of the four reference repos have already retired VolSync for it, but it is pre-1.0 and every Wave 1 restore depends on the backup path, so the migration stays on VolSync and restic.
