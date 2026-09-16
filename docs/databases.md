@@ -54,17 +54,7 @@ source configuration and credentials. Keep the Cluster and its owning Kustomizat
 bypasses the empty-archive check to reuse its own archive; never run another writer against that server name.
 Cluster pruning is disabled, so removing the component does not delete its database.
 
-## Lifecycle checks
-
-For a disposable database with pruning enabled, remove the Cluster before its ObjectStore and
-ExternalSecret so shutdown can finish while archive credentials remain available. Check that its pods,
-PVC/PV, and associated Longhorn storage are gone before removing the archive configuration or starting
-recovery. Flux Ready alone does not establish that deletion has completed.
-
-Kubernetes cleanup leaves R2 archives intact. Remove an archive prefix separately and confirm it is empty
-before repeating initialization with the same archive identity. Retention does not clean up a retired database.
-Gate recovery and backup stages on confirmed WAL archiving; the first segment after recovery can take
-longer than `archive_timeout` to archive.
+## SQL workloads
 
 SQL ConfigMaps containing dollar-quoted blocks need the annotation
 `kustomize.toolkit.fluxcd.io/substitute: disabled`: Flux substitution otherwise reduces `$$` to `$`.

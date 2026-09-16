@@ -6,7 +6,6 @@ A disposable SQL application exercises Apollo's Postgres component before househ
 The application creates known records, changes them after a base backup, and checks the recovered data
 before making fresh writes. The rehearsal uses `cnpg-smoke` in the existing `database` namespace.
 
-This supersedes the declined rehearsal in [the database split plan](../11-cnpg-database-split.md).
 Mealie still proves recovery from the old cluster's in-tree Barman archive; this rehearsal proves the
 Apollo plugin's own backup and recovery path.
 
