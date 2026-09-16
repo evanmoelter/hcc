@@ -185,4 +185,3 @@ The first post-restore workload WAL archived at 23:20:05 UTC, alongside the firs
 about five minutes after PostgreSQL started despite `archive_timeout=60s`. The ten-minute verifier wait
 passed without intervention. The cause was not isolated; this run does not establish a one-minute upper
 bound on archive latency immediately after recovery.
-
