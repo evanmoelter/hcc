@@ -193,8 +193,9 @@ records credential setup and issuance checks. Envoy Gateway and echo-server prov
 [docs/gateway.md](../docs/gateway.md) records its configuration and successful LAN verification.
 Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are defined for dual-route testing;
 [docs/dns.md](../docs/dns.md) records ownership, Terraform and credential setup, and pending deployment checks.
-External-path testing, forwarded-header trust, and echo's return to internal-only access remain on the ingress
-path. Longhorn is defined on the parallel storage path;
+Public-path reachability and tunnel-only isolation passed on 2026-09-17, including operator-confirmed off-LAN
+access. External-only client-IP trust is configured; post-deployment forged-header verification and echo's
+return to internal-only access remain on the ingress path. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
 Snapshot-controller, its separately reconciled `longhorn-snapclass`, and the VolSync controller are defined
 after Longhorn; [docs/storage.md](../docs/storage.md) records configuration and pending snapshot/backup/restore
@@ -276,13 +277,14 @@ per Gateway and apply common fields through a shared Kustomize patch; overlappin
 do not merge automatically. Keep the internal Gateway's forwarded-client-IP trust disabled and establish
 source-bound cloudflared trust on the external Gateway. The operator chose tunnel-only external ingress;
 an ingress NetworkPolicy restricts its HTTPS listener to cloudflared while preserving Prometheus access.
-Verify that policy's enforcement before enabling pod-CIDR trust in a follow-up change.
+Its enforcement passed live checks on 2026-09-17, and external-only pod-CIDR trust is configured.
 
 Prove the chosen shape on echo-server before any stateful app moves, including DNS, TLS, client-IP handling,
 and forged-header checks on both paths. Separate echo routes, UniFi's internal-Gateway filter, and per-Gateway
 client policies with shared TLS settings are defined. LAN dual-route and DNS checks passed on 2026-09-17 UTC,
-as did tunnel requests forced to public DNS addresses. External isolation, independent off-LAN testing,
-and source-bound forwarded-header trust remain pending; [docs/gateway.md](../docs/gateway.md) records the gates.
+as did tunnel requests forced to public DNS addresses. External isolation and independent off-LAN testing
+also passed. Post-deployment client-IP and forged-header checks remain pending for the external-only trust
+change; [docs/gateway.md](../docs/gateway.md) records the gates.
 
 LAN traffic reaches an app with the real client address. Tunnel traffic arrives from cloudflared with Cloudflare's forwarded headers. Account for both paths in Authentik's trusted-proxy configuration and the Home Assistant proxy CIDRs.
 
@@ -291,9 +293,10 @@ Set Apollo's Cloudflare external-dns to `txtOwnerId: apollo` and `policy: upsert
 Use cert-manager's staging issuer during repeated bootstrap attempts and avoid simultaneous wildcard renewals across clusters.
 
 [docs/gateway.md](../docs/gateway.md) records the foundation: `externalTrafficPolicy: Cluster` with Cilium's
-existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Neither
-Gateway trusts forwarded client addresses yet. [plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks
-remaining isolation, external-path verification, and forwarded-header trust work.
+existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Only the
+external Gateway trusts forwarded client addresses, following verified tunnel isolation.
+[plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks post-deployment client-IP and spoofed-header
+verification, echo cleanup, and app proxy-trust checks.
 
 ### Backup paths and identities
 
