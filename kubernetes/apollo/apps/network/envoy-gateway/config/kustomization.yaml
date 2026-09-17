@@ -9,3 +9,15 @@ resources:
   - ./httproute.yaml
   - ./clienttrafficpolicy.yaml
   - ./podmonitor.yaml
+patches:
+  - target:
+      group: gateway.envoyproxy.io
+      kind: ClientTrafficPolicy
+    patch: |-
+      apiVersion: gateway.envoyproxy.io/v1alpha1
+      kind: ClientTrafficPolicy
+      metadata:
+        name: not-used
+      spec:
+        tls:
+          minVersion: "1.2"

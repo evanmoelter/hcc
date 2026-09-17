@@ -191,7 +191,7 @@ Connect provide secrets from the dedicated `hcc-apollo` vault, using SOPS for bo
 issuers, and production wildcard certificate are defined under Apollo; [docs/certificates.md](../docs/certificates.md)
 records credential setup and issuance checks. Envoy Gateway and echo-server provide the ingress foundation;
 [docs/gateway.md](../docs/gateway.md) records its configuration and successful LAN verification.
-Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are defined for split-horizon testing;
+Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are defined for dual-route testing;
 [docs/dns.md](../docs/dns.md) records ownership, Terraform and credential setup, and pending deployment checks.
 External-path testing, forwarded-header trust, and echo's return to internal-only access remain on the ingress
 path. Longhorn is defined on the parallel storage path;
@@ -272,8 +272,9 @@ source-bound cloudflared trust on the external Gateway. Dual routes alone do not
 to the external Gateway.
 
 Prove the chosen shape on echo-server before any stateful app moves, including DNS, TLS, client-IP handling,
-and forged-header checks on both paths. The current echo route and UniFi controller still implement the
-single-route test configuration; changing them and verifying dual-route behavior remain implementation work.
+and forged-header checks on both paths. Separate echo routes, UniFi's internal-Gateway filter, and per-Gateway
+client policies with shared TLS settings are defined. Live dual-route verification and source-bound
+forwarded-header trust remain pending.
 
 LAN traffic reaches an app with the real client address. Tunnel traffic arrives from cloudflared with Cloudflare's forwarded headers. Account for both paths in Authentik's trusted-proxy configuration and the Home Assistant proxy CIDRs.
 

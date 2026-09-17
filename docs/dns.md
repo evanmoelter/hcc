@@ -7,11 +7,16 @@ Household hostnames stay on `main` until their individual cutovers.
 |---|---|
 | Terraform | Local `apollo` tunnel and proxied `external-apollo.${SECRET_DOMAIN}` alias to its UUID |
 | `cloudflare-dns` | External Gateway app records pointing to that alias; owner `apollo`, `upsert-only` through Wave 1 |
-| `unifi-dns` | Both Gateways’ LAN records and annotated LoadBalancer Services; owner `apollo-unifi`, `sync` |
+| `unifi-dns` | Internal Gateway LAN records and annotated LoadBalancer Services; owner `apollo-unifi`, `sync` |
 
 Cloudflare reads `external-dns-cloudflare.kubernetes.io/target` on the external Gateway. UniFi uses the
 `external-dns.alpha.kubernetes.io/` prefix and reads Gateway status addresses instead. Annotate raw
 LoadBalancer Services with that prefix’s `hostname` key for LAN DNS. Terraform’s alias is excluded from external-dns.
+
+Public apps with LAN access use separate HTTPRoutes on the internal and external Gateways with the same
+hostname and backend. UniFi's Gateway filter prevents it from publishing both Gateway addresses for that name.
+The filter leaves its LoadBalancer Service source enabled. External-only routes, such as the Flux webhook,
+do not create UniFi records; local clients use public DNS for those names.
 
 Both DNS releases use the signed [OCI mirror](https://github.com/home-operations/charts-mirror).
 Move to upstream OCI when available; the mirror prunes charts six months afterward.
@@ -45,12 +50,14 @@ Allow HCC → `192.168.4.1:443` per
 The [LAN baseline](./gateway.md#lan-verification) passed. DNS and tunnel verification remain pending:
 
 - Confirm Flux, ExternalSecrets, both DNS deployments, two tunnel replicas, and their metrics targets are healthy.
-- For `echo-apollo.${SECRET_DOMAIN}`, UniFi DNS should answer `192.168.21.101`; public DNS should answer Cloudflare addresses.
+- For `echo-apollo.${SECRET_DOMAIN}`, UniFi DNS should answer only `192.168.21.100`; public DNS should answer Cloudflare addresses.
+- Confirm the former echo LAN address `192.168.21.101` is removed, not retained alongside the internal address.
 - Test HTTPS from a LAN client and an external connection. A LAN request alone does not prove the tunnel works.
 - Follow the [ingress plan](../plans/04-envoy-gateway.md) for client-IP and spoofed-header checks before enabling proxy trust.
 
-Echo is intentionally public during testing. Afterward, move its route to `envoy-internal`: LAN DNS should
-change to `192.168.21.100`, and the tunnel must stop serving echo. Remove its leftover public DNS and matching
+Echo is intentionally public during testing. Afterward, disable its chart-generated external route and retain
+`echo-server-internal`: LAN DNS should remain `192.168.21.100`, and the tunnel must stop serving echo.
+Remove its leftover public DNS and matching
 Apollo TXT record manually; `upsert-only` retains them. [Tailscale](./tailscale.md) has a separate echo Ingress;
 complete its credential setup and tailnet verification independently.
 

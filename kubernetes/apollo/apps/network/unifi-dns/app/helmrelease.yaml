@@ -60,6 +60,7 @@ spec:
       - gateway-httproute
       - service
     extraArgs:
+      - --gateway-name=envoy-internal
       - --service-type-filter=LoadBalancer
     serviceMonitor:
       enabled: true
