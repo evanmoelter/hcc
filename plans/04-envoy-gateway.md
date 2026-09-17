@@ -17,21 +17,22 @@ records the comparison and shared-policy approach. This decision does not establ
 ## Remaining work
 
 1. Complete the operator credential and firewall setup in the DNS runbook and verify Flux readiness.
-2. Give echo-server separate internal and external HTTPRoutes with the same hostname and backend.
-   Scope UniFi's Gateway source to `envoy-internal`, retain its annotated Service source, and keep Cloudflare
-   scoped to `envoy-external`. Verify LAN DNS points to `192.168.21.100` and public DNS reaches the tunnel.
+2. Verify echo-server's separate internal and external HTTPRoutes with the same hostname and backend.
+   UniFi's Gateway source is scoped to `envoy-internal`, with its annotated Service source retained;
+   Cloudflare remains scoped to `envoy-external`. Verify LAN DNS points only to `192.168.21.100` and public
+   DNS reaches the tunnel. Confirm UniFi removes the former external-Gateway LAN record.
    Provider-specific annotation prefixes now let Cloudflare read the external Gateway's tunnel target
-   while UniFi reads the internal Gateway's LAN status address. Echo currently attaches only to the external
-   Gateway; the dual-route test is not implemented yet. The operator chose unauthenticated public access
-   during testing; afterward remove only echo's external route and verify it is unreachable through the tunnel.
+   while UniFi reads the internal Gateway's LAN status address. The operator chose unauthenticated public access
+   during testing; afterward disable echo's chart-generated external route, retain `echo-server-internal`,
+   and verify echo is unreachable through the tunnel.
    The Tailscale operator and echo Ingress are defined;
    complete the credential setup and tailnet verification in [docs/tailscale.md](../docs/tailscale.md).
 3. Establish cloudflared's actual source address and the narrowest justified forwarded-header trust.
    Use `ClientTrafficPolicy.spec.clientIPDetection.xForwardedFor.trustedCIDRs` to bind trust to those proxy ranges.
    Keep the internal Gateway untrusted. Do not enable `numTrustedHops` alone on a Gateway reachable
    directly from the LAN. Verify forged headers on both paths before configuring Authentik or Home Assistant.
-   Define common policy settings once. Use one complete `ClientTrafficPolicy` per Gateway with a shared
-   Kustomize patch for common fields; overlapping policies do not merge automatically. Shared app security
+   Each Gateway now has one `ClientTrafficPolicy` with a shared Kustomize patch for TLS settings;
+   forwarded-header trust remains unset. Overlapping policies do not merge automatically. Shared app security
    policies should target both routes when their requirements match. Verify the rendered common fields and
    intentional trust differences before deployment.
 4. Migrate app routes during their individual cutovers. Raw LoadBalancer services and Tailscale Ingresses

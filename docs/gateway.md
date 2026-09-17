@@ -25,8 +25,9 @@ are incompatible with `Local`: the announcing node can lack a ready proxy endpoi
 [DSR](https://docs.cilium.io/en/stable/network/kubernetes/kubeproxy-free/#direct-server-return-dsr)
 preserves the source address when a different node serves the request.
 
-A shared ClientTrafficPolicy requires TLS 1.2 or newer. Neither Gateway trusts X-Forwarded-For hops or
-CIDRs. Tunnel forwarding and app proxy trust remain work in
+Each Gateway has its own ClientTrafficPolicy. A shared Kustomize patch supplies the TLS 1.2 minimum
+to both, so common settings have one definition without relying on policy merging. Neither Gateway
+trusts X-Forwarded-For hops or CIDRs. Tunnel forwarding and app proxy trust remain work in
 [the ingress plan](../plans/04-envoy-gateway.md).
 
 HTTP listeners accept routes from `network`; one shared route redirects requests to HTTPS. HTTPS
@@ -36,9 +37,13 @@ TLS Secret in `network`, so no cross-namespace certificate grant is needed.
 
 Controller installation, certificates, and gateway configuration reconcile separately. The certificates
 Kustomization waits for `cert-manager-issuers`; configuration waits for the controller and certificate.
-The `echo-server` test route attaches `echo-apollo.${SECRET_DOMAIN}` to the external HTTPS listener for
-split-horizon testing. Public DNS sends it through the tunnel; UniFi sends it directly to the external
-Gateway's LAN address. After testing, move its parent to `envoy-internal` to remove public access.
+Echo uses two routes for `echo-apollo.${SECRET_DOMAIN}`: the chart's `echo-server` route attaches to the
+external HTTPS listener, and `echo-server-internal` attaches to the internal HTTPS listener. Both send
+traffic to the same Service. The echo chart exposes one route, so the additional route is a separate manifest.
+Public DNS sends requests through the tunnel; UniFi sends LAN requests to the internal Gateway.
+After testing, disable the chart's `httpRoute.enabled` value to remove public access while retaining
+the internal route. The [migration design](../plans/20260816-talos-migration.md#dns-and-ingress) records
+dual routes as a soft decision, revisitable if their maintenance becomes burdensome.
 
 ## LAN verification
 
@@ -47,20 +52,23 @@ ready replicas each, and echo-server was Accepted with ResolvedRefs on both pare
 returned HTTP 301 and successful HTTPS with certificate verification. `x-envoy-external-address` preserved
 the workstation's source address even with a forged X-Forwarded-For header. The LAN gate passed.
 
-During split-horizon testing, echo attaches only to `envoy-external`. Check HTTP redirects on both
-Gateways and HTTPS echo responses on `192.168.21.101`. These commands inspect status without reading Secret contents:
+The dual-route configuration still needs live verification. Check HTTP redirects and HTTPS echo responses
+on both Gateways. These commands inspect status without reading Secret contents:
 
 ```sh
 flux --context apollo get kustomizations -A
 kubectl --context apollo -n network get helmrelease,certificate,gateway,httproute
 kubectl --context apollo -n network get deployment,pod,service -o wide
 kubectl --context apollo -n network describe gateway envoy-internal envoy-external
-kubectl --context apollo -n network describe httproute echo-server
+kubectl --context apollo -n network describe httproute echo-server echo-server-internal
+kubectl --context apollo -n network get clienttrafficpolicy
 ```
 
 Confirm the certificate is Ready, both Gateways are Accepted and Programmed at their assigned addresses,
-and echo-server's route is Accepted with ResolvedRefs on its external parent. Each Gateway should have two ready
-proxy replicas. Check that the generated Services have `externalTrafficPolicy: Cluster`:
+and both echo routes are Accepted with ResolvedRefs on their respective parents. Each ClientTrafficPolicy
+must be Accepted for its own Gateway, with no conflict or override; the former shared `envoy` policy must
+be absent. Each Gateway should have two ready proxy replicas. Check that the generated Services have
+`externalTrafficPolicy: Cluster`:
 
 ```sh
 kubectl --context apollo -n network get service -o custom-columns=NAME:.metadata.name,IP:.status.loadBalancer.ingress,TRAFFIC:.spec.externalTrafficPolicy
@@ -75,12 +83,12 @@ gateway_test_host='echo-apollo.YOUR_DOMAIN'
 for gateway_test_ip in 192.168.21.100 192.168.21.101; do
   curl --noproxy '*' --resolve "${gateway_test_host}:80:${gateway_test_ip}" \
     --silent --show-error --dump-header - --output /dev/null "http://${gateway_test_host}/"
+  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
+    --fail --silent --show-error "https://${gateway_test_host}/"
+  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
+    --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
+    "https://${gateway_test_host}/"
 done
-curl --noproxy '*' --resolve "${gateway_test_host}:443:192.168.21.101" \
-  --fail --silent --show-error "https://${gateway_test_host}/"
-curl --noproxy '*' --resolve "${gateway_test_host}:443:192.168.21.101" \
-  --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
-  "https://${gateway_test_host}/"
 ```
 
 Expect an HTTP 301 with the same hostname and HTTPS scheme, then successful HTTPS responses without
