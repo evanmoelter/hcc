@@ -133,6 +133,11 @@ and static IPAM. It uses Talos's `/etc/cni/net.d` and `/opt/cni/bin` paths. Mult
 host files; its main container uses `NET_ADMIN`, a read-only root filesystem, and no privilege escalation.
 The installer init container uses the chart's default security context. Cilium must retain
 `cni.exclusive: false` so it does not rename Multus's configuration out of the CNI search path.
+Cilium manages `bond0`; `bpf.vlanBypass: [2]` allows the IoT VLAN through its parent-device filter.
+Create the Talos VLAN links before rolling out this Cilium setting: Cilium discovers VLAN links at startup.
+If a link is added afterward and packets still hit the VLAN filter, an operator-approved Cilium restart
+may be needed. See [Cilium's VLAN guidance](https://docs.cilium.io/en/latest/configuration/vlan-802.1q/)
+and the [Talos/macvlan report](https://github.com/cilium/cilium/issues/45719).
 
 The `multus` Flux Kustomization waits for Cilium; `multus-config` waits for Multus and owns the shared
 `kube-system/iot` attachment. The attachment adds a connected VLAN 2 route and leaves the primary Cilium
@@ -153,14 +158,16 @@ Cilium policy on the primary interface does not establish isolation for the dire
 
 ### Deployment verification
 
-Installation and IoT path verification are separate gates. As of 2026-09-17, the manifests and node
-patches are prepared; live Multus installation, trunk checks, and per-node IoT verification are pending.
+Installation and IoT path verification are separate gates. On 2026-09-17, the operator confirmed all three
+candidate nodes use the UniFi profile with HCC (6) native and Home Automation (2) tagged. The manifests and
+node patches are prepared; Talos application, live Multus installation, and per-node IoT verification remain pending.
 
 1. Confirm each candidate node's UniFi port carries VLAN 6 untagged and VLAN 2 tagged. With operator
    approval, apply the committed Talos configuration one node at a time using
    `task talos:apply CLUSTER=apollo node=hcc5` (then hcc6 and hcc7). Confirm `bond0.2` exists with VLAN ID 2
    and parent `bond0`. The link intentionally has no host IPv4 address or default route.
-2. Let Flux install Multus from the merged manifests. Check installation without changing cluster state:
+2. Merge after the VLAN links exist. Let Flux roll out Cilium's VLAN bypass, then install Multus through
+   its dependency. Check installation without changing cluster state:
 
    ```sh
    kubectl --context apollo -n flux-system get kustomizations multus multus-config

@@ -215,8 +215,9 @@ The Flux Operator UI is exposed read-only on the LAN and Tailscale;
 
 Multus and the shared IoT attachment are defined for Apollo, with Talos VLAN patches for hcc5, hcc6,
 and hcc7. [docs/networking.md](../docs/networking.md#multus) records consumer integration and deployment
-verification. Switch trunk verification, Talos application, live Multus checks, and per-node IPv6/Thread
-testing remain pending; no IoT capability labels are assigned before those checks pass.
+verification. The operator confirmed all three UniFi trunks on 2026-09-17. Talos application, Cilium's
+VLAN 2 bypass rollout, live Multus checks, and per-node IPv6/Thread testing remain pending; no IoT
+capability labels are assigned before those checks pass.
 
 The CNPG operator, Barman Cloud plugin, and reusable Postgres component are implemented;
 [docs/databases.md](../docs/databases.md) records integration, verification, and consumer setup.

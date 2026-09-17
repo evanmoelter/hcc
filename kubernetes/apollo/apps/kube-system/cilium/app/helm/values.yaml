@@ -2,6 +2,7 @@
 autoDirectNodeRoutes: true
 bpf:
   masquerade: true
+  vlanBypass: [2]
 cgroup:
   autoMount:
     enabled: false
