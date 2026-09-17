@@ -24,7 +24,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo DNS](./docs/dns.md) describes split-horizon records, Terraform tunnel setup, and external testing.
 [Apollo Tailscale](./docs/tailscale.md) describes its separate identity, OAuth setup, and tailnet ingress testing.
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, CSI snapshots, VolSync, and hcc8 registration.
-[Apollo databases](./docs/databases.md) describes the Postgres component, database recovery lifecycle, and per-app Dragonfly integration.
+[Apollo databases](./docs/databases.md) describes the Postgres component, backup credentials, database recovery lifecycle, and per-app Dragonfly integration.
 [Apollo boot and disk security](./docs/talos-security.md) describes Secure Boot, TPM encryption, and node conversion.
 
 ## Hardware

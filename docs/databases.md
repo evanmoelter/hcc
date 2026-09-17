@@ -71,7 +71,8 @@ The [migration plan](../plans/20260816-talos-migration.md) tracks per-app cutove
 
 Apollo installs the upstream Dragonfly operator chart in `database`; the chart owns its CRD and RBAC.
 Its ServiceMonitor scrapes the operator's internal HTTP metrics endpoint with the chart's RBAC proxy disabled,
-matching Apollo's other controller metrics. Operator readiness and its Prometheus target still need deployment verification.
+matching Apollo's other controller metrics. Any pod that can reach the endpoint can scrape it without credentials.
+Operator readiness and its Prometheus target still need deployment verification.
 
 Dragonfly instances belong to their consuming apps and are added during app migration. Paperless gets a
 fresh memory-only instance with a password supplied through ESO from `hcc-apollo`; define its ExternalSecret
