@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, and echo-server; no household apps yet |
+| Status       | serving all apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, and echo-server; no household apps yet |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -26,6 +26,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, CSI snapshots, VolSync, and hcc8 registration.
 [Apollo databases](./docs/databases.md) describes the Postgres component, backup credentials, database recovery lifecycle, and per-app Dragonfly integration.
 [Apollo boot and disk security](./docs/talos-security.md) describes Secure Boot, TPM encryption, and node conversion.
+[Apollo networking](./docs/networking.md#multus) describes Multus, the IoT attachment, and per-node verification before Home Assistant migration.
 
 ## Hardware
 
