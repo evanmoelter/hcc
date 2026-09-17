@@ -30,6 +30,9 @@ Keep the old operator's credentials through Wave 1, and release each app hostnam
 
 ## Verification
 
-Deployment, HTTPS access, and credential rotation remain unverified. After Flux is ready, get echo's hostname with
+On 2026-09-17, echo's operator-published tailnet hostname returned HTTPS 200 with a trusted certificate and
+the echo JSON response from a tailnet client. Credential rotation remains unverified.
+
+After changes, get echo's hostname with
 `kubectl --context apollo -n network get ingress echo-server-tailscale` and request its HTTPS URL from a tailnet client.
 Verify a trusted certificate and an Apollo echo response. An assigned Ingress hostname alone does not prove connectivity.

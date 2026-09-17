@@ -28,8 +28,9 @@ preserves the source address when a different node serves the request.
 Each Gateway has its own ClientTrafficPolicy. A shared Kustomize patch supplies the TLS 1.2 minimum
 to both, so common settings have one definition without relying on policy merging. The external Gateway
 detects client addresses from X-Forwarded-For using Apollo's pod CIDR as its trusted proxy range.
-The internal Gateway does not trust forwarded headers. App proxy trust and post-deployment spoofing
-checks remain work in [the ingress plan](../plans/04-envoy-gateway.md).
+The internal Gateway does not trust forwarded headers. External X-Forwarded-For client detection passed
+the [origin verification](#client-ip-verification). App proxy-header checks remain work in
+[the ingress plan](../plans/04-envoy-gateway.md).
 
 The external Gateway's ingress NetworkPolicy admits only cloudflared pods in `network` to its HTTPS
 listener, and the bootstrap Prometheus in `monitoring` to its metrics port. It selects the generated proxy
@@ -61,8 +62,9 @@ Echo uses two routes for `echo-apollo.${SECRET_DOMAIN}`: the chart's `echo-serve
 external HTTPS listener, and `echo-server-internal` attaches to the internal HTTPS listener. Both send
 traffic to the same Service. The echo chart exposes one route, so the additional route is a separate manifest.
 Public DNS sends requests through the tunnel; UniFi sends LAN requests to the internal Gateway.
-After testing, disable the chart's `httpRoute.enabled` value to remove public access while retaining
-the internal route. The [migration design](../plans/20260816-talos-migration.md#dns-and-ingress) records
+Echo remains publicly accessible throughout the cluster migration so it is available for further testing.
+After the migration is complete, disable the chart's `httpRoute.enabled` value to remove public access while
+retaining the internal route. The [migration design](../plans/20260816-talos-migration.md#dns-and-ingress) records
 dual routes as a soft decision, revisitable if their maintenance becomes burdensome.
 
 ## LAN verification
@@ -160,9 +162,17 @@ Repeat the following checks after changes to the policy, proxy placement, or wor
 
 ## Client-IP verification
 
-External-only CIDR trust is configured; verification of the deployed trust change is pending. Keep echo's
-external route until these checks pass. Confirm both ClientTrafficPolicies are Accepted at their current
-generations, with only the external policy containing `clientIPDetection`.
+On 2026-09-17, Flux applied revision `b43eb2d`. Both ClientTrafficPolicies were Accepted at their current
+generations, with only the external policy containing `clientIPDetection`. Normal public requests and requests
+with a forged X-Forwarded-For value returned HTTPS 200; correlated origin logs identified the client's public
+address reported independently by Cloudflare's trace endpoint. Normal LAN requests and requests with forged
+X-Forwarded-For, CF-Connecting-IP, or both identified the LAN client's address. Direct external-Gateway LAN
+connections still timed out on 80/443, and all seven gateway and tunnel metrics targets stayed healthy.
+
+Cloudflare rejected public requests carrying a forged CF-Connecting-IP header with HTTP 403 before they
+reached the origin. External-origin handling of that header was not exercised. The configured
+[Envoy XFF detector](https://github.com/envoyproxy/envoy/blob/v1.39.1/source/extensions/http/original_ip_detection/xff/xff.cc)
+uses X-Forwarded-For, not CF-Connecting-IP; application proxy-header validation remains a separate requirement.
 
 Verify normal and forged-header tunnel requests against Envoy's `downstream_remote_address` access-log
 field. CIDR detection uses the original-IP extension and may omit `x-envoy-external-address`; that header
@@ -172,9 +182,11 @@ about Envoy's handling of that request.
 
 Use a unique query parameter for each request and match it to `x-envoy-origin-path` in the default JSON
 access logs. Compare the detected address with the client's independently known public address, and confirm
-that forged X-Forwarded-For and CF-Connecting-IP values cannot replace it. Repeat the internal-Gateway
-forged-header check above; it must still identify the LAN client. Recheck isolation and metrics health.
-After verification, disable echo's external route and complete the DNS cleanup in [dns.md](./dns.md).
+that a forged X-Forwarded-For value cannot replace it. Test CF-Connecting-IP separately and record whether
+the request reached the origin; an edge rejection does not establish origin behavior. Repeat the
+internal-Gateway forged-header check above; it must still identify the LAN client. Recheck isolation and
+metrics health. Retain echo's external route for further testing throughout the migration. Remove it and
+complete the DNS cleanup in [dns.md](./dns.md) after the migration is complete.
 
 ## References
 

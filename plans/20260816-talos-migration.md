@@ -194,8 +194,9 @@ records credential setup and issuance checks. Envoy Gateway and echo-server prov
 Cloudflare and UniFi external-dns and Apollo's locally managed tunnel are defined for dual-route testing;
 [docs/dns.md](../docs/dns.md) records ownership, Terraform and credential setup, and pending deployment checks.
 Public-path reachability and tunnel-only isolation passed on 2026-09-17, including operator-confirmed off-LAN
-access. External-only client-IP trust is configured; post-deployment forged-header verification and echo's
-return to internal-only access remain on the ingress path. Longhorn is defined on the parallel storage path;
+access. External-only XFF client-IP detection passed normal and forged-XFF origin checks; Cloudflare rejected
+forged CF-Connecting-IP requests before the origin, so that case remains unexercised. Echo stays public
+throughout the migration for further testing. Longhorn is defined on the parallel storage path;
 [docs/storage.md](../docs/storage.md) records disk assignments and deployment verification.
 Snapshot-controller, its separately reconciled `longhorn-snapclass`, and the VolSync controller are defined
 after Longhorn; [docs/storage.md](../docs/storage.md) records configuration and pending snapshot/backup/restore
@@ -205,7 +206,7 @@ and verification procedure. Verify the live proof and supply per-app credentials
 Reloader and opt-ins for DNS, cloudflared, and 1Password Connect are defined;
 [docs/secrets.md](../docs/secrets.md#configuration-reloads) records the app pattern and pending reload verification.
 Tailscale's operator and `echo-apollo` test Ingress are defined with Apollo-specific tags and OAuth credentials;
-[docs/tailscale.md](../docs/tailscale.md) records setup and pending tailnet verification. API access and subnet routing
+[docs/tailscale.md](../docs/tailscale.md) records setup and successful echo HTTPS verification. API access and subnet routing
 remain outside this step.
 
 Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and Tailscale dashboard names;
@@ -283,8 +284,10 @@ Prove the chosen shape on echo-server before any stateful app moves, including D
 and forged-header checks on both paths. Separate echo routes, UniFi's internal-Gateway filter, and per-Gateway
 client policies with shared TLS settings are defined. LAN dual-route and DNS checks passed on 2026-09-17 UTC,
 as did tunnel requests forced to public DNS addresses. External isolation and independent off-LAN testing
-also passed. Post-deployment client-IP and forged-header checks remain pending for the external-only trust
-change; [docs/gateway.md](../docs/gateway.md) records the gates.
+also passed. Normal and forged-XFF requests identified the real public client after the trust change deployed.
+Cloudflare rejected forged CF-Connecting-IP requests before they reached Envoy; external-origin handling of
+that header remains untested. [docs/gateway.md](../docs/gateway.md) records the checks and their limits.
+Keep echo's public route and DNS records until the cluster migration is complete so further testing remains possible.
 
 LAN traffic reaches an app with the real client address. Tunnel traffic arrives from cloudflared with Cloudflare's forwarded headers. Account for both paths in Authentik's trusted-proxy configuration and the Home Assistant proxy CIDRs.
 
@@ -295,8 +298,8 @@ Use cert-manager's staging issuer during repeated bootstrap attempts and avoid s
 [docs/gateway.md](../docs/gateway.md) records the foundation: `externalTrafficPolicy: Cluster` with Cilium's
 existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Only the
 external Gateway trusts forwarded client addresses, following verified tunnel isolation.
-[plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks post-deployment client-IP and spoofed-header
-verification, echo cleanup, and app proxy-trust checks.
+[plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks app proxy-trust checks and echo cleanup after the
+cluster migration is complete.
 
 ### Backup paths and identities
 
@@ -415,6 +418,8 @@ Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on
 6. Return Apollo's Cloudflare external-dns to `policy: sync`.
 7. Delete `kubernetes/main`, `ansible/`, system-upgrade-controller, its k3s Plan, and taskfiles used only by ansible or k3s.
 8. Revoke the old Cloudflare tunnel credentials and Tailscale OAuth client. Wipe every retired or repurposed disk.
+9. Once the migration is complete, remove echo's external route and public DNS records, retaining LAN and
+   Tailscale access. Keep public echo available until then for further testing.
 
 # Security
 
@@ -496,6 +501,7 @@ Wave 2:
 - [ ] Remove the temporary database firewall rule and return external-dns to sync policy.
 - [ ] Confirm nothing uses old DNS or pihole, then delete the old repo tree and tooling.
 - [ ] Revoke old credentials and wipe old disks.
+- [ ] After the migration is complete, remove echo's public route and DNS records while retaining LAN and Tailscale access.
 
 # Rollback
 
