@@ -66,3 +66,30 @@ observed limitations, and execution evidence.
 
 [Storage](storage.md#r2-backup-separation) records backup bucket separation.
 The [migration plan](../plans/20260816-talos-migration.md) tracks per-app cutovers.
+
+## Dragonfly
+
+Apollo installs the upstream Dragonfly operator chart in `database`; the chart owns its CRD and RBAC.
+Its ServiceMonitor scrapes the operator's internal HTTP metrics endpoint with the chart's RBAC proxy disabled,
+matching Apollo's other controller metrics. Operator readiness and its Prometheus target still need deployment verification.
+
+Dragonfly instances belong to their consuming apps and are added during app migration. Paperless gets a
+fresh memory-only instance with a password supplied through ESO from `hcc-apollo`; define its ExternalSecret
+and 1Password field alongside that migration. The operator alone requires no application credentials.
+Authentik no longer needs Redis as of [2025.10](https://docs.goauthentik.io/releases/2025.10/#redis-removal),
+so its old Redis configuration and Flux dependency are not carried forward. The old shared Dragonfly stays
+running while Paperless still uses it.
+
+Each instance needs its own Flux Kustomization, depending on `dragonfly-operator` and `onepassword-store`,
+with a health expression waiting for `status.phase == 'Ready'`. Apply the pod and container security contexts
+explicitly: the operator's own Helm settings do not harden the instances it creates. Leave memory headroom
+between Dragonfly's `maxmemory` and the container limit.
+
+The operator's generated NetworkPolicy allows client access only within the instance namespace and limits
+the admin port to the operator and peer pods. Add a narrow rule for Prometheus to scrape TCP 9999 when adding
+an instance PodMonitor. Replication improves availability but does not provide a backup; drain Paperless's
+pending jobs before its cutover to the fresh instance.
+
+The operator chart approach follows [Mafyuh](https://github.com/Mafyuh/iac/tree/main/kubernetes/apps/databases/dragonfly-operator),
+and per-app instances follow [joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/components/dragonfly).
+See the [upstream operator](https://github.com/dragonflydb/dragonfly-operator) for instance configuration.

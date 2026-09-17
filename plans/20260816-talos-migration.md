@@ -216,6 +216,12 @@ The CNPG operator, Barman Cloud plugin, and reusable Postgres component are impl
 [docs/databases.md](../docs/databases.md) records integration, verification, and consumer setup.
 Per-app database deployment and backup/restore verification remain part of app migration.
 
+The Dragonfly operator is implemented using its upstream chart, with Prometheus monitoring;
+[docs/databases.md](../docs/databases.md#dragonfly) records consumer integration and pending deployment verification.
+The operator decision is per-app instances with passwords supplied through ESO. Add Paperless's fresh
+memory-only instance during its migration, after draining pending work on the old instance. Authentik removed
+Redis in 2025.10 and needs no Dragonfly instance. Keep the old shared service running until Paperless migrates.
+
 ## Networking and external state
 
 ### HCC VLAN
