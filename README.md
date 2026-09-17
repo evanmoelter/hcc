@@ -20,7 +20,7 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Apollo monitoring](./docs/monitoring.md) describes the bootstrap metrics stack, temporary retention, and LAN/Tailscale cluster and Flux dashboards.
 [Apollo secrets](./docs/secrets.md) describes ESO, the dedicated `hcc-apollo` vault, Connect credentials, and opt-in configuration reloads.
 [Apollo certificates](./docs/certificates.md) describes cert-manager, Cloudflare credential setup, and production wildcard issuance.
-[Apollo gateway](./docs/gateway.md) describes the ingress foundation and completed LAN verification.
+[Apollo gateway](./docs/gateway.md) describes LAN ingress, the tunnel-only external Gateway, and verification gates.
 [Apollo DNS](./docs/dns.md) describes split-horizon records, Terraform tunnel setup, and external testing.
 [Apollo Tailscale](./docs/tailscale.md) describes its separate identity, OAuth setup, and tailnet ingress testing.
 [Apollo storage](./docs/storage.md) describes Longhorn disk assignments, storage classes, CSI snapshots, VolSync, and hcc8 registration.

@@ -17,6 +17,8 @@ Public apps with LAN access use separate HTTPRoutes on the internal and external
 hostname and backend. UniFi's Gateway filter prevents it from publishing both Gateway addresses for that name.
 The filter leaves its LoadBalancer Service source enabled. External-only routes, such as the Flux webhook,
 do not create UniFi records; local clients use public DNS for those names.
+The external Gateway accepts HTTPS only from cloudflared. Direct LAN requests use the internal Gateway;
+the [external isolation gate](./gateway.md#external-isolation-gate) must pass before forwarded-header trust is enabled.
 
 Both DNS releases use the signed [OCI mirror](https://github.com/home-operations/charts-mirror).
 Move to upstream OCI when available; the mirror prunes charts six months afterward.
@@ -47,13 +49,22 @@ Allow HCC → `192.168.4.1:443` per
 
 ## Verify after deployment
 
-The [LAN baseline](./gateway.md#lan-verification) passed. DNS and tunnel verification remain pending:
+The [LAN and dual-route checks](./gateway.md#lan-verification) passed. On 2026-09-17 UTC, UniFi DNS at
+`192.168.4.1` and `192.168.20.1`, and the workstation resolver, returned only `192.168.21.100` for echo;
+the previous external-Gateway address was absent. Public DNS returned Cloudflare addresses. Requests from
+the LAN forced to those public addresses reached Apollo through the tunnel with valid TLS and HTTP 200.
+Envoy still identified cloudflared's pod as the client. A public request carrying forged X-Forwarded-For
+and CF-Connecting-IP headers returned Cloudflare HTTP 403, so that request did not verify origin handling.
+Forwarded-header trust, independent off-LAN testing, and metrics-target checks remain pending.
+
+For deployment checks and later changes:
 
 - Confirm Flux, ExternalSecrets, both DNS deployments, two tunnel replicas, and their metrics targets are healthy.
 - For `echo-apollo.${SECRET_DOMAIN}`, UniFi DNS should answer only `192.168.21.100`; public DNS should answer Cloudflare addresses.
 - Confirm the former echo LAN address `192.168.21.101` is removed, not retained alongside the internal address.
 - Test HTTPS from a LAN client and an external connection. A LAN request alone does not prove the tunnel works.
 - Follow the [ingress plan](../plans/04-envoy-gateway.md) for client-IP and spoofed-header checks before enabling proxy trust.
+- Verify direct LAN access to the external Gateway is blocked while public tunnel requests and proxy metrics succeed.
 
 Echo is intentionally public during testing. Afterward, disable its chart-generated external route and retain
 `echo-server-internal`: LAN DNS should remain `192.168.21.100`, and the tunnel must stop serving echo.

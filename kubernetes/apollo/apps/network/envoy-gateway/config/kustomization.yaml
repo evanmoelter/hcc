@@ -9,6 +9,7 @@ resources:
   - ./httproute.yaml
   - ./clienttrafficpolicy.yaml
   - ./podmonitor.yaml
+  - ./networkpolicy.yaml
 patches:
   - target:
       group: gateway.envoyproxy.io

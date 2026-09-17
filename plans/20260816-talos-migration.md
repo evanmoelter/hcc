@@ -268,13 +268,15 @@ Keep common policies defined once so the two paths do not drift. Policies with i
 target both Gateways or both app routes. Where client-IP trust differs, use one complete ClientTrafficPolicy
 per Gateway and apply common fields through a shared Kustomize patch; overlapping ClientTrafficPolicies
 do not merge automatically. Keep the internal Gateway's forwarded-client-IP trust disabled and establish
-source-bound cloudflared trust on the external Gateway. Dual routes alone do not prevent direct LAN access
-to the external Gateway.
+source-bound cloudflared trust on the external Gateway. The operator chose tunnel-only external ingress;
+an ingress NetworkPolicy restricts its HTTPS listener to cloudflared while preserving Prometheus access.
+Verify that policy's enforcement before enabling pod-CIDR trust in a follow-up change.
 
 Prove the chosen shape on echo-server before any stateful app moves, including DNS, TLS, client-IP handling,
 and forged-header checks on both paths. Separate echo routes, UniFi's internal-Gateway filter, and per-Gateway
-client policies with shared TLS settings are defined. Live dual-route verification and source-bound
-forwarded-header trust remain pending.
+client policies with shared TLS settings are defined. LAN dual-route and DNS checks passed on 2026-09-17 UTC,
+as did tunnel requests forced to public DNS addresses. External isolation, independent off-LAN testing,
+and source-bound forwarded-header trust remain pending; [docs/gateway.md](../docs/gateway.md) records the gates.
 
 LAN traffic reaches an app with the real client address. Tunnel traffic arrives from cloudflared with Cloudflare's forwarded headers. Account for both paths in Authentik's trusted-proxy configuration and the Home Assistant proxy CIDRs.
 
@@ -285,7 +287,7 @@ Use cert-manager's staging issuer during repeated bootstrap attempts and avoid s
 [docs/gateway.md](../docs/gateway.md) records the foundation: `externalTrafficPolicy: Cluster` with Cilium's
 existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Neither
 Gateway trusts forwarded client addresses yet. [plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks
-remaining DNS, tunnel, dual-route implementation, and forwarded-header trust work.
+remaining isolation, external-path verification, and forwarded-header trust work.
 
 ### Backup paths and identities
 
@@ -463,6 +465,9 @@ Platform:
 
 Per app:
 
+- [ ] Before the first household-app cutover, add public-path monitoring and verify alert delivery for tunnel
+  outages. Recheck the Gateway policy's cloudflared and Prometheus selectors after chart upgrades or naming
+  changes, including changes to `cleanPrometheusOperatorObjectNames`.
 - [ ] Prepare and review the two-PR cutover stack: old-cluster disable on the bottom, Apollo rebuild on top.
 - [ ] Review the app and its `app-template` chart for compatible upgrades before finalizing the Apollo PR.
 - [ ] For apps without their own chart, prefer a digest-pinned `home-operations/containers` image where compatible and retire the corresponding personal image.
