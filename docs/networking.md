@@ -131,8 +131,9 @@ Apollo runs the thin Multus plugin through the
 The chart installs the NetworkAttachmentDefinition CRD and the reference CNI binaries, including macvlan
 and static IPAM. It uses Talos's `/etc/cni/net.d` and `/opt/cni/bin` paths. Multus needs root to install
 host files; its main container uses `NET_ADMIN`, a read-only root filesystem, and no privilege escalation.
-The installer init container uses the chart's default security context. Cilium must retain
-`cni.exclusive: false` so it does not rename Multus's configuration out of the CNI search path.
+The installer init container inherits root and `RuntimeDefault` seccomp from the pod; the chart sets no
+container-level security context, so its root filesystem is writable and privilege escalation is not disabled.
+Cilium must retain `cni.exclusive: false` so it does not rename Multus's configuration out of the CNI search path.
 Cilium manages `bond0`; `bpf.vlanBypass: [2]` allows the IoT VLAN through its parent-device filter.
 Create the Talos VLAN links before rolling out this Cilium setting: Cilium discovers VLAN links at startup.
 If a link is added afterward and packets still hit the VLAN filter, an operator-approved Cilium restart
@@ -141,7 +142,9 @@ and the [Talos/macvlan report](https://github.com/cilium/cilium/issues/45719).
 
 The `multus` Flux Kustomization waits for Cilium; `multus-config` waits for Multus and owns the shared
 `kube-system/iot` attachment. The attachment adds a connected VLAN 2 route and leaves the primary Cilium
-default route in place. It does not allocate addresses or prevent duplicates. Consumers supply a unique
+default route in place. The IoT address is intended for communication within VLAN 2; access HA from other
+VLANs through its normal hostname, since this attachment does not configure a symmetric return path for
+off-subnet clients. It does not allocate addresses or prevent duplicates. Consumers supply a unique
 static address through their pod annotation. The planned HA/Matter pod uses:
 
 ```yaml
