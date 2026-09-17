@@ -293,9 +293,10 @@ Set Apollo's Cloudflare external-dns to `txtOwnerId: apollo` and `policy: upsert
 Use cert-manager's staging issuer during repeated bootstrap attempts and avoid simultaneous wildcard renewals across clusters.
 
 [docs/gateway.md](../docs/gateway.md) records the foundation: `externalTrafficPolicy: Cluster` with Cilium's
-existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Neither
-Gateway trusts forwarded client addresses yet. [plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks
-remaining isolation, external-path verification, and forwarded-header trust work.
+existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Only the
+external Gateway trusts forwarded client addresses, following verified tunnel isolation.
+[plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks post-deployment client-IP and spoofed-header
+verification, echo cleanup, and app proxy-trust checks.
 
 ### Backup paths and identities
 

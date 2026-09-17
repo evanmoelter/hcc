@@ -40,16 +40,7 @@ enforcement verification from trust activation; Flux readiness cannot establish 
    The Tailscale operator and echo Ingress are defined;
    complete the credential setup and tailnet verification in [docs/tailscale.md](../docs/tailscale.md).
 3. Before configuring Authentik or Home Assistant, complete the client-IP checks above and each app's own
-   proxy-trust checks. External-only
-   `ClientTrafficPolicy.spec.clientIPDetection.xForwardedFor.trustedCIDRs` uses Apollo's pod CIDR.
-   Live inspection confirmed cloudflared uses the shared per-node pod ranges; individual pod addresses
-   cannot survive rescheduling. The network policy provides the workload restriction that CIDR trust alone lacks.
-   Keep the internal Gateway untrusted. Use Envoy's detected client address in access logs for the external path.
-   The original-IP extension may omit `x-envoy-external-address` and does not sanitize every forwarded header.
-   Each Gateway now has one `ClientTrafficPolicy` with a shared Kustomize patch for TLS settings;
-   forwarded-header trust is configured only on the external policy. Overlapping policies do not merge automatically.
-   Shared app security policies should target both routes when their requirements match. Verify the rendered
-   common fields and intentional trust differences before deployment.
+   proxy-trust checks using the [Gateway trust configuration](../docs/gateway.md) as the starting point.
 4. Migrate app routes during their individual cutovers. Raw LoadBalancer services and Tailscale Ingresses
    retain their separate paths. Remove ingress-nginx with the old cluster in Wave 2.
 

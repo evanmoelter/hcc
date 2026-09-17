@@ -67,7 +67,7 @@ For deployment checks and later changes:
 - For `echo-apollo.${SECRET_DOMAIN}`, UniFi DNS should answer only `192.168.21.100`; public DNS should answer Cloudflare addresses.
 - Confirm the former echo LAN address `192.168.21.101` is removed, not retained alongside the internal address.
 - Test HTTPS from a LAN client and an external connection. A LAN request alone does not prove the tunnel works.
-- Follow the [ingress plan](../plans/04-envoy-gateway.md) for client-IP and spoofed-header checks before enabling proxy trust.
+- Complete [client-IP and spoofed-header checks](./gateway.md#client-ip-verification) before configuring app proxy trust.
 - Verify direct LAN access to the external Gateway is blocked while public tunnel requests and proxy metrics succeed.
 
 Echo is intentionally public during testing. Afterward, disable its chart-generated external route and retain
