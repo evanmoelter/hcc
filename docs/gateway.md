@@ -7,7 +7,7 @@ managed Cloudflare tunnel. [DNS and tunnel integration](./dns.md) covers credent
 | Gateway | LoadBalancer IP | Purpose |
 |---|---|---|
 | `envoy-internal` | `192.168.21.100` | LAN ingress |
-| `envoy-external` | `192.168.21.101` | Tunnel origin, also reachable from the LAN |
+| `envoy-external` | `192.168.21.101` | Tunnel origin; HTTP/HTTPS restricted to cloudflared |
 
 These addresses follow [networking.md](./networking.md). Both Gateways use the `envoy` GatewayClass and
 EnvoyProxy, with two proxy replicas per Gateway. Cilium receives each pinned address through
@@ -29,6 +29,22 @@ Each Gateway has its own ClientTrafficPolicy. A shared Kustomize patch supplies 
 to both, so common settings have one definition without relying on policy merging. Neither Gateway
 trusts X-Forwarded-For hops or CIDRs. Tunnel forwarding and app proxy trust remain work in
 [the ingress plan](../plans/04-envoy-gateway.md).
+
+The external Gateway's ingress NetworkPolicy admits only cloudflared pods in `network` to its HTTP/HTTPS
+listeners, and the bootstrap Prometheus in `monitoring` to its metrics port. It selects the generated proxy
+pods by their owning-Gateway labels. Policy ports are the proxy's target ports (`10080`, `10443`, `19001`),
+not the Service's public ports. Egress stays unrestricted for xDS, DNS, and backend connections.
+The internal Gateway remains the direct LAN path. Keeping the external LoadBalancer address does not
+grant LAN access through the policy.
+
+This restriction is the prerequisite for trusting cloudflared's forwarded headers. Its replicas use Apollo's
+shared pod CIDR, so trusting that range without the policy would also trust unrelated pods. Deploy and
+verify isolation before enabling external-only CIDR trust in a follow-up change. NetworkPolicy application
+is asynchronous; Flux readiness alone does not prove enforcement. Existing connections may survive a policy
+change, so verification must use new connections and account for any previously open connections.
+Policies are additive: another policy allowing these listener ports would widen the boundary.
+Local-node traffic remains allowed for kubelet probes; privileged node access and permission to create or
+relabel cloudflared pods remain trusted administrative capabilities.
 
 HTTP listeners accept routes from `network`; one shared route redirects requests to HTTPS. HTTPS
 listeners accept application HTTPRoutes from any namespace. Both reference the production `wildcard`
@@ -52,8 +68,14 @@ ready replicas each, and echo-server was Accepted with ResolvedRefs on both pare
 returned HTTP 301 and successful HTTPS with certificate verification. `x-envoy-external-address` preserved
 the workstation's source address even with a forged X-Forwarded-For header. The LAN gate passed.
 
-The dual-route configuration still needs live verification. Check HTTP redirects and HTTPS echo responses
-on both Gateways. These commands inspect status without reading Secret contents:
+On 2026-09-17 UTC, Flux applied the dual-route configuration at revision `f7e1f5c`. Both echo routes were
+Accepted with ResolvedRefs at their current generations. Both Gateway-specific client policies were Accepted,
+and the former shared policy was absent. Both Gateways returned HTTP 301 redirects and HTTPS 200 echo
+responses with certificate verification. Forged X-Forwarded-For and CF-Connecting-IP headers did not change
+`x-envoy-external-address` from the LAN workstation's address on either Gateway.
+
+Those checks predate the tunnel-only policy. After deployment, direct external-Gateway requests must fail.
+Inspect status without reading Secret contents:
 
 ```sh
 flux --context apollo get kustomizations -A
@@ -62,6 +84,7 @@ kubectl --context apollo -n network get deployment,pod,service -o wide
 kubectl --context apollo -n network describe gateway envoy-internal envoy-external
 kubectl --context apollo -n network describe httproute echo-server echo-server-internal
 kubectl --context apollo -n network get clienttrafficpolicy
+kubectl --context apollo -n network describe networkpolicy envoy-external
 ```
 
 Confirm the certificate is Ready, both Gateways are Accepted and Programmed at their assigned addresses,
@@ -80,15 +103,15 @@ Host header and TLS SNI; use a direct connection without a configured HTTP proxy
 
 ```sh
 gateway_test_host='echo-apollo.YOUR_DOMAIN'
-for gateway_test_ip in 192.168.21.100 192.168.21.101; do
-  curl --noproxy '*' --resolve "${gateway_test_host}:80:${gateway_test_ip}" \
-    --silent --show-error --dump-header - --output /dev/null "http://${gateway_test_host}/"
-  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
-    --fail --silent --show-error "https://${gateway_test_host}/"
-  curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
-    --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
-    "https://${gateway_test_host}/"
-done
+gateway_test_ip=192.168.21.100
+curl --noproxy '*' --resolve "${gateway_test_host}:80:${gateway_test_ip}" \
+  --silent --show-error --dump-header - --output /dev/null "http://${gateway_test_host}/"
+curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
+  --fail --silent --show-error "https://${gateway_test_host}/"
+curl --noproxy '*' --resolve "${gateway_test_host}:443:${gateway_test_ip}" \
+  --fail --silent --show-error -H 'X-Forwarded-For: 198.51.100.123' \
+  -H 'CF-Connecting-IP: 198.51.100.124' \
+  "https://${gateway_test_host}/"
 ```
 
 Expect an HTTP 301 with the same hostname and HTTPS scheme, then successful HTTPS responses without
@@ -97,6 +120,29 @@ Expect an HTTP 301 with the same hostname and HTTPS scheme, then successful HTTP
 or a cluster node address. X-Forwarded-For may retain the untrusted supplied value as part of a chain;
 its mere presence does not demonstrate trust. Do not configure app trusted proxies until this test passes.
 Record the results before proceeding to DNS and tunnel integration.
+
+## External isolation gate
+
+The policy is defined; live enforcement verification is pending. Before enabling forwarded-header trust:
+
+- Confirm fresh direct LAN requests to `192.168.21.101` on both 80 and 443 fail, including forged-header
+  requests. Use the echo Host/SNI as above with `--connect-timeout 5 --max-time 10`; an HTTP response,
+  including 403 or 404, means the network isolation check failed.
+- Verify a non-cloudflared pod cannot connect to either external listener through the Service or either
+  proxy pod IP. Also check a pod with cloudflared labels in another namespace is denied. Creating temporary
+  probe pods requires operator approval. Check both proxy replicas and use new connections.
+- Verify both cloudflared replicas can still reach the origin and public HTTPS echo requests succeed with
+  valid TLS. Use an independent off-LAN connection as well as the public-address test from the LAN.
+- Confirm both external proxy replicas remain Ready and both Prometheus targets on port 19001 stay up.
+  Recheck other policies for additive listener allowances before treating this gate as passed.
+
+After isolation passes, a follow-up change can set the external ClientTrafficPolicy's
+`clientIPDetection.xForwardedFor.trustedCIDRs` to Apollo's pod CIDR; the internal policy stays untrusted.
+Verify normal and forged-header tunnel requests against Envoy's `downstream_remote_address` access-log
+field. CIDR detection uses the original-IP extension and may omit `x-envoy-external-address`; that header
+is not the external-path verification oracle. Detection does not sanitize every forwarded header, so app
+proxy configuration still needs its own checks. A Cloudflare 403 without an origin request proves nothing
+about Envoy's handling of that request.
 
 ## References
 
@@ -109,3 +155,7 @@ The shared EnvoyProxy/GatewayClass and separate Gateways draw from
 Their traffic policies depend on their network topology; Apollo's Cilium settings determine its Service policy.
 Envoy Gateway documents [proxy customization](https://gateway.envoyproxy.io/docs/tasks/operations/customize-envoyproxy/)
 and the [ClientTrafficPolicy API](https://gateway.envoyproxy.io/docs/api/extension_types/#clienttrafficpolicy).
+The pod-CIDR trust mechanism follows onedr0p, szinn, and joryirving, with Apollo's external listener isolation
+as a prerequisite. Kubernetes documents [NetworkPolicy enforcement and existing connections](https://kubernetes.io/docs/concepts/services-networking/network-policies/#pod-lifecycle);
+Envoy documents [CIDR client detection](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/http/original_ip_detection/xff/v3/xff.proto)
+and [forwarded-header behavior](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html#x-forwarded-for).
