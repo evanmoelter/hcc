@@ -7,7 +7,7 @@ managed Cloudflare tunnel. [DNS and tunnel integration](./dns.md) covers credent
 | Gateway | LoadBalancer IP | Purpose |
 |---|---|---|
 | `envoy-internal` | `192.168.21.100` | LAN ingress |
-| `envoy-external` | `192.168.21.101` | Tunnel origin; HTTP/HTTPS restricted to cloudflared |
+| `envoy-external` | `192.168.21.101` | Tunnel origin; HTTPS restricted to cloudflared |
 
 These addresses follow [networking.md](./networking.md). Both Gateways use the `envoy` GatewayClass and
 EnvoyProxy, with two proxy replicas per Gateway. Cilium receives each pinned address through
@@ -30,10 +30,13 @@ to both, so common settings have one definition without relying on policy mergin
 trusts X-Forwarded-For hops or CIDRs. Tunnel forwarding and app proxy trust remain work in
 [the ingress plan](../plans/04-envoy-gateway.md).
 
-The external Gateway's ingress NetworkPolicy admits only cloudflared pods in `network` to its HTTP/HTTPS
-listeners, and the bootstrap Prometheus in `monitoring` to its metrics port. It selects the generated proxy
-pods by their owning-Gateway labels. Policy ports are the proxy's target ports (`10080`, `10443`, `19001`),
-not the Service's public ports. Egress stays unrestricted for xDS, DNS, and backend connections.
+The external Gateway's ingress NetworkPolicy admits only cloudflared pods in `network` to its HTTPS
+listener, and the bootstrap Prometheus in `monitoring` to its metrics port. It selects the generated proxy
+pods by their owning-Gateway labels. Envoy Gateway adds 10000 to listener ports below 1024 for the
+unprivileged proxy: HTTPS 443 maps to target port `10443`. Metrics uses `19001` separately.
+Cloudflared's origin uses HTTPS, so the policy does not allow HTTP target port `10080`.
+When adding or changing listeners, check the generated Service target ports and update the policy for
+the intended callers. Egress stays unrestricted for xDS, DNS, and backend connections.
 The internal Gateway remains the direct LAN path. Keeping the external LoadBalancer address does not
 grant LAN access through the policy.
 
@@ -126,8 +129,11 @@ Record the results before proceeding to DNS and tunnel integration.
 The policy is defined; live enforcement verification is pending. Before enabling forwarded-header trust:
 
 - Confirm fresh direct LAN requests to `192.168.21.101` on both 80 and 443 fail, including forged-header
-  requests. Use the echo Host/SNI as above with `--connect-timeout 5 --max-time 10`; an HTTP response,
-  including 403 or 404, means the network isolation check failed.
+  requests. Rerun the LAN snippet with `gateway_test_ip=192.168.21.101` and add
+  `--connect-timeout 5 --max-time 10` to every curl command. Cilium's `policy-deny-response: none` silently
+  drops denied traffic, so expect a connection timeout rather than a refusal. Any HTTP response, including
+  403 or 404, means the network isolation check failed. A timeout alone does not prove enforcement:
+  confirm the positive tunnel and readiness checks below, and inspect Cilium policy drops if ambiguous.
 - Verify a non-cloudflared pod cannot connect to either external listener through the Service or either
   proxy pod IP. Also check a pod with cloudflared labels in another namespace is denied. Creating temporary
   probe pods requires operator approval. Check both proxy replicas and use new connections.
@@ -159,3 +165,5 @@ The pod-CIDR trust mechanism follows onedr0p, szinn, and joryirving, with Apollo
 as a prerequisite. Kubernetes documents [NetworkPolicy enforcement and existing connections](https://kubernetes.io/docs/concepts/services-networking/network-policies/#pod-lifecycle);
 Envoy documents [CIDR client detection](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/http/original_ip_detection/xff/v3/xff.proto)
 and [forwarded-header behavior](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html#x-forwarded-for).
+The [Gateway translator](https://github.com/envoyproxy/gateway/blob/v1.9.1/internal/gatewayapi/translator.go)
+defines the privileged-port offset; Cilium documents [policy deny responses](https://docs.cilium.io/en/stable/security/policy/intro/#policy-deny-response-handling).

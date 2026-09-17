@@ -20,7 +20,7 @@ results in [gateway.md](../docs/gateway.md#lan-verification) and [dns.md](../doc
 Independent off-LAN and origin forged-header verification remain pending.
 
 The operator subsequently chose a tunnel-only external Gateway. Its NetworkPolicy admits cloudflared to
-the external listeners and Prometheus to metrics. Forwarded-header trust stays disabled until the deployed
+the external HTTPS listener and Prometheus to metrics. Forwarded-header trust stays disabled until the deployed
 policy passes the [isolation gate](../docs/gateway.md#external-isolation-gate). This separates enforcement
 verification from trust activation; Flux readiness cannot establish Cilium datapath enforcement.
 

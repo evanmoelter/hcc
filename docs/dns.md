@@ -17,7 +17,7 @@ Public apps with LAN access use separate HTTPRoutes on the internal and external
 hostname and backend. UniFi's Gateway filter prevents it from publishing both Gateway addresses for that name.
 The filter leaves its LoadBalancer Service source enabled. External-only routes, such as the Flux webhook,
 do not create UniFi records; local clients use public DNS for those names.
-The external Gateway accepts HTTP/HTTPS only from cloudflared. Direct LAN requests use the internal Gateway;
+The external Gateway accepts HTTPS only from cloudflared. Direct LAN requests use the internal Gateway;
 the [external isolation gate](./gateway.md#external-isolation-gate) must pass before forwarded-header trust is enabled.
 
 Both DNS releases use the signed [OCI mirror](https://github.com/home-operations/charts-mirror).

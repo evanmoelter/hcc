@@ -18,8 +18,6 @@ spec:
               app.kubernetes.io/instance: cloudflared
       ports:
         - protocol: TCP
-          port: 10080
-        - protocol: TCP
           port: 10443
     - from:
         - namespaceSelector:

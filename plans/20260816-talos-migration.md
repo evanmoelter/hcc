@@ -269,7 +269,7 @@ target both Gateways or both app routes. Where client-IP trust differs, use one 
 per Gateway and apply common fields through a shared Kustomize patch; overlapping ClientTrafficPolicies
 do not merge automatically. Keep the internal Gateway's forwarded-client-IP trust disabled and establish
 source-bound cloudflared trust on the external Gateway. The operator chose tunnel-only external ingress;
-an ingress NetworkPolicy restricts its listeners to cloudflared while preserving Prometheus access.
+an ingress NetworkPolicy restricts its HTTPS listener to cloudflared while preserving Prometheus access.
 Verify that policy's enforcement before enabling pod-CIDR trust in a follow-up change.
 
 Prove the chosen shape on echo-server before any stateful app moves, including DNS, TLS, client-IP handling,
@@ -465,6 +465,9 @@ Platform:
 
 Per app:
 
+- [ ] Before the first household-app cutover, add public-path monitoring and verify alert delivery for tunnel
+  outages. Recheck the Gateway policy's cloudflared and Prometheus selectors after chart upgrades or naming
+  changes, including changes to `cleanPrometheusOperatorObjectNames`.
 - [ ] Prepare and review the two-PR cutover stack: old-cluster disable on the bottom, Apollo rebuild on top.
 - [ ] Review the app and its `app-template` chart for compatible upgrades before finalizing the Apollo PR.
 - [ ] For apps without their own chart, prefer a digest-pinned `home-operations/containers` image where compatible and retire the corresponding personal image.
