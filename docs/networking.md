@@ -169,6 +169,13 @@ node patches are prepared; Talos application, live Multus installation, and per-
    approval, apply the committed Talos configuration one node at a time using
    `task talos:apply CLUSTER=apollo node=hcc5` (then hcc6 and hcc7). Confirm `bond0.2` exists with VLAN ID 2
    and parent `bond0`. The link intentionally has no host IPv4 address or default route.
+   For standalone Talos checks, first run `task talos:talosconfig CLUSTER=apollo`, then inspect each node:
+
+   ```sh
+   talosctl --talosconfig kubernetes/apollo/bootstrap/talos/talosconfig --context apollo \
+     --endpoints 192.168.21.5 --nodes 192.168.21.5 get links bond0.2 -o yaml
+   ```
+
 2. Merge after the VLAN links exist. Let Flux roll out Cilium's VLAN bypass, then install Multus through
    its dependency. Check installation without changing cluster state:
 

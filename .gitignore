@@ -16,6 +16,7 @@ kubeconfig-*
 .venv*
 # Talos
 talosconfig
+talosconfig.tmp.*
 rendered
 # Taskfile
 .task
