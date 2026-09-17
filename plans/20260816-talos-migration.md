@@ -245,18 +245,35 @@ Internal records move to the UCG Fiber through the [UniFi external-dns webhook](
 | Instance | Watches | Produces |
 |---|---|---|
 | external-dns, Cloudflare | external Gateway | proxied CNAME to `external-apollo.${SECRET_DOMAIN}` |
-| external-dns, UniFi | both Gateways initially | A record to the parent Gateway address |
+| external-dns, UniFi | internal Gateway, plus annotated LoadBalancer Services | A record to the internal Gateway or Service address |
 
-Test both routing shapes on echo-server before any stateful app moves:
+**Working decision (2026-09-16): use dual routes.** Public apps get separate internal and external
+HTTPRoutes with the same hostname and backend. LAN DNS points to `envoy-internal`; public DNS reaches
+`envoy-external` through the tunnel. Internal-only apps get only an internal route. Tailscale remains
+a separate Ingress.
 
-| | Split-horizon, try first | Dual-route fallback |
+This is a soft decision: the separate paths make future policy differences explicit, and both Gateways
+already exist. Revisit the choice with the operator if route duplication, DNS coordination, or policy
+maintenance causes significant pain. A single external route with split-horizon DNS remains the alternative;
+there is no need to preserve dual routes at the cost of substantial complexity.
+
+| | Dual-route working choice | Single-route alternative |
 |---|---|---|
-| Routes per dual-exposed host | one on external Gateway | one per Gateway |
-| UniFi scope | both Gateways | internal Gateway only |
-| LAN path | external Gateway LAN IP | internal Gateway LAN IP |
-| Policy | shared listener | separate listeners |
+| Routes per dual-exposed host | one per Gateway | one on external Gateway |
+| UniFi scope | internal Gateway only | both Gateways |
+| LAN path | internal Gateway LAN IP | external Gateway LAN IP |
+| Policy | separate listeners | shared listener |
 
-Use dual-route if split-horizon causes proxy-header, certificate, SNI, or policy trouble. Both keep one canonical hostname, as OIDC requires. Split-horizon needs a LAN load-balancer IP on the external Gateway. Tailscale remains a separate Ingress either way.
+Keep common policies defined once so the two paths do not drift. Policies with identical settings can
+target both Gateways or both app routes. Where client-IP trust differs, use one complete ClientTrafficPolicy
+per Gateway and apply common fields through a shared Kustomize patch; overlapping ClientTrafficPolicies
+do not merge automatically. Keep the internal Gateway's forwarded-client-IP trust disabled and establish
+source-bound cloudflared trust on the external Gateway. Dual routes alone do not prevent direct LAN access
+to the external Gateway.
+
+Prove the chosen shape on echo-server before any stateful app moves, including DNS, TLS, client-IP handling,
+and forged-header checks on both paths. The current echo route and UniFi controller still implement the
+single-route test configuration; changing them and verifying dual-route behavior remain implementation work.
 
 LAN traffic reaches an app with the real client address. Tunnel traffic arrives from cloudflared with Cloudflare's forwarded headers. Account for both paths in Authentik's trusted-proxy configuration and the Home Assistant proxy CIDRs.
 
@@ -267,7 +284,7 @@ Use cert-manager's staging issuer during repeated bootstrap attempts and avoid s
 [docs/gateway.md](../docs/gateway.md) records the foundation: `externalTrafficPolicy: Cluster` with Cilium's
 existing DSR preserves LAN source addresses while remaining compatible with L2 announcements. Neither
 Gateway trusts forwarded client addresses yet. [plans/04-envoy-gateway.md](./04-envoy-gateway.md) tracks
-remaining DNS, tunnel, routing, and forwarded-header trust decisions.
+remaining DNS, tunnel, dual-route implementation, and forwarded-header trust work.
 
 ### Backup paths and identities
 
@@ -369,7 +386,7 @@ Migrate in this order:
 
 1. Create the HCC VLAN and Apollo repo tree. Build hcc5 through hcc7 as control-plane; add hcc8 as worker when a switch port is available.
 2. Bootstrap Talos, etcd, Cilium, Talos-managed CoreDNS, and Flux.
-3. Reconcile Phase B in dependency order. Use echo-server to test the external, LAN, certificate, and tailnet paths and settle the Gateway pattern.
+3. Reconcile Phase B in dependency order. Use echo-server to verify the dual-route Gateway pattern across the external, LAN, certificate, and tailnet paths.
 4. Rebuild stateful apps one at a time using the standard cutover and app order above.
 
 Do not remove a node from the old cluster during Wave 1. All four nodes are embedded-etcd controllers, so removing both Odroids without contracting membership loses quorum. Two remaining nodes also cannot satisfy Longhorn's three-replica policy. Keeping the cluster whole preserves the rollback environment when it matters.
@@ -429,10 +446,11 @@ Cluster bootstrap:
 Platform:
 
 - [ ] Verify production wildcard issuance; create the Cloudflare tunnel, alias, and credentials.
-- [ ] Configure Cloudflare external-dns with owner `apollo`, upsert-only policy, and external-Gateway scope. Give UniFi its own owner and initial both-Gateway scope.
+- [ ] Configure Cloudflare external-dns with owner `apollo`, upsert-only policy, and external-Gateway scope. Give UniFi its own owner and internal-Gateway scope, retaining its annotated Service source.
 - [ ] Switch both external-dns instances to a Gateway API source such as `gateway-httproute`.
 - [ ] Prove UniFi record creation, both Gateways, the Flux webhook, and the distinct Tailscale identity.
-- [ ] Test both routing shapes on echo-server; record the choice before Phase C.
+- [x] Record dual-route as the working choice, revisitable if significant pain points emerge.
+- [ ] Implement and verify dual routes on echo-server before the first app migration.
 - [ ] Complete `plans/04-envoy-gateway.md` for Apollo's IPs, VLAN, cloudflared integration, raw load-balancer services, and Tailscale Ingresses.
 - [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, and `longhorn-snapclass`.
 - [ ] Create `kubernetes/apollo/components/` with the `volsync`, `postgres`, and `namespace` components before the first app rebuild.
@@ -474,7 +492,6 @@ Before Wave 2, cluster-wide rollback means leaving all four old nodes untouched.
 
 # Open questions
 
-- Does the echo-server test choose split-horizon or dual-route?
 - Should ad blocking return through UniFi or a non-primary pihole?
 - Future work: consider a dedicated Longhorn replication VLAN after the migration stabilizes.
 - Future work: revisit `kopiur` as a VolSync replacement once Apollo is stable. Three of the four reference repos have already retired VolSync for it, but it is pre-1.0 and every Wave 1 restore depends on the backup path, so the migration stays on VolSync and restic.
