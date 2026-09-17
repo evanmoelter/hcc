@@ -26,9 +26,10 @@ are incompatible with `Local`: the announcing node can lack a ready proxy endpoi
 preserves the source address when a different node serves the request.
 
 Each Gateway has its own ClientTrafficPolicy. A shared Kustomize patch supplies the TLS 1.2 minimum
-to both, so common settings have one definition without relying on policy merging. Neither Gateway
-trusts X-Forwarded-For hops or CIDRs. Tunnel forwarding and app proxy trust remain work in
-[the ingress plan](../plans/04-envoy-gateway.md).
+to both, so common settings have one definition without relying on policy merging. The external Gateway
+detects client addresses from X-Forwarded-For using Apollo's pod CIDR as its trusted proxy range.
+The internal Gateway does not trust forwarded headers. App proxy trust and post-deployment spoofing
+checks remain work in [the ingress plan](../plans/04-envoy-gateway.md).
 
 The external Gateway's ingress NetworkPolicy admits only cloudflared pods in `network` to its HTTPS
 listener, and the bootstrap Prometheus in `monitoring` to its metrics port. It selects the generated proxy
@@ -41,8 +42,8 @@ The internal Gateway remains the direct LAN path. Keeping the external LoadBalan
 grant LAN access through the policy.
 
 This restriction is the prerequisite for trusting cloudflared's forwarded headers. Its replicas use Apollo's
-shared pod CIDR, so trusting that range without the policy would also trust unrelated pods. Deploy and
-verify isolation before enabling external-only CIDR trust in a follow-up change. NetworkPolicy application
+shared pod CIDR, so trusting that range without the policy would also trust unrelated pods. The isolation
+gate passed on 2026-09-17 before external-only CIDR trust was configured. NetworkPolicy application
 is asynchronous; Flux readiness alone does not prove enforcement. Existing connections may survive a policy
 change, so verification must use new connections and account for any previously open connections.
 Policies are additive: another policy allowing these listener ports would widen the boundary.
@@ -126,7 +127,22 @@ Record the results before proceeding to DNS and tunnel integration.
 
 ## External isolation gate
 
-The policy is defined; live enforcement verification is pending. Before enabling forwarded-header trust:
+On 2026-09-17, the deployed policy at revision `0034ea9` passed live enforcement checks:
+
+- Fresh LAN connections to the external LoadBalancer timed out on both 80 and 443; internal HTTP redirected
+  and internal HTTPS returned 200 with valid TLS.
+- An ordinary pod in `network` and a pod carrying cloudflared labels in `monitoring` each reached internal
+  HTTPS successfully. Both were denied on the external Service and LoadBalancer ports 80/443, and on each
+  external proxy pod's ports 10080/10443. These requests included forged forwarding headers. All 18 checks
+  passed, and both temporary pods were deleted afterward.
+- Public-address HTTPS requests returned 200 and were correlated with origin access logs. Logs also confirmed
+  successful requests from both cloudflared replicas after the policy took effect, reaching both external
+  proxy replicas. Both tunnel replicas retained four connections and reported no request errors.
+- Both external proxy metrics targets and both cloudflared targets stayed healthy. No other NetworkPolicy
+  in `network`, CiliumNetworkPolicy, or CiliumClusterwideNetworkPolicy widened the listener allowance.
+- The operator independently confirmed echo access from off-LAN.
+
+Repeat the following checks after changes to the policy, proxy placement, or workload selectors:
 
 - Confirm fresh direct LAN requests to `192.168.21.101` on both 80 and 443 fail, including forged-header
   requests. Rerun the LAN snippet with `gateway_test_ip=192.168.21.101` and add
@@ -142,13 +158,23 @@ The policy is defined; live enforcement verification is pending. Before enabling
 - Confirm both external proxy replicas remain Ready and both Prometheus targets on port 19001 stay up.
   Recheck other policies for additive listener allowances before treating this gate as passed.
 
-After isolation passes, a follow-up change can set the external ClientTrafficPolicy's
-`clientIPDetection.xForwardedFor.trustedCIDRs` to Apollo's pod CIDR; the internal policy stays untrusted.
+## Client-IP verification
+
+External-only CIDR trust is configured; verification of the deployed trust change is pending. Keep echo's
+external route until these checks pass. Confirm both ClientTrafficPolicies are Accepted at their current
+generations, with only the external policy containing `clientIPDetection`.
+
 Verify normal and forged-header tunnel requests against Envoy's `downstream_remote_address` access-log
 field. CIDR detection uses the original-IP extension and may omit `x-envoy-external-address`; that header
 is not the external-path verification oracle. Detection does not sanitize every forwarded header, so app
 proxy configuration still needs its own checks. A Cloudflare 403 without an origin request proves nothing
 about Envoy's handling of that request.
+
+Use a unique query parameter for each request and match it to `x-envoy-origin-path` in the default JSON
+access logs. Compare the detected address with the client's independently known public address, and confirm
+that forged X-Forwarded-For and CF-Connecting-IP values cannot replace it. Repeat the internal-Gateway
+forged-header check above; it must still identify the LAN client. Recheck isolation and metrics health.
+After verification, disable echo's external route and complete the DNS cleanup in [dns.md](./dns.md).
 
 ## References
 
