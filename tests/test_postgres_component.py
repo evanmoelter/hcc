@@ -35,13 +35,13 @@ def render(mode="recovery", substitutions=None):
         root = Path(directory)
         shutil.copytree(ROOT / APOLLO / "components/postgres", root / APOLLO / "components/postgres")
         shutil.copytree(FIXTURE, root / APP)
-        owner_path = root / APP / "ks-cluster.yaml"
+        owner_path = root / APP / "ks-database.yaml"
         owner = read(owner_path)
         owner["spec"]["postBuild"]["substitute"].update(substitutions or {})
         if mode == "init":
             owner["spec"]["components"].append("../../../../components/postgres/init")
         write(owner_path, owner)
-        config_path = root / APP / "cluster/kustomization.yaml"
+        config_path = root / APP / "database/kustomization.yaml"
         config = read(config_path)
         if mode == "migration":
             source = read(root / APOLLO / "components/postgres/objectstore.yaml")
@@ -51,7 +51,7 @@ def render(mode="recovery", substitutions=None):
             for credential in source["spec"]["configuration"]["s3Credentials"].values():
                 credential["name"] = "${APP}-pg-source-r2"
             source["spec"].pop("instanceSidecarConfiguration")
-            write(root / APP / "cluster/source.yaml", source)
+            write(root / APP / "database/source.yaml", source)
             config["resources"] = ["source.yaml"]
             external = [{"name": "${APP}-pg-backup", "plugin": {
                 "name": PLUGIN,
@@ -81,7 +81,7 @@ def render(mode="recovery", substitutions=None):
         write(config_path, config)
         write(root / APOLLO / "apps/kustomization.yaml", {
             "apiVersion": "kustomize.config.k8s.io/v1beta1", "kind": "Kustomization",
-            "resources": ["default/postgres-example/ks-cluster.yaml", "default/postgres-example/ks.yaml"],
+            "resources": ["default/postgres-example/ks-database.yaml", "default/postgres-example/ks.yaml"],
         })
         (root / APOLLO / "flux").mkdir()
         parent = read(ROOT / APOLLO / "flux/apps.yaml")
@@ -104,7 +104,7 @@ def render(mode="recovery", substitutions=None):
         write(owner_path, database)
         resources = documents(command(
             "flux", "build", "kustomization", "postgres-example-cluster", "--dry-run", "--strict-substitute",
-            "--path", str(root / APP / "cluster"), "--kustomization-file", str(owner_path),
+            "--path", str(root / APP / "database"), "--kustomization-file", str(owner_path),
         ))
         for resource in resources:
             annotations = resource["metadata"].get("annotations", {})

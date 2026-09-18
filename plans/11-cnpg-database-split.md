@@ -183,7 +183,7 @@ The app's directory, PVC, and data stay in `kubernetes/main`, disabled but intac
 ### Step 2: Create New Cluster with Import
 
 Compose the Postgres component in the app namespace using the
-[database satellite example](../tests/fixtures/postgres/ks-cluster.yaml). Choose the image and storage
+[database satellite example](../tests/fixtures/postgres/ks-database.yaml). Choose the image and storage
 for the app; physical restore requires the source major, while logical import can cross majors after
 checking application compatibility and extensions.
 
@@ -191,7 +191,7 @@ For TeslaMate, Paperless, and Authentik, replace `spec.bootstrap` with `initdb.i
 `microservice` method and only the app's database. Replace `spec.externalClusters` with a connection
 to `192.168.6.21:5432`, using a separate operator-provided import Secret. Remove
 `cnpg.io/skipEmptyWalArchiveCheck` so the new database must start with an empty destination archive.
-Put these patches in the app's `cluster/kustomization.yaml`, using only the base Postgres component.
+Put these patches in the app's `database/kustomization.yaml`, using only the base Postgres component.
 The optional `postgres/init` component is for empty databases, not imports.
 
 A logical import does not need a source ObjectStore. Mealie and Home Assistant instead use physical
@@ -294,9 +294,9 @@ kubernetes/apollo/
     ├── default/
     │   ├── teslamate/
     │   │   ├── ks.yaml                        dependsOn the satellite below
-    │   │   ├── ks-cluster.yaml                components + APP; wait + healthCheckExprs
+    │   │   ├── ks-database.yaml               components + APP; wait + healthCheckExprs
     │   │   ├── app/
-    │   │   └── cluster/
+    │   │   └── database/
     │   │       └── kustomization.yaml         one-time import patch
     │   └── paperless/
     └── security/

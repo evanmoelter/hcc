@@ -10,6 +10,7 @@ spec:
   targetNamespace: default
   path: ./kubernetes/apollo/apps/default/postgres-example/app
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

@@ -5,7 +5,8 @@ Keep the upstream chart's service and certificate names; they are part of that i
 See the [upstream requirements](https://cloudnative-pg.io/plugin-barman-cloud/docs/installation/).
 
 Use the [Postgres component](../kubernetes/apollo/components/postgres/) from a separate database
-Kustomization in the app namespace. Copy the [tested satellite](../tests/fixtures/postgres/ks-cluster.yaml),
+Kustomization in `ks-database.yaml`, pointing at the app's `database/` directory in the app namespace. Copy the
+[tested satellite](../tests/fixtures/postgres/ks-database.yaml),
 including its platform dependencies and readiness check, and make the app depend on that Kustomization.
 Health checks cannot order resources applied by the same Kustomization. `Ready=False` during bootstrap
 means wait; it is not a terminal failure.

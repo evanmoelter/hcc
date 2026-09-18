@@ -10,10 +10,11 @@ spec:
     - name: longhorn-config
     - name: onepassword-store
   targetNamespace: default
-  path: ./kubernetes/apollo/apps/default/postgres-example/cluster
+  path: ./kubernetes/apollo/apps/default/postgres-example/database
   components:
     - ../../../../components/postgres
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
