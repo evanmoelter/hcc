@@ -48,6 +48,18 @@ tasks:
       validity: '{{.validity | default "168h"}}'
     preconditions: *topf
 
+  talosconfig:
+    desc: Refresh the Talos client configuration for a cluster
+    cmd: |
+      set -e
+      talosconfig_tmp=$(mktemp "{{.TALOS_DIR}}/talosconfig.tmp.XXXXXX")
+      trap 'rm -f "$talosconfig_tmp"' EXIT
+      chmod 600 "$talosconfig_tmp"
+      topf talosconfig > "$talosconfig_tmp"
+      test -s "$talosconfig_tmp"
+      mv "$talosconfig_tmp" "{{.TALOS_DIR}}/talosconfig"
+    preconditions: *topf
+
   apply:
     desc: Apply Talos machine config to the cluster
     summary: |

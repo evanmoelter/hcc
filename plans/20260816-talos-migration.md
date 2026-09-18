@@ -214,6 +214,13 @@ Metrics-server and kube-ops-view are defined for Apollo, with distinct LAN and T
 The Flux Operator UI is exposed read-only on the LAN and Tailscale;
 [docs/monitoring.md](../docs/monitoring.md#flux-dashboard) records access and the read-only policy.
 
+Multus and the shared IoT attachment are defined for Apollo, with Talos VLAN patches for hcc5, hcc6,
+and hcc7. [docs/networking.md](../docs/networking.md#multus) records consumer integration and deployment
+verification. The operator confirmed all three UniFi trunks and applied the Talos configuration on
+2026-09-17; read-only checks verified VLAN 2 links up and healthy nodes and services. Cilium's VLAN 2
+bypass rollout, live Multus checks, and per-node IPv6/Thread testing remain pending; no IoT capability
+labels are assigned before those checks pass.
+
 The CNPG operator, Barman Cloud plugin, and reusable Postgres component are implemented;
 [docs/databases.md](../docs/databases.md) records integration, verification, and consumer setup.
 Per-app database deployment and backup/restore verification remain part of app migration.
