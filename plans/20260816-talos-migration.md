@@ -329,6 +329,10 @@ and credential scoping. Provision the Apollo buckets and their scoped credential
 
 ## App migration
 
+The repository's [add-apollo-app skill](../.agents/skills/add-apollo-app/SKILL.md) handles net-new apps,
+including community research and Apollo integration. Existing-app migrations continue to follow the
+cutover process below; the skill does not replace their per-app preparation or verification gates.
+
 Public-path monitoring is configured through Gatus and Pushover. The check explicitly uses public DNS
 to avoid the LAN route. Deployment and outage/recovery notification delivery passed verification on
 2026-09-18 UTC; a second outage confirmed that LAN echo remains reachable while the public check fails.

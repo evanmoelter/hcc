@@ -23,6 +23,9 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 
 ## How an app is laid out
 
+For new apps, use the repository's [add-apollo-app skill](./.agents/skills/add-apollo-app/SKILL.md).
+Existing apps moving from `main` follow the migration plan instead.
+
 Apollo apps live under `kubernetes/apollo/apps/<namespace>/<app>/`. A PVC-backed app uses:
 
 ```
@@ -43,15 +46,17 @@ To add an app:
 2. Register `ks.yaml` and its satellite files in the namespace's `kustomization.yaml`. Flux cannot see unregistered resources.
 3. List every dependency in `dependsOn`. Storage, database, and identity (`longhorn`, `cloudnative-pg`, `authentik`) all belong there, or the first reconcile races.
 4. Pass `APP: *app` through `postBuild.substitute` for VolSync. Apollo uses the
-   [lifecycle components](./kubernetes/apollo/components/volsync/), including a required restore preflight;
-   the old cluster retains its template.
+   [lifecycle components](./kubernetes/apollo/components/volsync/), including a required preflight during recovery;
+   new PVCs omit restore configuration. The old cluster retains its template.
 5. Validate with `task kubernetes:kubeconform` before opening a PR.
 
 ## Community resources
 
 There is a huge community of home Kubernetes users, many of whom have public repos with their config. This repo heavily relies on these community resources.
 
-An automated way for agents to discover these resources is coming soon. For now, ask the operator to help you find relevant repos/resources, especially when implementing new apps.
+The app skill's [community discovery guide](./.agents/skills/add-apollo-app/references/community.md)
+lists starting repositories and how to find relevant examples. Research those and upstream documentation
+before asking the operator for resources; ask when an unresolved choice needs their input.
 
 Two of them are load-bearing here:
 

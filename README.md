@@ -101,6 +101,9 @@ I leverage coding agents heavily to help build and maintain this project since m
 
 [AGENTS.md](./AGENTS.md) covers AI best practices: the app layout, secrets handling, validation, and the failure modes this cluster has hit.
 
+Use [$add-apollo-app](./.agents/skills/add-apollo-app/SKILL.md) to research and add a new Apollo app.
+The existing Claude `add-app` entry point follows the same workflow. App migrations remain in the migration plan.
+
 ## Credits
 
 I am so incredibly thankful to many contributors of the home automation / self-hosting / OSS community. You have my eternal gratitude.
