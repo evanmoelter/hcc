@@ -328,8 +328,9 @@ and credential scoping. Provision the Apollo buckets and their scoped credential
 ## App migration
 
 Public-path monitoring is configured through Gatus and Pushover. The check explicitly uses public DNS
-to avoid the LAN route; deployment and actual outage/recovery notification delivery still need verification.
-[docs/monitoring.md](../docs/monitoring.md#deployment-and-alert-delivery-gate) records the gate and operator setup.
+to avoid the LAN route. Deployment and outage/recovery notification delivery passed verification on
+2026-09-18 UTC; a second outage confirmed that LAN echo remains reachable while the public check fails.
+[docs/monitoring.md](../docs/monitoring.md#deployment-and-alert-delivery-gate) records the evidence and operator setup.
 The operator chose in-cluster monitoring for this step; independent monitoring for whole-cluster and
 home-internet outages remains follow-up work. Move the probe to a retained public endpoint before retiring
 public echo at the end of the migration.
@@ -493,7 +494,7 @@ Platform:
 
 Per app:
 
-- [ ] Before the first household-app cutover, add public-path monitoring and verify alert delivery for tunnel
+- [x] Before the first household-app cutover, add public-path monitoring and verify alert delivery for tunnel
   outages. Recheck the Gateway policy's cloudflared and Prometheus selectors after chart upgrades or naming
   changes, including changes to `cleanPrometheusOperatorObjectNames`.
 - [ ] Prepare and review the two-PR cutover stack: old-cluster disable on the bottom, Apollo rebuild on top.
