@@ -1,10 +1,7 @@
 # Kubernetes linting
 
-Run Apollo's policies and policy tests:
-
-```sh
-task kubernetes:lint CLUSTER=apollo
-```
+Run Apollo's policies and policy tests using the lint command in
+[repository validation](../AGENTS.md#validating-changes).
 
 The [Rego policies](../policy/apollo/required_fields.rego) define the rules and exceptions;
 their [tests](../policy/apollo/required_fields_test.rego) provide accepted and rejected examples.

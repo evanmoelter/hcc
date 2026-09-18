@@ -35,7 +35,7 @@ def render(mode="recovery", substitutions=None):
         root = Path(directory)
         shutil.copytree(ROOT / APOLLO / "components/postgres", root / APOLLO / "components/postgres")
         shutil.copytree(FIXTURE, root / APP)
-        owner_path = root / APP / "ks-cluster.yaml"
+        owner_path = root / APP / "ks-database.yaml"
         owner = read(owner_path)
         owner["spec"]["postBuild"]["substitute"].update(substitutions or {})
         if mode == "init":
@@ -81,7 +81,7 @@ def render(mode="recovery", substitutions=None):
         write(config_path, config)
         write(root / APOLLO / "apps/kustomization.yaml", {
             "apiVersion": "kustomize.config.k8s.io/v1beta1", "kind": "Kustomization",
-            "resources": ["default/postgres-example/ks-cluster.yaml", "default/postgres-example/ks.yaml"],
+            "resources": ["default/postgres-example/ks-database.yaml", "default/postgres-example/ks.yaml"],
         })
         (root / APOLLO / "flux").mkdir()
         parent = read(ROOT / APOLLO / "flux/apps.yaml")

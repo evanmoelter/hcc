@@ -19,7 +19,10 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
 | `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
 
-`kubernetes/apollo/` runs Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, 1Password Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, Cloudflare and UniFi external-dns, cloudflared, Tailscale, and echo-server; [docs/secrets.md](./docs/secrets.md) describes secret setup, app integration, and opt-in configuration reloads, and [docs/certificates.md](./docs/certificates.md) covers certificate issuance. [docs/storage.md](./docs/storage.md) covers Longhorn disk configuration, CSI snapshots, VolSync, and node registration. [docs/databases.md](./docs/databases.md) covers the Postgres component, credentials, recovery lifecycle, and per-app Dragonfly integration. [docs/gateway.md](./docs/gateway.md) covers ingress and LAN verification; [docs/dns.md](./docs/dns.md) covers DNS ownership, Terraform tunnel setup, and external testing. [docs/tailscale.md](./docs/tailscale.md) covers Apollo's tailnet identity, OAuth setup, and Ingress proxy security. [docs/talos-security.md](./docs/talos-security.md) covers Secure Boot, TPM encryption, and node conversion. [docs/monitoring.md](./docs/monitoring.md) covers metrics, Gatus public-path monitoring with Pushover, and the LAN/Tailscale cluster and Flux dashboards. [docs/networking.md](./docs/networking.md#multus) covers Multus and per-node IoT verification. No household apps have moved yet. New platform components and new apps go there. Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing against the migration: work that Wave 1 will throw away is usually not worth doing.
+Apollo's platform and integration documentation is indexed in [docs/index.md](./docs/index.md).
+No household apps have moved yet. New platform components and new apps go in `kubernetes/apollo/`.
+Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing
+against the migration: work that Wave 1 will throw away is usually not worth doing.
 
 ## How an app is laid out
 
@@ -48,14 +51,14 @@ To add an app:
 4. Pass `APP: *app` through `postBuild.substitute` for VolSync. Apollo uses the
    [lifecycle components](./kubernetes/apollo/components/volsync/), including a required preflight during recovery;
    new PVCs omit restore configuration. The old cluster retains its template.
-5. Validate with `task kubernetes:kubeconform` before opening a PR.
+5. Run the [applicable validation](#validating-changes) before opening a PR.
 
 ## Community resources
 
 There is a huge community of home Kubernetes users, many of whom have public repos with their config. This repo heavily relies on these community resources.
 
-The app skill's [community discovery guide](./.agents/skills/add-apollo-app/references/community.md)
-lists starting repositories and how to find relevant examples. Research those and upstream documentation
+The [community-discovery skill](./.agents/skills/community-discovery/SKILL.md) researches public home
+Kubernetes repositories for apps and platform work. Research those and upstream documentation
 before asking the operator for resources; ask when an unresolved choice needs their input.
 
 Two of them are load-bearing here:
@@ -69,7 +72,7 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 
 ### Manifest conventions
 
-New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
+New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin image tags and digests so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 
 Keep one chart `OCIRepository` per app beside its `HelmRelease`, so apps can upgrade independently.
 Set both `spec.ref.tag` and `spec.ref.digest`: the tag identifies the version for readers and Renovate;
@@ -186,6 +189,9 @@ Prefer `task <group>:<name>` over raw commands for frequently used tasks; `task`
 Talos machine configuration is managed with `topf`, pinned in `mise.toml`, from `kubernetes/<cluster>/bootstrap/talos/`. `task talos:render` validates a config with no hardware; `apply`, `upgrade`, and `reset` all touch nodes and prompt first. Kubernetes upgrades use `talosctl upgrade-k8s` directly, because `topf` does not wrap them.
 
 ## Keeping these docs current
+
+Keep the documentation catalog in [docs/index.md](./docs/index.md). Shared repository conventions and
+validation commands belong here; skills should link to those sources rather than repeat them.
 
 Part of your job is keeping this doc and the README up to date.
 

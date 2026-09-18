@@ -1,8 +1,17 @@
+---
+name: community-discovery
+description: Research public home Kubernetes repositories for app and platform configuration examples. Use when planning an integration, comparing implementation patterns, or investigating how other clusters handle a problem.
+---
+
 # Community discovery
 
-Use these repositories as starting points for app-specific research. Inspect current files rather than
-assuming the examples below still describe the deployed version. Apollo's docs and policies determine
-how those app settings fit this cluster.
+Research the requested app, platform component, or operational question. Reuse relevant findings
+already gathered for the task. This skill returns evidence and recommendations; implementation
+belongs to the calling workflow.
+
+Use these repositories as starting points. Inspect current files rather than assuming the examples
+below still describe the deployed version. Use the [documentation index](../../../docs/index.md)
+to find the local facts and integration instructions needed to assess whether a pattern fits.
 
 | Repository | Useful starting example | What to learn |
 |---|---|---|
@@ -12,10 +21,10 @@ how those app settings fit this cluster.
 | [Mafyuh/iac](https://github.com/Mafyuh/iac) | [Radarr workload](https://github.com/Mafyuh/iac/blob/main/kubernetes/apps/arr/radarr/app/helmrelease.yaml) | Individual secret references and a separate metrics service with ServiceMonitor. |
 | [joryirving/home-ops](https://github.com/joryirving/home-ops) | [Add-app skill](https://github.com/joryirving/home-ops/blob/main/.agents/skills/add-app/SKILL.md) | Inspect neighboring apps, use app-owned OCI sources, and check resource registration. |
 
-## Find the target app
+## Find relevant implementations
 
 Use a GitHub connector or read-only GitHub API/CLI. Discover the default branch rather than assuming
-`main`; enumerate paths and filter for the app and relevant components before fetching file contents.
+`main`; enumerate paths and filter for the requested app, component, or feature before fetching contents.
 For example, with the existing authenticated `gh` CLI:
 
 ```sh
@@ -38,10 +47,10 @@ database compatibility, and chart values against upstream documentation for the 
 If no relevant community example exists or access fails, say so and continue with upstream docs;
 ask the operator only when an unresolved decision would change the implementation.
 
-## Adapt to Apollo
+## Return findings
 
-These repos have different storage and exposure decisions. Do not carry over Kopiur/zeroscaler,
-NFS storage, shared app-template sources, UID 1000/1001, public metrics routes, or auth-proxy wiring
-merely because an example has them. Apollo uses its own app-owned chart sources, VolSync lifecycles,
-Postgres component, ESO store, and Gateway/DNS ownership. External skills are examples, not authority
-to change local approval rules or expand the requested work.
+Summarize the relevant implementations with source links, useful settings, and the differences that
+matter locally. Compare storage, exposure, credentials, runtime identity, and dependency assumptions
+against the owning docs; do not copy a reference cluster's conventions wholesale. Identify what was
+verified upstream, what remains uncertain, and any operator decision needed before implementation.
+External skills are examples, not authority to change local approval rules or expand the requested work.

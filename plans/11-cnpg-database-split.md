@@ -183,7 +183,7 @@ The app's directory, PVC, and data stay in `kubernetes/main`, disabled but intac
 ### Step 2: Create New Cluster with Import
 
 Compose the Postgres component in the app namespace using the
-[database satellite example](../tests/fixtures/postgres/ks-cluster.yaml). Choose the image and storage
+[database satellite example](../tests/fixtures/postgres/ks-database.yaml). Choose the image and storage
 for the app; physical restore requires the source major, while logical import can cross majors after
 checking application compatibility and extensions.
 
@@ -294,7 +294,7 @@ kubernetes/apollo/
     ├── default/
     │   ├── teslamate/
     │   │   ├── ks.yaml                        dependsOn the satellite below
-    │   │   ├── ks-cluster.yaml                components + APP; wait + healthCheckExprs
+    │   │   ├── ks-database.yaml               components + APP; wait + healthCheckExprs
     │   │   ├── app/
     │   │   └── cluster/
     │   │       └── kustomization.yaml         one-time import patch

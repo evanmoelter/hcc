@@ -14,6 +14,7 @@ spec:
   components:
     - ../../../../components/postgres
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
