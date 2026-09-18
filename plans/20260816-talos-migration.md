@@ -409,12 +409,18 @@ Keep `postgres-lb` until every logical import finishes; then decide whether exte
 
 Migrate in this order:
 
-1. authentik, because Mealie and Paperless depend on it.
-2. Mealie, to prove the smaller hybrid and Barman recovery.
+1. Mealie, currently unused, to prove the smaller hybrid and old-archive Barman recovery. Keep OIDC
+   pointed at the existing Authentik service on `main` until Authentik moves.
+2. authentik, before Paperless. Its configuration is database-backed; the operator confirmed there are
+   no additional files or outposts to migrate. Decide its version upgrade strategy when preparing that cutover.
 3. Paperless, after VolSync and Barman recovery have been exercised.
 4. TeslaMate and Grafana together.
 5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
+
+The operator selected Mealie first on 2026-09-18 because it is not currently used.
+[Mealie's cutover record](./20260918-mealie-migration.md) tracks the two-PR preparation, restore gates,
+and activation. LAN and public access are retained; Tailscale access is deferred.
 
 ## Execution waves
 
