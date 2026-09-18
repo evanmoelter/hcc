@@ -19,6 +19,9 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 
 [Documentation index](./docs/index.md) covers Apollo platform setup, app integrations, and operations.
 
+Mealie is the first app prepared for migration, with routes gated on restored-data verification.
+[The cutover record](./plans/20260918-mealie-migration.md) tracks activation and cleanup.
+
 ## Hardware
 
 > Placeholder. Filled in as nodes are provisioned.
