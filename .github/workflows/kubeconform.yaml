@@ -22,6 +22,10 @@ jobs:
           files: |
             kubernetes/**
             scripts/kubeconform.sh
+            scripts/lint-apollo.sh
+            policy/**
+            mise.toml
+            .taskfiles/Kubernetes/Taskfile.yaml
             tests/**
             .github/workflows/kubeconform.yaml
 
@@ -62,6 +66,18 @@ jobs:
 
       - name: Setup Test Tools
         run: brew install fluxcd/tap/flux kubeconform kustomize yq
+
+      - name: Setup Conftest
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          install_args: aqua:open-policy-agent/conftest
+          env: false
+
+      - name: Test Apollo policies
+        run: conftest verify --policy policy/apollo
+
+      - name: Lint Apollo manifests
+        run: bash scripts/lint-apollo.sh kubernetes/apollo
 
       - name: Test component rendering and lifecycle
         run: python3 -m unittest discover -s tests

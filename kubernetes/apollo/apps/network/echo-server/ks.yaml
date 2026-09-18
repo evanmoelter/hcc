@@ -13,6 +13,7 @@ spec:
       app.kubernetes.io/name: *app
   path: ./kubernetes/apollo/apps/network/echo-server/app
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

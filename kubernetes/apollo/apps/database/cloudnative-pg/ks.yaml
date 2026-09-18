@@ -13,6 +13,7 @@ spec:
       app.kubernetes.io/name: *app
   path: ./kubernetes/apollo/apps/database/cloudnative-pg/app
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

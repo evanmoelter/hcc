@@ -10,6 +10,7 @@ spec:
     - name: onepassword-connect
   path: ./kubernetes/apollo/apps/security/onepassword-connect/store
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

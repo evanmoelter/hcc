@@ -29,6 +29,7 @@ spec:
   interval: 30m
   path: ./kubernetes/apollo/flux
   prune: true
+  deletionPolicy: WaitForTermination
   wait: false
   sourceRef:
     kind: GitRepository

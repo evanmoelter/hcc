@@ -9,6 +9,7 @@ spec:
   interval: 30m
   path: ./kubernetes/apollo/apps
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

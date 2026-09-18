@@ -64,6 +64,11 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 
 ### Manifest conventions
 
+Apollo resources declare Helm failure/CRD policies, Kustomization deletion policy, and Namespace pruning
+metadata locally. [Conftest checks](./docs/flux.md) require explicit fields without enforcing shared values
+or opt-out labels. Run `task kubernetes:lint CLUSTER=apollo` alongside kubeconform. For resource retention,
+review both `prune` and `deletionPolicy`: `WaitForTermination` deletes even when `prune` is false.
+
 New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 
 Keep one chart `OCIRepository` per app beside its `HelmRelease`, so apps can upgrade independently.
@@ -117,7 +122,7 @@ flate build hr --path ./kubernetes/apollo/flux cilium
 
 Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. It doubles as the kubectl context, so a cluster's context must be named after it: tasks pass `--context {{.CLUSTER}}` and never a kubeconfig path. Never export `CLUSTER` from the shell, since Task reads variables from the environment and would hand every cluster-scoped task a silent default. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset, or when no context matches.
 
-CI starts `kubeconform.yaml` and `flux-diff.yaml` on every PR so their required status checks always report. Kubeconform runs validation for both clusters and VolSync tests when `kubernetes/**`, `scripts/kubeconform.sh`, `tests/**`, or its workflow changes; otherwise those jobs skip. `flux-diff.yaml` skips its rendering jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both rendering tools output the manifest delta, which is worth reading when reviewing a Flux change.
+CI starts `kubeconform.yaml` and `flux-diff.yaml` on every PR so their required status checks always report. Kubeconform runs validation for both clusters and component/policy tests when Kubernetes manifests, validation scripts, policies, tool pins, the Kubernetes taskfile, tests, or its workflow change; otherwise those jobs skip. `flux-diff.yaml` skips its rendering jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both rendering tools output the manifest delta, which is worth reading when reviewing a Flux change.
 
 ## Code style
 

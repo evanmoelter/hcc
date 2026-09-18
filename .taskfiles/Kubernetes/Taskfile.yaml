@@ -7,6 +7,14 @@ vars:
 
 tasks:
 
+  lint:
+    desc: Check explicit Apollo resource policies with Conftest
+    cmds:
+      - conftest verify --policy {{.ROOT_DIR}}/policy/apollo
+      - bash {{.SCRIPTS_DIR}}/lint-apollo.sh {{.KUBERNETES_DIR}}
+    preconditions:
+      - { msg: "Policy linting requires CLUSTER=apollo", sh: 'test "{{.CLUSTER}}" = apollo' }
+
   resources:
     desc: Gather common resources in your cluster, useful when asking for support
     cmds:

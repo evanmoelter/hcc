@@ -15,6 +15,7 @@ spec:
       app.kubernetes.io/name: *app
   path: ./kubernetes/apollo/apps/network/cloudflare-dns/app
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

@@ -230,3 +230,24 @@ None - can be implemented independently.
 4. Test by breaking a HelmRelease (e.g., bad values) and verify retry behavior
 5. Test upgrade and verify CRDs are updated
 
+
+
+## Apollo execution record — 2026-09-17
+
+The operator chose explicit declarations with lint checks as an alternative to PR #294's shared defaults.
+The original proposal above is preserved as history. Its assertion that local fields override parent
+patches is incorrect, and its live mutation testing procedure was not used.
+
+Apollo's resources now declare Helm failure/CRD policies, Kustomization deletion policy, and Namespace
+pruning metadata locally. Conftest checks field presence, including strategy-specific remediation or retry
+intervals, without requiring particular values or opt-out labels. Existing root decryption/substitution
+wiring remains. Namespaces stay ordinary manifests; no namespace component or Helm policy patches are added.
+Cilium and Flux instance explicitly retain resources with `Orphan`; both external-dns releases keep `Skip`.
+
+Mise pins Conftest. The Kubernetes lint task and required Kubeconform CI check run the policies and their
+regressions. Source scanning includes multi-document files and excludes encrypted files. Current usage
+lives in [docs/flux.md](../../docs/flux.md). No live cluster mutations are part of this implementation.
+
+Validation passed: 12 Conftest policy tests, Apollo source lint, 19 component/runner tests, Apollo
+kubeconform, and all 91 Flux render checks. The rendered diff changes only HelmRelease policy fields and
+Kustomization deletion policies; chart-rendered workloads are unchanged. Deployment awaits merge.
