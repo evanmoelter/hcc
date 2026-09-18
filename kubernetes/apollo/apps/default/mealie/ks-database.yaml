@@ -10,7 +10,7 @@ spec:
     - name: longhorn-config
     - name: onepassword-store
   targetNamespace: default
-  path: ./kubernetes/apollo/apps/default/mealie/cluster
+  path: ./kubernetes/apollo/apps/default/mealie/database
   components:
     - ../../../../components/postgres
   prune: true

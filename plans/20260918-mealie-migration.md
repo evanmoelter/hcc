@@ -8,6 +8,11 @@ proved before another app moves. Authentik remains on `main`; its version decisi
 Keep the existing Mealie image, chart, PostgreSQL major, OIDC provider, and `food.${SECRET_DOMAIN}`
 hostname for this proof. Add LAN access through the internal Gateway; Tailscale access is deferred.
 
+Later Mealie releases introduce a
+[verified-email requirement](https://github.com/mealie-recipes/mealie/releases/tag/v3.22.0), so review
+OIDC compatibility before upgrading. Apollo cannot express a Flux dependency on Authentik in another
+cluster; verify discovery and login again when Authentik migrates.
+
 Use the [standard migration](./20260816-talos-migration.md) and the tested
 [VolSync](../kubernetes/apollo/components/volsync/) and [Postgres](../docs/databases.md) lifecycles.
 Do not merge both cutover PRs together. No live mutating commands are authorized by this document.
@@ -33,11 +38,15 @@ The operator supplies these fields in `hcc-apollo`; agents do not read or write 
 
 | Item | Fields and scope |
 |---|---|
-| `mealie` | Existing `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`; a new `RESTIC_PASSWORD` for Apollo backups |
+| `mealie` | Existing `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`; `OPENAI_API_KEY`; a new `RESTIC_PASSWORD` for Apollo backups |
 | `mealie-volsync-migration` | Original `RESTIC_PASSWORD`; `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` with Object Read & Write on the old VolSync bucket for restic locks |
 | `mealie-postgres-migration` | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` with Object Read on `tf-hcc-cloudnativepg` |
 | `cloudflare-r2` | Existing shared `ACCOUNT_ID`; source and destination buckets are in this account |
 | `volsync-r2`, `cnpg-r2` | Existing write credentials scoped to their respective Apollo buckets |
+
+Create the `OPENAI_API_KEY` field before deployment: ESO requires it to synchronize `mealie-secret`.
+Mealie receives it through the existing environment bundle; supplying the key enables its OpenAI
+features. Non-secret model and endpoint settings remain application configuration, not secret fields.
 
 Confirm `tf-hcc-apollo-volsync/mealie` and `tf-hcc-apollo-cnpg/mealie/` are unused. A previous attempt
 needs diagnosis and an explicit recovery decision; never silently reuse a partial destination archive.
@@ -112,6 +121,11 @@ and TLS works on both paths. Confirm public access from outside the LAN.
 Verify OIDC login through Authentik on `main`, admin/user group mapping, representative recipes and
 attachments, and a new write. Check logs for database and permission errors. With an initially empty
 app, create a disposable recipe and attachment to prove both stores can write after recovery.
+
+The old app seeds `/app/data/.initialized`; the restore is expected to carry that file forward.
+Apollo does not seed a new file during recovery. Before enabling PVC backups, confirm the restored
+data directory contains that marker or another durable file. Preflight proves that a snapshot exists,
+not that its contents are non-empty. If the directory is empty, investigate the restore before proceeding.
 
 Remove the backup Kustomization's suspension in `ks-storage.yaml` through git. Wait for an actual
 successful snapshot in Apollo's restic repository, and verify the first completed Apollo CNPG backup

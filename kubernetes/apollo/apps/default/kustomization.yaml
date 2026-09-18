@@ -4,6 +4,6 @@ kind: Kustomization
 resources:
   - ./namespace.yaml
   - ./mealie/ks.yaml
-  - ./mealie/ks-cluster.yaml
+  - ./mealie/ks-database.yaml
   - ./mealie/ks-storage.yaml
   - ./mealie/ks-routes.yaml
