@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.1.0/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app gatus
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  values:
+    controllers:
+      gatus:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        replicas: 1
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 568
+            runAsGroup: 568
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          app:
+            image:
+              repository: ghcr.io/twin/gatus
+              tag: v5.36.0@sha256:c5f210d095fa78e6efaa20ffeb14803f2ba4f10615e16a6d12087697149617f0
+            env:
+              TZ: "${TIMEZONE}"
+              GATUS_CONFIG_PATH: /config/config.yaml
+              PUSHOVER_USER_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: gatus-secret
+                    key: PUSHOVER_USER_KEY
+              PUSHOVER_API_TOKEN:
+                valueFrom:
+                  secretKeyRef:
+                    name: gatus-secret
+                    key: PUSHOVER_API_TOKEN
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: &port 8080
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+              readiness: *probes
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /health
+                    port: *port
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+                  failureThreshold: 30
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+    configMaps:
+      config:
+        includeInChecksum: true
+        data:
+          config.yaml: |-
+            metrics: true
+            storage:
+              type: memory
+            web:
+              port: 8080
+            alerting:
+              pushover:
+                application-token: "$PUSHOVER_API_TOKEN"
+                user-key: "$PUSHOVER_USER_KEY"
+                priority: 0
+                resolved-priority: 0
+            endpoints:
+              - name: Apollo public tunnel
+                group: migration
+                url: "https://echo-apollo.${SECRET_DOMAIN}/"
+                interval: 1m
+                client:
+                  dns-resolver: "tcp://1.1.1.1:53"
+                  timeout: 10s
+                  ignore-redirect: true
+                conditions:
+                  - "[STATUS] == 200"
+                  - "[BODY].host == echo-apollo.${SECRET_DOMAIN}"
+                alerts:
+                  - type: pushover
+                    failure-threshold: 3
+                    success-threshold: 2
+                    send-on-resolved: true
+                    minimum-reminder-interval: 1h
+    service:
+      app:
+        controller: gatus
+        ports:
+          http:
+            port: *port
+    serviceMonitor:
+      app:
+        service:
+          identifier: app
+        endpoints:
+          - port: http
+            path: /metrics
+            interval: 1m
+            scrapeTimeout: 10s
+    persistence:
+      config:
+        type: configMap
+        identifier: config
+        globalMounts:
+          - path: /config
+            readOnly: true

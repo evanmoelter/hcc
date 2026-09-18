@@ -8,6 +8,7 @@ Deployment and all 32 active scrape targets were verified healthy on 2026-09-09.
 Prometheus keeps up to two days or 3 GB of retained blocks in a 5 GiB disk-backed `emptyDir`, with room for the WAL
 and compaction. Alertmanager uses a 256 MiB `emptyDir`. Pod replacement loses metrics history and alert silences.
 This lets metrics start before Longhorn. Grafana is disabled, and Alertmanager has no notification receiver configured.
+Public-path notifications come directly from Gatus through Pushover; Kubernetes alerts remain visible only in Alertmanager.
 
 The chart discovers API server, kubelet/cAdvisor, CoreDNS, controller-manager, scheduler, and etcd metrics.
 Talos runs etcd outside Kubernetes, so its Service selects API-server pods to discover control-plane node addresses
@@ -38,6 +39,77 @@ The Talos etcd discovery and cross-namespace monitor settings follow
 [onedr0p's stack](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/o11y/kube-prometheus-stack/app/helmrelease.yaml)
 and [joryirving's stack](https://github.com/joryirving/home-ops/blob/main/kubernetes/apps/base/observability/kube-prometheus-stack/helmrelease.yaml).
 Chart values and generated security settings were checked against kube-prometheus-stack 90.0.0 and Prometheus Operator v0.93.1.
+
+## Public-path monitoring
+
+Gatus checks `https://echo-apollo.${SECRET_DOMAIN}/` once a minute. Its endpoint-specific resolver uses
+Cloudflare DNS over TCP at `1.1.1.1:53`, bypassing UniFi's internal answer. Successful checks require valid
+TLS, HTTP 200 without redirects, and the expected echo hostname in the JSON response. This exercises public
+DNS, Cloudflare, the tunnel, the external Gateway, and echo together; it does not identify which hop failed.
+The pod retains cluster DNS for ordinary lookups, including outbound Pushover requests.
+
+Three consecutive failures trigger a normal-priority Pushover notification. Two consecutive successes
+trigger a recovery notification, with reminders no more often than hourly while the failure continues.
+Gatus sends directly to Pushover, so these notifications do not depend on Alertmanager routing.
+
+One replica uses memory storage and a Recreate deployment strategy. Restarts discard check history and
+alert state, briefly interrupt monitoring, and can produce a new outage notification for an ongoing failure.
+Prometheus scrapes Gatus separately. There is no public dashboard; use a local port-forward:
+
+```sh
+kubectl --context apollo -n monitoring port-forward svc/gatus 8080:8080
+```
+
+Open `http://localhost:8080` for results or `/metrics` for Prometheus output.
+Gatus depends on ESO and the monitoring stack, but not on the readiness of the tunnel or echo it monitors.
+An unhealthy target must not prevent the monitor from being deployed.
+
+### Pushover setup
+
+Install the Pushover client and register the receiving device. Create an application named `Apollo` at
+[Pushover applications](https://pushover.net/apps), then create this item in the `hcc-apollo` vault:
+
+| 1Password item | Field | Value |
+|---|---|---|
+| `pushover` | `PUSHOVER_USER_KEY` | Account User Key |
+| `pushover` | `PUSHOVER_API_TOKEN` | Apollo application's API token |
+
+ESO creates `monitoring/gatus-secret`. Required `secretKeyRef` entries supply both values to the container;
+Reloader restarts it after credential changes. Unbraced `$PUSHOVER_USER_KEY` and `$PUSHOVER_API_TOKEN` in
+the ConfigMap are expanded by Gatus at startup, leaving Flux to substitute only the cluster variables.
+
+### Deployment and alert-delivery gate
+
+Deployment and actual notification delivery remain unverified. Complete these checks before the first
+household-app cutover:
+
+1. Confirm the `gatus` ExternalSecret, HelmRelease, and Flux Kustomization are Ready. Confirm the startup log
+   reports `configuredProviders=[pushover]`. Gatus can remain healthy after rejecting an invalid provider,
+   so `/health` and pod readiness alone do not establish alert delivery.
+2. Confirm repeated successful endpoint checks and a healthy Gatus target in Prometheus. Confirm the
+   endpoint's reported address is public, not the internal Gateway address `192.168.21.100`.
+3. With explicit operator approval, temporarily stop both cloudflared replicas while leaving Gatus,
+   outbound internet, and echo's LAN route running. Suspend the cloudflared Flux Kustomization and
+   HelmRelease before scaling its Deployment to zero. This interrupts every Apollo tunnel route,
+   including the Flux webhook. Keep the suspension as short as the test permits.
+4. Verify the public check fails while LAN echo still works, and confirm the outage notification actually
+   arrives on the operator's device after three failed checks. A provider success log alone is insufficient.
+5. Restore two cloudflared replicas, resume its HelmRelease and Kustomization, and confirm both are Ready.
+   Always restore them even if notification delivery fails. After two successful checks, confirm receipt
+   of the recovery notification and verify public echo, tunnel metrics, and Gateway metrics recover.
+6. Record the test date and results here, then complete the public-path monitoring gate in the migration plan.
+
+Whole-cluster, Gatus-process, and home-internet outage notification coverage is deferred by operator decision.
+An independently hosted uptime check or heartbeat receiver is follow-up work: in-cluster Gatus cannot send
+an alert when Apollo or its outbound internet is unavailable. Before removing public echo at the end of the
+migration, move this check to a retained public endpoint and repeat the alert-delivery gate.
+
+The explicit public resolver follows
+[szinn's Gatus configuration](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/observability/gatus/app/resources/config.yaml).
+Pushover delivery is also used by
+[onedr0p's monitoring stack](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/o11y/kube-prometheus-stack/app/alertmanagerconfig.yaml).
+Provider settings and response conditions follow the
+[Gatus documentation](https://github.com/TwiN/gatus/blob/v5.36.0/README.md).
 
 ## Cluster dashboard
 

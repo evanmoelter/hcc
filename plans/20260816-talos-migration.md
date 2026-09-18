@@ -327,6 +327,13 @@ and credential scoping. Provision the Apollo buckets and their scoped credential
 
 ## App migration
 
+Public-path monitoring is configured through Gatus and Pushover. The check explicitly uses public DNS
+to avoid the LAN route; deployment and actual outage/recovery notification delivery still need verification.
+[docs/monitoring.md](../docs/monitoring.md#deployment-and-alert-delivery-gate) records the gate and operator setup.
+The operator chose in-cluster monitoring for this step; independent monitoring for whole-cluster and
+home-internet outages remains follow-up work. Move the probe to a retained public endpoint before retiring
+public echo at the end of the migration.
+
 ### Standard cutover
 
 For each app, draft a two-PR Graphite stack before scheduling the maintenance window. The bottom PR disables the old copy. The top PR contains the reviewed Apollo rebuild, including its restore configuration, Apollo-specific backup path, final route, and any Tailscale Ingress. Get both PRs through review and CI while the old app still serves traffic.
