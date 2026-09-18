@@ -1,9 +1,8 @@
 # Kubernetes linting
 
-Install the pinned tools and run Apollo's policies and policy tests:
+Run Apollo's policies and policy tests:
 
 ```sh
-mise install aqua:open-policy-agent/conftest aqua:go-task/task
 task kubernetes:lint CLUSTER=apollo
 ```
 
