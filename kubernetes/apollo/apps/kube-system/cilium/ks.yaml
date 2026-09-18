@@ -5,13 +5,16 @@ kind: Kustomization
 metadata:
   name: &app cilium
   namespace: flux-system
+  labels:
+    deletion-policy.flux.home.arpa/disabled: "true"
 spec:
   targetNamespace: kube-system
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
   path: ./kubernetes/apollo/apps/kube-system/cilium/app
-  prune: false # never should be deleted
+  prune: false
+  deletionPolicy: Orphan
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

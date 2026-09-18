@@ -230,3 +230,25 @@ None - can be implemented independently.
 4. Test by breaking a HelmRelease (e.g., bad values) and verify retry behavior
 5. Test upgrade and verify CRDs are updated
 
+
+## Apollo execution record — 2026-09-17
+
+Implemented for Apollo under the Talos migration plan; `kubernetes/main` remains unchanged.
+The proposal above is preserved as history. Its assertion that local HelmRelease fields override parent
+patches is incorrect, and its live mutation testing procedure was not used.
+
+Apollo's root injects Helm remediation defaults into child Kustomizations and defaults child deletion to
+`WaitForTermination`, with independent label-selector opt-outs. Helm uses explicit `RemediateOnFailure`,
+three retries, CRD replacement, final upgrade remediation, and upgrade/rollback cleanup. The old proposal's
+`rollback.recreate` is omitted; cleanup does not require restarting every rollback resource.
+Cloudflare and UniFi external-dns retain `Skip`; Cilium and Flux instance retain their resources through
+explicit `Orphan` deletion policies and opt-outs. Repeated local Helm policy blocks were removed.
+
+The shared namespace component protects Namespaces from pruning. Targeted name/Pod Security patches
+preserve Apollo's existing policies without relocating child Flux Kustomizations out of `flux-system`.
+Current guidance lives in [docs/flux.md](../../docs/flux.md). Validation uses schema checks, parent-to-child
+rendering tests, and the full Apollo chart render and diff; no live cluster mutations are part of this step.
+
+Validation passed: Apollo kubeconform, all 22 component tests, and flate's full render (88 resources/sources).
+The rendered diff contains 21 HelmRelease policy changes, 40 Kustomization changes, and two Namespace
+prune-protection label-to-annotation changes; no chart-rendered workloads change. Deployment remains pending merge.

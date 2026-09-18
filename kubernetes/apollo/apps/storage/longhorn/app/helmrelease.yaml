@@ -14,13 +14,6 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: *app
-  install:
-    remediation:
-      retries: 3
-  upgrade:
-    cleanupOnFail: true
-    remediation:
-      retries: 3
   values:
     persistence:
       defaultClass: true

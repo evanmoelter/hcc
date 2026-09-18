@@ -116,7 +116,7 @@ or an app release in another build. Dependencies and readiness checks stay on th
 |---|---|
 | `volsync` | Preflight, restore wiring for app-defined PVCs, and backup lifecycles; [usage](../kubernetes/apollo/components/volsync/) |
 | `postgres` | Per-app database, backup credentials, archive, and schedule; [usage and recovery lifecycle](../docs/databases.md) |
-| `namespace` | Planned shared Namespace with pruning disabled |
+| `namespace` | Shared Namespace with pruning disabled; [usage](../docs/flux.md#namespace-component) |
 
 The Postgres component and its explicit initialization opt-in are implemented. Per-app cutovers must
 supply compatible images and credentials, verify restored data and the first Apollo backup, then remove
@@ -133,6 +133,12 @@ The trap is that the parent wins. Flux applies `spec.patches` to the rendered ou
 - Read defaults through the rendered diff. CI renders the effective manifest, so a default that surprises an app surfaces in the PR that adds the app rather than at reconcile time.
 
 Add a default once two apps need it. A default introduced for one app is a patch in the wrong place.
+
+The namespace component and root reconciliation defaults are implemented. [docs/flux.md](../docs/flux.md)
+records the nested Helm patch, opt-outs, and namespace integration. Cilium and Flux instance retain resources
+with explicit `Orphan` policies; both external-dns instances retain their local CRD policies. Component tests
+cover rendered defaults and exceptions. The [archived defaults plan](./done/08-helmrelease-defaults.md)
+preserves the earlier proposal and the Apollo execution record.
 
 ### Talos and Cilium invariants
 
@@ -484,8 +490,8 @@ Platform:
 - [ ] Implement and verify dual routes on echo-server before the first app migration.
 - [ ] Complete `plans/04-envoy-gateway.md` for Apollo's IPs, VLAN, cloudflared integration, raw load-balancer services, and Tailscale Ingresses.
 - [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, and `longhorn-snapclass`.
-- [ ] Create `kubernetes/apollo/components/` with the `volsync`, `postgres`, and `namespace` components before the first app rebuild.
-- [ ] Set the `cluster-apps` defaults, and give each one a `labelSelector` escape hatch where an app may legitimately differ.
+- [x] Create `kubernetes/apollo/components/` with the `volsync`, `postgres`, and `namespace` components before the first app rebuild.
+- [x] Set the `cluster-apps` defaults, and give each one a `labelSelector` escape hatch where an app may legitimately differ.
 - [x] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
 - [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.

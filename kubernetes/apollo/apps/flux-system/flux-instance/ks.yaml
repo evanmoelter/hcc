@@ -5,12 +5,15 @@ kind: Kustomization
 metadata:
   name: flux-instance
   namespace: flux-system
+  labels:
+    deletion-policy.flux.home.arpa/disabled: "true"
 spec:
   dependsOn:
     - name: flux-operator
   interval: 1h
   path: ./kubernetes/apollo/apps/flux-system/flux-instance/app
   prune: false
+  deletionPolicy: Orphan
   sourceRef:
     kind: GitRepository
     name: home-kubernetes
