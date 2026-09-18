@@ -12,9 +12,7 @@ the checkout root and resolve this skill's links relative to their containing fi
 
 Check whether the app already exists, then inspect one or two current Apollo apps with similar needs.
 Invoke [community-discovery](../community-discovery/SKILL.md) if its findings for this task are not
-already available. Reuse that research and verify the app's requirements against upstream documentation
-and the selected chart. Prefer a usable app-specific chart, otherwise bjw-s app-template. Check current
-releases and compatibility rather than inheriting an example's pins.
+already available. Reuse that research and verify the app's requirements against upstream documentation.
 
 Report the proposed deployment and sources before implementation. Ask only about decisions that
 research and existing user instructions cannot settle: intended LAN/public/Tailscale access and
@@ -28,6 +26,9 @@ get confirmation of existing names rather than inventing them. Wait for explicit
 decisions; continue independent research while waiting.
 
 ## Integrations and implementation
+
+Prefer a usable app-specific chart, otherwise bjw-s app-template. Check current releases and compatibility
+rather than inheriting an example's pins.
 
 Use the [documentation index](../../../docs/index.md) to read the integration instructions needed by
 this app. Determine what data needs persistence, whether it starts empty or restores existing data,

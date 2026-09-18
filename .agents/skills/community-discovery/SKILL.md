@@ -34,9 +34,8 @@ gh api 'repos/onedr0p/home-ops/git/trees/main?recursive=1' \
 ```
 
 Replace the repository, branch, and search terms with discovered values. If the tree is truncated,
-inspect the relevant subtree. Fetch only relevant nonsensitive manifests: app `ks.yaml`, HelmRelease,
-OCIRepository, resource registrations, and supporting configuration. Skip encrypted secret files,
-credential files, and private configuration. Do not print credentials found incidentally in an example.
+inspect the relevant subtree. Fetch relevant nonsensitive manifests: app `ks.yaml`, HelmRelease,
+OCIRepository, resource registrations, and supporting configuration.
 
 Start with a close match and compare another repo when it resolves a meaningful uncertainty. For
 independent research across multiple repos, subagents can return source paths, app requirements,
