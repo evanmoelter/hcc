@@ -162,8 +162,10 @@ Cilium policy on the primary interface does not establish isolation for the dire
 ### Deployment verification
 
 Installation and IoT path verification are separate gates. On 2026-09-17, the operator confirmed all three
-candidate nodes use the UniFi profile with HCC (6) native and Home Automation (2) tagged. The manifests and
-node patches are prepared; Talos application, live Multus installation, and per-node IoT verification remain pending.
+candidate nodes use the UniFi profile with HCC (6) native and Home Automation (2) tagged and applied the Talos
+configuration. Read-only checks confirmed `bond0.2` up with VLAN ID 2 on hcc5, hcc6, and hcc7, all three nodes
+Ready, healthy etcd and kubelet services, and all Longhorn disks Ready and Schedulable. Live Multus installation
+and per-node IoT traffic verification remain pending.
 
 1. Confirm each candidate node's UniFi port carries VLAN 6 untagged and VLAN 2 tagged. With operator
    approval, apply the committed Talos configuration one node at a time using
