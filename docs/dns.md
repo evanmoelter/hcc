@@ -58,8 +58,10 @@ Envoy still identified cloudflared's pod as the client. A public request carryin
 and CF-Connecting-IP headers returned Cloudflare HTTP 403, so that request did not verify origin handling.
 On 2026-09-17, the operator independently confirmed off-LAN echo access. The tunnel-only isolation checks
 passed, both cloudflared replicas had successful origin requests after policy deployment, and the tunnel
-and proxy metrics targets were healthy. External-only forwarded-header trust is now configured;
-[client-IP and spoofed-header verification](./gateway.md#client-ip-verification) remains pending after deployment.
+and proxy metrics targets were healthy. After external-only trust deployed, normal and forged-XFF requests
+identified the real public client in origin logs. Cloudflare rejected forged CF-Connecting-IP requests
+before the origin; [the verification record](./gateway.md#client-ip-verification) preserves that limitation
+and the separate requirement for app proxy-header checks.
 
 For deployment checks and later changes:
 
@@ -70,11 +72,14 @@ For deployment checks and later changes:
 - Complete [client-IP and spoofed-header checks](./gateway.md#client-ip-verification) before configuring app proxy trust.
 - Verify direct LAN access to the external Gateway is blocked while public tunnel requests and proxy metrics succeed.
 
-Echo is intentionally public during testing. Afterward, disable its chart-generated external route and retain
-`echo-server-internal`: LAN DNS should remain `192.168.21.100`, and the tunnel must stop serving echo.
-Remove its leftover public DNS and matching
-Apollo TXT record manually; `upsert-only` retains them. [Tailscale](./tailscale.md) has a separate echo Ingress;
-complete its credential setup and tailnet verification independently.
+Echo remains intentionally public throughout the cluster migration for further testing. After the migration
+is complete, disable its chart-generated external route and retain `echo-server-internal`: LAN DNS should
+remain `192.168.21.100`, and the tunnel must stop serving echo. Then verify removal of the public
+`echo-apollo.${SECRET_DOMAIN}` CNAME and its matching
+`k8s.apollo.cloudflare.cname-echo-apollo.${SECRET_DOMAIN}` TXT record. If external-dns still uses `upsert-only`,
+remove them manually after confirming Apollo ownership; after Wave 2 restores `sync`, check automatic cleanup.
+Keep both records until route removal. [Tailscale](./tailscale.md) has a separate echo Ingress whose HTTPS
+path was also verified on 2026-09-17.
 
 ## References
 

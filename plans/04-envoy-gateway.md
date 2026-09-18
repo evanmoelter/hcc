@@ -17,8 +17,10 @@ records the comparison and shared-policy approach.
 On 2026-09-17 UTC, the dual routes passed LAN DNS, TLS, redirect, and forged-header checks; requests forced
 to public DNS addresses also reached Apollo through the tunnel. The verification records preserve those
 results in [gateway.md](../docs/gateway.md#lan-verification) and [dns.md](../docs/dns.md#verify-after-deployment).
-Independent off-LAN verification subsequently passed; origin forged-header verification remains pending
-after the trust change deploys.
+Independent off-LAN verification subsequently passed. After external-only trust deployed, normal and
+forged-XFF requests identified the real public client in origin logs. Forged CF-Connecting-IP requests were
+rejected by Cloudflare before reaching Envoy, so external-origin handling of that header remains untested.
+LAN forged-header checks and the Tailscale HTTPS path also passed.
 
 The operator subsequently chose a tunnel-only external Gateway. Its NetworkPolicy admits cloudflared to
 the external HTTPS listener and Prometheus to metrics. The deployed policy passed the
@@ -27,21 +29,19 @@ cross-namespace label isolation, both tunnel replicas' origin traffic, and healt
 also confirmed independent off-LAN echo access. External-only pod-CIDR trust is now configured. This separates
 enforcement verification from trust activation; Flux readiness cannot establish Cilium datapath enforcement.
 
+The operator chose to keep echo publicly accessible until the cluster migration is complete, so further
+testing can use the existing public, LAN, and Tailscale paths. Successful ingress checks do not trigger
+public-route or DNS removal.
+
 ## Remaining work
 
-1. After the trust change deploys, verify normal and forged-header tunnel requests against Envoy's detected
-   client address in access logs, following [the verification procedure](../docs/gateway.md#client-ip-verification).
-   The internal Gateway must remain untrusted. Recheck tunnel isolation and metrics health. A Cloudflare 403
-   without an origin request does not establish correct origin handling.
-2. After client-IP verification, disable echo's external route. LAN DNS already points only to
-   `192.168.21.100`; the former external-Gateway record is absent. The operator chose unauthenticated public access
-   during testing; afterward disable echo's chart-generated external route, retain `echo-server-internal`,
-   and verify echo is unreachable through the tunnel.
-   The Tailscale operator and echo Ingress are defined;
-   complete the credential setup and tailnet verification in [docs/tailscale.md](../docs/tailscale.md).
-3. Before configuring Authentik or Home Assistant, complete the client-IP checks above and each app's own
+1. Before configuring Authentik or Home Assistant, complete each app's own
    proxy-trust checks using the [Gateway trust configuration](../docs/gateway.md) as the starting point.
-4. Migrate app routes during their individual cutovers. Raw LoadBalancer services and Tailscale Ingresses
+   The external-origin CF-Connecting-IP case remains unexercised; Cloudflare's 403 is not an origin result.
+2. Migrate app routes during their individual cutovers. Raw LoadBalancer services and Tailscale Ingresses
    retain their separate paths. Remove ingress-nginx with the old cluster in Wave 2.
+3. After the cluster migration is complete, disable echo's chart-generated external route, retain its
+   internal and Tailscale paths, and verify echo is unreachable through the tunnel. Complete the public DNS
+   cleanup in [dns.md](../docs/dns.md); keep the route and records available until then.
 
 Custom error pages, additional traffic tuning, and uptime-discovery annotations are optional follow-ups.
