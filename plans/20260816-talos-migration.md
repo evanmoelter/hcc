@@ -95,7 +95,7 @@ Apollo uses `bootstrap/`, `flux/`, `apps/`, and `components/`, its own Flux sour
 While both trees exist:
 
 - Make the root `Taskfile.yaml` Kubernetes directory a per-cluster variable.
-- Add Apollo to `flux-diff.yaml` and `kubeconform.yaml` when the tree is created.
+- Add Apollo to `flux-diff.yaml` and `kubernetes-validation.yaml` when the tree is created.
 - Re-encrypt `cluster-secrets.sops.yaml` with the existing age key.
 - Change only the tree serving an app. Disabled copies in `kubernetes/main` stay frozen.
 

@@ -1,13 +1,13 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: "Kubeconform"
+name: "Kubernetes Validation"
 
 on:
   pull_request:
 
 jobs:
   pre-job:
-    name: Kubeconform Pre-Job
+    name: Kubernetes Validation Pre-Job
     runs-on: ubuntu-latest
     outputs:
       any_changed: ${{ steps.changed-files.outputs.any_changed }}
@@ -28,7 +28,7 @@ jobs:
             Taskfile.yaml
             .taskfiles/Kubernetes/Taskfile.yaml
             tests/**
-            .github/workflows/kubeconform.yaml
+            .github/workflows/kubernetes-validation.yaml
 
   kubeconform:
     name: Kubeconform (${{ matrix.cluster }})
