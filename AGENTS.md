@@ -169,8 +169,8 @@ Add new ones here as they are discovered. Remove existing ones when they have be
 ### Empty VolSync backups
 
 Seed a file before expecting the first restic snapshot. Apollo's mover skips an empty directory successfully,
-so a successful sync alone does not establish a restore point. An init container can touch a placeholder;
-both `mealie` and `paperless-sftp` use this pattern.
+so a successful sync alone does not establish a restore point. An init container can touch a placeholder.
+The old-cluster `mealie` and `paperless-sftp` workloads use this pattern.
 
 ### Stopping a stuck CNPG pod takes two steps
 
@@ -192,6 +192,7 @@ Talos machine configuration is managed with `topf`, pinned in `mise.toml`, from 
 
 Keep the documentation catalog in [docs/index.md](./docs/index.md). Shared repository conventions and
 validation commands belong here; skills should link to those sources rather than repeat them.
+Document major service areas in `docs/`; keep app-specific cutover details in their migration plans.
 
 Part of your job is keeping this doc and the README up to date.
 

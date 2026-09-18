@@ -53,11 +53,10 @@ spec:
       kind: PersistentVolumeClaim
       current: >-
         has(status.phase) && status.phase == 'Bound' &&
-        (metadata.name != 'mealie-data' ||
-          (has(spec.dataSourceRef) &&
-           has(spec.dataSourceRef.apiGroup) && spec.dataSourceRef.apiGroup == 'volsync.backube' &&
-           spec.dataSourceRef.kind == 'ReplicationDestination' &&
-           spec.dataSourceRef.name == 'mealie-bootstrap-migration-v1'))
+        has(spec.dataSourceRef) &&
+        has(spec.dataSourceRef.apiGroup) && spec.dataSourceRef.apiGroup == 'volsync.backube' &&
+        spec.dataSourceRef.kind == 'ReplicationDestination' &&
+        spec.dataSourceRef.name == 'mealie-bootstrap-migration-v1'
     - apiVersion: volsync.backube/v1alpha1
       kind: ReplicationDestination
       current: >-
