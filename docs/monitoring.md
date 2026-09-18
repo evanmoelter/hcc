@@ -80,14 +80,22 @@ the ConfigMap are expanded by Gatus at startup, leaving Flux to substitute only 
 
 ### Deployment and alert-delivery gate
 
-Deployment and actual notification delivery remain unverified. Complete these checks before the first
-household-app cutover:
+The gate passed across two operator-run tunnel outages on 2026-09-18 UTC. Gatus deployed at revision
+`2baf6788`, its ExternalSecret synced, its Pushover provider loaded, and Prometheus scraped it successfully.
+During the first outage, the operator confirmed receipt of both the failure and recovery notifications.
+During the second outage, cloudflared had zero replicas and the public check failed with HTTP 530 while
+LAN echo returned HTTP 200 with valid TLS at `192.168.21.100`. Gatus logged triggering the second outage
+alert; receipt of the second test's notifications was not separately confirmed. After restoration, both
+tunnel replicas, Flux readiness, and the public check recovered.
+
+Repeat these checks after changing the probe target or notification credentials:
 
 1. Confirm the `gatus` ExternalSecret, HelmRelease, and Flux Kustomization are Ready. Confirm the startup log
    reports `configuredProviders=[pushover]`. Gatus can remain healthy after rejecting an invalid provider,
    so `/health` and pod readiness alone do not establish alert delivery.
 2. Confirm repeated successful endpoint checks and a healthy Gatus target in Prometheus. Confirm the
-   endpoint's reported address is public, not the internal Gateway address `192.168.21.100`.
+   deployed endpoint uses the public resolver; the outage check below verifies that LAN reachability
+   cannot mask a tunnel failure.
 3. With explicit operator approval, temporarily stop both cloudflared replicas while leaving Gatus,
    outbound internet, and echo's LAN route running. Suspend the cloudflared Flux Kustomization and
    HelmRelease before scaling its Deployment to zero. This interrupts every Apollo tunnel route,
