@@ -185,8 +185,10 @@ access logs. Compare the detected address with the client's independently known 
 that a forged X-Forwarded-For value cannot replace it. Test CF-Connecting-IP separately and record whether
 the request reached the origin; an edge rejection does not establish origin behavior. Repeat the
 internal-Gateway forged-header check above; it must still identify the LAN client. Recheck isolation and
-metrics health. Retain echo's external route for further testing throughout the migration. Remove it and
-complete the DNS cleanup in [dns.md](./dns.md) after the migration is complete.
+metrics health. Retain echo's external route for further testing throughout the migration. After the migration
+is complete, move Gatus to a retained public endpoint and repeat the
+[alert-delivery gate](./monitoring.md#deployment-and-alert-delivery-gate) before removing echo's external route
+and completing the DNS cleanup in [dns.md](./dns.md).
 
 ## References
 

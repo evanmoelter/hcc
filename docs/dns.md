@@ -73,7 +73,9 @@ For deployment checks and later changes:
 - Verify direct LAN access to the external Gateway is blocked while public tunnel requests and proxy metrics succeed.
 
 Echo remains intentionally public throughout the cluster migration for further testing. After the migration
-is complete, disable its chart-generated external route and retain `echo-server-internal`: LAN DNS should
+is complete, first replace Gatus's probe target and verify alert delivery as described in the
+[Gateway cleanup prerequisite](./gateway.md#client-ip-verification).
+Then disable echo's chart-generated external route and retain `echo-server-internal`: LAN DNS should
 remain `192.168.21.100`, and the tunnel must stop serving echo. Then verify removal of the public
 `echo-apollo.${SECRET_DOMAIN}` CNAME and its matching
 `k8s.apollo.cloudflare.cname-echo-apollo.${SECRET_DOMAIN}` TXT record. If external-dns still uses `upsert-only`,
