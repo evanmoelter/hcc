@@ -41,7 +41,7 @@ def render(mode="recovery", substitutions=None):
         if mode == "init":
             owner["spec"]["components"].append("../../../../components/postgres/init")
         write(owner_path, owner)
-        config_path = root / APP / "cluster/kustomization.yaml"
+        config_path = root / APP / "database/kustomization.yaml"
         config = read(config_path)
         if mode == "migration":
             source = read(root / APOLLO / "components/postgres/objectstore.yaml")
@@ -51,7 +51,7 @@ def render(mode="recovery", substitutions=None):
             for credential in source["spec"]["configuration"]["s3Credentials"].values():
                 credential["name"] = "${APP}-pg-source-r2"
             source["spec"].pop("instanceSidecarConfiguration")
-            write(root / APP / "cluster/source.yaml", source)
+            write(root / APP / "database/source.yaml", source)
             config["resources"] = ["source.yaml"]
             external = [{"name": "${APP}-pg-backup", "plugin": {
                 "name": PLUGIN,
@@ -104,7 +104,7 @@ def render(mode="recovery", substitutions=None):
         write(owner_path, database)
         resources = documents(command(
             "flux", "build", "kustomization", "postgres-example-cluster", "--dry-run", "--strict-substitute",
-            "--path", str(root / APP / "cluster"), "--kustomization-file", str(owner_path),
+            "--path", str(root / APP / "database"), "--kustomization-file", str(owner_path),
         ))
         for resource in resources:
             annotations = resource["metadata"].get("annotations", {})

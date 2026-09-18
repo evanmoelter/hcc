@@ -40,7 +40,9 @@ task                                        # list every task
 flux get kustomizations -A                  # what is reconciling, and what is not
 flux get helmreleases -A
 task flux:reconcile CLUSTER=main            # pull changes from git now, rather than waiting
+task kubernetes:kubeconform CLUSTER=main    # validate manifests the way CI does
 task kubernetes:resources CLUSTER=main      # gather cluster state for troubleshooting
+task talos:render CLUSTER=apollo            # for Talos changes; renders machine configs
 task talos:kubeconfig CLUSTER=apollo        # refresh Apollo's admin kubeconfig
 task talos:talosconfig CLUSTER=apollo       # refresh Apollo's Talos API credentials
 kubectx main | kubectx apollo               # switch clusters
