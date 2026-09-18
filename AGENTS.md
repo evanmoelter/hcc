@@ -188,6 +188,8 @@ Document decisions, non-obvious behavior, and operational context that cannot be
 Avoid restating configuration or duplicating general procedures. Keep version pins in code; mention versions
 in docs only when they explain a compatibility constraint or historical verification result.
 
+Prefer lint rules for conventions that should be enforced widely, keeping the rules and their tests as the source of truth.
+
 Propose an edit when you:
 
 - Learn a convention these docs do not state, or find one they state wrongly.
