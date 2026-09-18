@@ -9,6 +9,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 APOLLO = ROOT / "kubernetes/apollo"
 HELM_OPT_OUT = "helm-defaults.flux.home.arpa/disabled"
+CRD_OPT_OUT = "helm-crds.flux.home.arpa/disabled"
 
 
 def documents(data):
@@ -115,10 +116,12 @@ class ApolloDefaultsTest(unittest.TestCase):
                 self.assertEqual(owner["metadata"]["namespace"], "flux-system")
 
     def test_deletion_defaults_preserve_critical_orphan_exceptions(self):
+        for name in {"cilium", "flux-instance"}:
+            with self.subTest(kustomization=name):
+                self.assertFalse(self.owners[name]["spec"]["prune"])
         for name, owner in self.owners.items():
             with self.subTest(kustomization=name):
-                if name in {"cilium", "flux-instance"}:
-                    self.assertFalse(owner["spec"]["prune"])
+                if not owner["spec"]["prune"]:
                     self.assertEqual(owner["spec"]["deletionPolicy"], "Orphan")
                 else:
                     self.assertEqual(owner["spec"]["deletionPolicy"], "WaitForTermination")
@@ -129,15 +132,15 @@ class ApolloDefaultsTest(unittest.TestCase):
         release = next(resource for resource in resources if resource["kind"] == "HelmRelease")
         self.assert_defaults(release)
 
-    def test_dns_releases_keep_their_crd_policy(self):
+    def test_dns_releases_keep_their_crd_policy_and_receive_remediation_defaults(self):
         for name in ["cloudflare-dns", "unifi-dns"]:
             with self.subTest(release=name):
                 owner = self.owners[name]
-                self.assertEqual(owner["metadata"]["labels"][HELM_OPT_OUT], "true")
+                self.assertEqual(owner["metadata"]["labels"][CRD_OPT_OUT], "true")
+                self.assertNotIn(HELM_OPT_OUT, owner["metadata"]["labels"])
                 resources = build(owner, ROOT / owner["spec"]["path"])
-                spec = next(resource["spec"] for resource in resources if resource["kind"] == "HelmRelease")
-                self.assertEqual(spec["install"]["crds"], "Skip")
-                self.assertEqual(spec["upgrade"]["crds"], "Skip")
+                release = next(resource for resource in resources if resource["kind"] == "HelmRelease")
+                self.assert_defaults(release, crds="Skip")
 
     def test_local_fields_cannot_override_parent_defaults(self):
         _, _, release = synthetic_release(opt_out=False)
@@ -154,12 +157,12 @@ class ApolloDefaultsTest(unittest.TestCase):
         self.assertEqual(release["spec"]["upgrade"]["crds"], "Skip")
         self.assertEqual(release["spec"]["upgrade"]["remediation"]["retries"], 7)
 
-    def assert_defaults(self, release):
+    def assert_defaults(self, release, crds="CreateReplace"):
         spec = release["spec"]
-        self.assertEqual(spec["install"]["crds"], "CreateReplace")
+        self.assertEqual(spec["install"]["crds"], crds)
         self.assertEqual(spec["install"]["strategy"]["name"], "RemediateOnFailure")
         self.assertEqual(spec["install"]["remediation"]["retries"], 3)
-        self.assertEqual(spec["upgrade"]["crds"], "CreateReplace")
+        self.assertEqual(spec["upgrade"]["crds"], crds)
         self.assertEqual(spec["upgrade"]["strategy"]["name"], "RemediateOnFailure")
         self.assertTrue(spec["upgrade"]["cleanupOnFail"])
         self.assertEqual(spec["upgrade"]["remediation"]["retries"], 3)

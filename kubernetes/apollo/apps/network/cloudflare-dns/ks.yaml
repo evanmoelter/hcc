@@ -5,7 +5,7 @@ metadata:
   name: &app cloudflare-dns
   namespace: flux-system
   labels:
-    helm-defaults.flux.home.arpa/disabled: "true"
+    helm-crds.flux.home.arpa/disabled: "true"
 spec:
   dependsOn:
     - name: onepassword-store

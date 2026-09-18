@@ -68,6 +68,8 @@ Apollo's [Flux defaults](./docs/flux.md) provide Helm remediation and Kustomizat
 Declare exceptions with opt-out labels on the owning Flux Kustomization; local fields alone are overwritten.
 Opt out of Helm defaults before adding a child `spec.patches` list. Namespace directories use the shared
 namespace component with a targeted name/Pod Security patch, keeping child Kustomizations in `flux-system`.
+For resource retention, pair `prune: false` with the deletion-policy opt-out and `deletionPolicy: Orphan`;
+the default `WaitForTermination` deletes resources even when pruning is disabled.
 
 New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 

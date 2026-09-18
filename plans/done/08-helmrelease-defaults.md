@@ -252,3 +252,10 @@ rendering tests, and the full Apollo chart render and diff; no live cluster muta
 Validation passed: Apollo kubeconform, all 22 component tests, and flate's full render (88 resources/sources).
 The rendered diff contains 21 HelmRelease policy changes, 40 Kustomization changes, and two Namespace
 prune-protection label-to-annotation changes; no chart-rendered workloads change. Deployment remains pending merge.
+
+Review follow-up: split CRD policy into an appended patch with a narrow opt-out. Both external-dns
+controllers now receive shared remediation while retaining `Skip`; the whole-policy opt-out still preserves
+custom child patches. The deletion regression test checks every non-pruning Kustomization as well as the
+explicit Cilium/Flux safeguards. Documented the retention trap in AGENTS.md and why failure policies are explicit.
+Apollo kubeconform, all 22 tests, and the full 88-resource/source render passed again. Relative to the initial
+implementation, only the two DNS HelmRelease policies and Kustomization patch composition change.

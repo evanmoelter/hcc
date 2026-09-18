@@ -25,6 +25,10 @@ The root applies deletion and Helm defaults independently of secret substitution
   remediation, including after the final failed attempt. Installs and upgrades use `crds: CreateReplace`;
   upgrades and rollbacks clean up newly created resources if the operation fails.
 
+The explicit strategies preserve remediation if the controller's `DefaultToRetryOnFailure` feature gate
+is enabled. Explicit final-upgrade remediation keeps that policy independent of the retry-count default.
+Install final-failure remediation stays unset, retaining the failed installation after retries are exhausted.
+
 HelmRelease defaults are injected as a patch into each child Kustomization, since the root renders the
 children rather than their HelmReleases. App versions, values, resource requests, timeouts, and replica
 counts remain app-owned. CRD replacement does not make CRD schema changes reversible during rollback.
@@ -34,6 +38,7 @@ Declare exceptions on the child Flux Kustomization's `metadata.labels`:
 | Label set to `"true"` | Effect |
 |---|---|
 | `helm-defaults.flux.home.arpa/disabled` | Keep the child's own patch list and Helm policies |
+| `helm-crds.flux.home.arpa/disabled` | Keep local Helm CRD policies while receiving remediation defaults |
 | `deletion-policy.flux.home.arpa/disabled` | Keep the child's explicit deletion policy |
 | `substitution.flux.home.arpa/disabled` | Keep the child's own decryption and substitution settings |
 
@@ -42,7 +47,9 @@ A local field does not override a root default without the corresponding opt-out
 It can then set Helm policy in its HelmRelease or its own patches. Patches in an app's ordinary Kustomize
 `kustomization.yaml`, including component patches, are separate and remain available without opting out.
 
-Cloudflare and UniFi external-dns opt out of Helm defaults and retain their local `crds: Skip` policies.
+The CRD patch appends to the injected remediation patch list. Opting out of all Helm defaults also skips
+this append, preserving a child's custom patches. Cloudflare and UniFi external-dns opt out only of CRD
+defaults, retaining local `crds: Skip` policies while receiving shared failure handling.
 Cilium and Flux instance opt out of the deletion default and explicitly use `Orphan`, preserving their
 resources when their Kustomizations are deleted. `prune: false` alone is insufficient:
 `WaitForTermination` requests deletion regardless of that field. Per-resource prune protection, such as
