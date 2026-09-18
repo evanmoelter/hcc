@@ -244,7 +244,7 @@ Cilium and Flux instance explicitly retain resources with `Orphan`; both externa
 
 Mise pins Conftest. The Kubernetes lint task and required Kubeconform CI check run the policies and their
 regressions. Source scanning includes multi-document files and excludes encrypted files. Current usage
-lives in [docs/flux.md](../../docs/flux.md). No live cluster mutations are part of this implementation.
+lives in [docs/linting.md](../../docs/linting.md). No live cluster mutations are part of this implementation.
 
 Validation passed: 12 Conftest policy tests, Apollo source lint, 19 component/runner tests, Apollo
 kubeconform, and all 91 Flux render checks. The rendered diff changes only HelmRelease policy fields and

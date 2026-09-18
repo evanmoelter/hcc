@@ -64,17 +64,13 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 
 ### Manifest conventions
 
-Apollo resources declare Helm failure policies, Kustomization deletion policy, and Namespace pruning
-metadata locally. [Conftest checks](./docs/flux.md) require explicit fields; CRD declarations stay chart-specific.
-Lint rejects deletion with disabled pruning unless the owning resource documents an exception.
-Run `task kubernetes:lint CLUSTER=apollo` alongside kubeconform. For resource retention, review both
-`prune` and `deletionPolicy`: `WaitForTermination` deletes even when `prune` is false.
-
 New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 
 Keep one chart `OCIRepository` per app beside its `HelmRelease`, so apps can upgrade independently.
 Set both `spec.ref.tag` and `spec.ref.digest`: the tag identifies the version for readers and Renovate;
 Flux pulls the digest, which takes precedence. Update both together on version bumps and retain signature verification where configured.
+
+Declare Helm CRD lifecycle fields where the chart needs them; chart values managing templated CRDs are separate.
 
 ### Config in git, credentials in secrets
 
@@ -111,6 +107,7 @@ Cap CPU where a burst would cost more than the throttling does, such as a backgr
 ```sh
 task kubernetes:kubeconform CLUSTER=main    # schema validation, same as CI
 task kubernetes:kubeconform CLUSTER=apollo  # the same, against the Apollo tree
+task kubernetes:lint CLUSTER=apollo         # Conftest policies and their tests
 task talos:render CLUSTER=apollo            # for Talos changes; renders machine configs, no hardware needed
 ```
 

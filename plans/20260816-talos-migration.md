@@ -132,7 +132,7 @@ component is needed.
 This replaces the proposed root defaults: parent patches override app-local fields and make exceptions
 harder to read. Existing root decryption and substitution wiring stays in place. Source lint catches
 missing declarations, kubeconform validates schemas, and the rendered Flux diff shows effective changes.
-[docs/flux.md](../docs/flux.md) documents the required fields and validation commands. The original defaults
+[docs/linting.md](../docs/linting.md) documents how to run the checks and links to their definitions. The original defaults
 proposal and the replacement's execution record are preserved in
 [plans/done/08-helmrelease-defaults.md](./done/08-helmrelease-defaults.md).
 
