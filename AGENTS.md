@@ -70,6 +70,8 @@ Keep one chart `OCIRepository` per app beside its `HelmRelease`, so apps can upg
 Set both `spec.ref.tag` and `spec.ref.digest`: the tag identifies the version for readers and Renovate;
 Flux pulls the digest, which takes precedence. Update both together on version bumps and retain signature verification where configured.
 
+Declare Helm CRD lifecycle fields where the chart needs them; chart values managing templated CRDs are separate.
+
 ### Config in git, credentials in secrets
 
 Configure an app through the chart's Helm values where it supports them, so the whole configuration sits in the HelmRelease. Fall back to a committed file rendered with `configMapGenerator` only when the app needs one the chart cannot produce, as Home Assistant does with `configs/configuration.yaml`.
@@ -105,6 +107,7 @@ Cap CPU where a burst would cost more than the throttling does, such as a backgr
 ```sh
 task kubernetes:kubeconform CLUSTER=main    # schema validation, same as CI
 task kubernetes:kubeconform CLUSTER=apollo  # the same, against the Apollo tree
+task kubernetes:lint CLUSTER=apollo         # Conftest policies and their tests
 task talos:render CLUSTER=apollo            # for Talos changes; renders machine configs, no hardware needed
 ```
 
@@ -117,7 +120,7 @@ flate build hr --path ./kubernetes/apollo/flux cilium
 
 Every task that reads a cluster tree requires a `CLUSTER` variable naming a directory under `kubernetes/`. It doubles as the kubectl context, so a cluster's context must be named after it: tasks pass `--context {{.CLUSTER}}` and never a kubeconfig path. Never export `CLUSTER` from the shell, since Task reads variables from the environment and would hand every cluster-scoped task a silent default. There is deliberately no default: while two trees exist, a default silently points writes at the wrong one, and `sops:encrypt` in particular would report success having encrypted nothing. Tasks refuse to run when it is unset, or when no context matches.
 
-CI starts `kubeconform.yaml` and `flux-diff.yaml` on every PR so their required status checks always report. Kubeconform runs validation for both clusters and VolSync tests when `kubernetes/**`, `scripts/kubeconform.sh`, `tests/**`, or its workflow changes; otherwise those jobs skip. `flux-diff.yaml` skips its rendering jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both rendering tools output the manifest delta, which is worth reading when reviewing a Flux change.
+CI starts `kubernetes-validation.yaml` and `flux-diff.yaml` on every PR so their required status checks always report. Kubernetes Validation runs schema checks for both clusters and component/policy tests when Kubernetes manifests, validation scripts, policies, tool pins, the Kubernetes taskfile, tests, or its workflow change; otherwise those jobs skip. `flux-diff.yaml` skips its rendering jobs when nothing under `kubernetes/` changed, and it renders each cluster with a different tool: `main` with flux-local, Apollo with [flate](https://github.com/home-operations/flate). Both rendering tools output the manifest delta, which is worth reading when reviewing a Flux change.
 
 ## Code style
 
@@ -184,6 +187,8 @@ Part of your job is keeping this doc and the README up to date.
 Document decisions, non-obvious behavior, and operational context that cannot be inferred from the manifests.
 Avoid restating configuration or duplicating general procedures. Keep version pins in code; mention versions
 in docs only when they explain a compatibility constraint or historical verification result.
+
+Prefer lint rules for conventions that should be enforced widely, keeping the rules and their tests as the source of truth.
 
 Propose an edit when you:
 

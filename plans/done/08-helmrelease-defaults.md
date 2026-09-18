@@ -230,3 +230,43 @@ None - can be implemented independently.
 4. Test by breaking a HelmRelease (e.g., bad values) and verify retry behavior
 5. Test upgrade and verify CRDs are updated
 
+## Apollo execution record — 2026-09-17
+
+The operator chose explicit declarations with lint checks as an alternative to PR #294's shared defaults.
+The original proposal above is preserved as history. Its assertion that local fields override parent
+patches is incorrect, and its live mutation testing procedure was not used.
+
+Apollo's resources now declare Helm failure/CRD policies, Kustomization deletion policy, and Namespace
+pruning metadata locally. Conftest checks field presence, including strategy-specific remediation or retry
+intervals, without requiring particular values or opt-out labels. Existing root decryption/substitution
+wiring remains. Namespaces stay ordinary manifests; no namespace component or Helm policy patches are added.
+Cilium and Flux instance explicitly retain resources with `Orphan`; both external-dns releases keep `Skip`.
+
+Mise pins Conftest. The Kubernetes lint task and required Kubeconform CI check run the policies and their
+regressions. Source scanning includes multi-document files and excludes encrypted files. Current usage
+lives in [docs/linting.md](../../docs/linting.md). No live cluster mutations are part of this implementation.
+
+Validation passed: 12 Conftest policy tests, Apollo source lint, 19 component/runner tests, Apollo
+kubeconform, and all 91 Flux render checks. The rendered diff changes only HelmRelease policy fields and
+Kustomization deletion policies; chart-rendered workloads are unchanged. Deployment awaits merge.
+
+
+### Review follow-up
+
+CRD fields are no longer universally required. Newly introduced CRD settings were removed; pre-existing
+chart-specific declarations remain. Rollback cleanup is required only for upgrade remediation that uses
+rollback, including the omitted strategy's default. Retry and uninstall strategies need no rollback block.
+
+The operator approved value checks where useful. Lint now rejects disabled pruning combined with `Delete`
+or `WaitForTermination`, unless the owning Kustomization supplies a nonblank
+`lint.flux.home.arpa/delete-without-prune-reason` annotation. The exception does not waive required fields.
+The runner reports missing source directories, and CI invokes the shared lint task with pinned Task and
+Conftest tools.
+
+The PR changes runtime behavior: rollback cleanup is enabled on the existing releases; Flux operator gains
+install/upgrade retries, final upgrade remediation, and upgrade cleanup; pruning Kustomizations now wait
+for termination when deleted. Render checks establish that chart-generated workloads are unchanged, but
+do not exercise these failure and deletion paths. No live failure or deletion tests were performed.
+
+Review validation passed: 20 policy tests, Apollo source lint, 20 component/runner tests, Apollo kubeconform,
+and all 91 Flux render checks. The full diff still changes only HelmRelease and Kustomization policies.

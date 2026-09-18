@@ -1,13 +1,13 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: "Kubeconform"
+name: "Kubernetes Validation"
 
 on:
   pull_request:
 
 jobs:
   pre-job:
-    name: Kubeconform Pre-Job
+    name: Kubernetes Validation Pre-Job
     runs-on: ubuntu-latest
     outputs:
       any_changed: ${{ steps.changed-files.outputs.any_changed }}
@@ -22,8 +22,13 @@ jobs:
           files: |
             kubernetes/**
             scripts/kubeconform.sh
+            scripts/lint-apollo.sh
+            policy/**
+            mise.toml
+            Taskfile.yaml
+            .taskfiles/Kubernetes/Taskfile.yaml
             tests/**
-            .github/workflows/kubeconform.yaml
+            .github/workflows/kubernetes-validation.yaml
 
   kubeconform:
     name: Kubeconform (${{ matrix.cluster }})
@@ -62,6 +67,15 @@ jobs:
 
       - name: Setup Test Tools
         run: brew install fluxcd/tap/flux kubeconform kustomize yq
+
+      - name: Setup Policy Tools
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
+        with:
+          install_args: aqua:open-policy-agent/conftest aqua:go-task/task
+          env: false
+
+      - name: Lint Apollo manifests
+        run: task kubernetes:lint CLUSTER=apollo
 
       - name: Test component rendering and lifecycle
         run: python3 -m unittest discover -s tests

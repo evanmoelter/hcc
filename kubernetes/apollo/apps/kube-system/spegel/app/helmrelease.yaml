@@ -11,12 +11,19 @@ spec:
     kind: OCIRepository
     name: spegel
   install:
+    strategy:
+      name: RemediateOnFailure
     remediation:
       retries: 3
   upgrade:
+    strategy:
+      name: RemediateOnFailure
     cleanupOnFail: true
     remediation:
       retries: 3
+      remediateLastFailure: true
+  rollback:
+    cleanupOnFail: true
   values:
     spegel:
       containerdRegistryConfigPath: /etc/cri/conf.d/hosts

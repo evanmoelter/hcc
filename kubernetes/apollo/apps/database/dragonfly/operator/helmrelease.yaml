@@ -10,12 +10,19 @@ spec:
     kind: OCIRepository
     name: *app
   install:
+    strategy:
+      name: RemediateOnFailure
     remediation:
       retries: 3
   upgrade:
+    strategy:
+      name: RemediateOnFailure
     cleanupOnFail: true
     remediation:
       retries: 3
+      remediateLastFailure: true
+  rollback:
+    cleanupOnFail: true
   values:
     fullnameOverride: *app
     crds:

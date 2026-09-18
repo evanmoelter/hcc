@@ -11,6 +11,7 @@ spec:
   timeout: 10m
   path: ./kubernetes/apollo/apps/flux-system/flux-operator/app
   prune: true
+  deletionPolicy: WaitForTermination
   wait: true
   sourceRef:
     kind: GitRepository

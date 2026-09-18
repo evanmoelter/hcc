@@ -14,6 +14,7 @@ spec:
       app.kubernetes.io/name: *app
   path: ./kubernetes/apollo/apps/kube-system/metrics-server/monitoring
   prune: true
+  deletionPolicy: WaitForTermination
   sourceRef:
     kind: GitRepository
     name: home-kubernetes

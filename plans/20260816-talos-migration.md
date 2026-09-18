@@ -95,7 +95,7 @@ Apollo uses `bootstrap/`, `flux/`, `apps/`, and `components/`, its own Flux sour
 While both trees exist:
 
 - Make the root `Taskfile.yaml` Kubernetes directory a per-cluster variable.
-- Add Apollo to `flux-diff.yaml` and `kubeconform.yaml` when the tree is created.
+- Add Apollo to `flux-diff.yaml` and `kubernetes-validation.yaml` when the tree is created.
 - Re-encrypt `cluster-secrets.sops.yaml` with the existing age key.
 - Change only the tree serving an app. Disabled copies in `kubernetes/main` stay frozen.
 
@@ -116,23 +116,25 @@ or an app release in another build. Dependencies and readiness checks stay on th
 |---|---|
 | `volsync` | Preflight, restore wiring for app-defined PVCs, and backup lifecycles; [usage](../kubernetes/apollo/components/volsync/) |
 | `postgres` | Per-app database, backup credentials, archive, and schedule; [usage and recovery lifecycle](../docs/databases.md) |
-| `namespace` | Planned shared Namespace with pruning disabled |
 
 The Postgres component and its explicit initialization opt-in are implemented. Per-app cutovers must
 supply compatible images and credentials, verify restored data and the first Apollo backup, then remove
 one-time bootstrap configuration. Mealie remains the first live proof of recovery from the old Barman archive.
 
-### Root Kustomization defaults
+### Explicit reconciliation policies
 
-Apollo's `cluster-apps` Kustomization patches defaults into every child `Kustomization` and every `HelmRelease` it renders, so roughly twenty rebuilt apps do not each repeat them. `kubernetes/main` already does this for `decryption` and `postBuild.substituteFrom`. Apollo extends it to HelmRelease install, upgrade, and rollback remediation, `crds: CreateReplace`, and `deletionPolicy: WaitForTermination`.
+Apollo resources declare Helm failure handling, Kustomization deletion policy, and Namespace pruning
+metadata locally. CRD declarations stay chart-specific. Conftest requires relevant fields and guards
+against deletion with disabled pruning, with an explained exception available on the owning resource.
+Namespaces remain ordinary resources with explicit Pod Security and pruning metadata; no shared namespace
+component is needed.
 
-The trap is that the parent wins. Flux applies `spec.patches` to the rendered output of `spec.path`, so a defaulted field overrides whatever the app wrote in its own file. An app cannot opt out by setting the field locally: the value it writes is replaced, and only the rendered diff shows it happened. Three rules keep that manageable.
-
-- Default only what is universal, where an app disagreeing is a smell rather than a requirement. Remediation policy, CRD handling, and deletion policy qualify. Resource requests, replica counts, and timeouts do not.
-- Give any default with a legitimate exception a `labelSelector` escape hatch on the patch target. The opt-out is then declared in the app's own `ks.yaml` and greppable across the tree. The repo already uses this idiom in `kubernetes/main/flux/apps.yaml`: `substitution.flux.home.arpa/disabled notin (true)`.
-- Read defaults through the rendered diff. CI renders the effective manifest, so a default that surprises an app surfaces in the PR that adds the app rather than at reconcile time.
-
-Add a default once two apps need it. A default introduced for one app is a patch in the wrong place.
+This replaces the proposed root defaults: parent patches override app-local fields and make exceptions
+harder to read. Existing root decryption and substitution wiring stays in place. Source lint catches
+missing declarations, kubeconform validates schemas, and the rendered Flux diff shows effective changes.
+[docs/linting.md](../docs/linting.md) documents how to run the checks and links to their definitions. The original defaults
+proposal and the replacement's execution record are preserved in
+[plans/done/08-helmrelease-defaults.md](./done/08-helmrelease-defaults.md).
 
 ### Talos and Cilium invariants
 
@@ -485,8 +487,8 @@ Platform:
 - [ ] Implement and verify dual routes on echo-server before the first app migration.
 - [ ] Complete `plans/04-envoy-gateway.md` for Apollo's IPs, VLAN, cloudflared integration, raw load-balancer services, and Tailscale Ingresses.
 - [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, and `longhorn-snapclass`.
-- [ ] Create `kubernetes/apollo/components/` with the `volsync`, `postgres`, and `namespace` components before the first app rebuild.
-- [ ] Set the `cluster-apps` defaults, and give each one a `labelSelector` escape hatch where an app may legitimately differ.
+- [x] Create the `volsync` and `postgres` components before the first app rebuild; keep Namespace configuration explicit.
+- [x] Declare reconciliation policies in Apollo resources and validate with Conftest, including explained exceptions for intentional deletion with disabled pruning.
 - [x] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
 - [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.
