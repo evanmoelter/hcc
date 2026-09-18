@@ -7,16 +7,24 @@ helm_release if {
 	input.kind == "HelmRelease"
 }
 
+flux_kustomization if {
+	startswith(input.apiVersion, "kustomize.toolkit.fluxcd.io/")
+	input.kind == "Kustomization"
+}
+
 required_fields contains path if {
 	helm_release
 	path := [
 		["spec", "install", "strategy", "name"],
-		["spec", "install", "crds"],
 		["spec", "upgrade", "strategy", "name"],
-		["spec", "upgrade", "crds"],
 		["spec", "upgrade", "cleanupOnFail"],
-		["spec", "rollback", "cleanupOnFail"],
 	][_]
+}
+
+required_fields contains ["spec", "rollback", "cleanupOnFail"] if {
+	helm_release
+	input.spec.upgrade.strategy.name == "RemediateOnFailure"
+	object.get(input, ["spec", "upgrade", "remediation", "strategy"], "rollback") == "rollback"
 }
 
 required_fields contains path if {
@@ -39,8 +47,21 @@ required_fields contains path if {
 }
 
 required_fields contains ["spec", "deletionPolicy"] if {
-	startswith(input.apiVersion, "kustomize.toolkit.fluxcd.io/")
-	input.kind == "Kustomization"
+	flux_kustomization
+}
+
+delete_without_prune_explained if {
+	reason := input.metadata.annotations["lint.flux.home.arpa/delete-without-prune-reason"]
+	is_string(reason)
+	trim_space(reason) != ""
+}
+
+deny contains msg if {
+	flux_kustomization
+	input.spec.prune == false
+	input.spec.deletionPolicy in {"Delete", "WaitForTermination"}
+	not delete_without_prune_explained
+	msg := sprintf("Kustomization %s: prune: false with deletionPolicy: %s requires a nonblank lint.flux.home.arpa/delete-without-prune-reason annotation", [input.metadata.name, input.spec.deletionPolicy])
 }
 
 configured(resource, path) if {

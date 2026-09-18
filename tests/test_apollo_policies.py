@@ -57,6 +57,16 @@ class ApolloPolicyRunnerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("No Apollo manifests found", result.stderr)
 
+    def test_missing_source_directory_is_reported(self):
+        for directory in ("apps", "flux", "components"):
+            with self.subTest(directory=directory):
+                missing = self.cluster / directory
+                missing.rmdir()
+                result = self.run_lint()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"Missing Apollo source directory: {missing}", result.stderr)
+                missing.mkdir()
+
     def test_old_cluster_is_rejected(self):
         result = self.run_lint(self.cluster.parent / "main")
         self.assertNotEqual(result.returncode, 0)

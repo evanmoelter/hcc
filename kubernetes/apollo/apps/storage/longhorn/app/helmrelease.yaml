@@ -17,14 +17,12 @@ spec:
   install:
     strategy:
       name: RemediateOnFailure
-    crds: CreateReplace
     remediation:
       retries: 3
   upgrade:
     strategy:
       name: RemediateOnFailure
     cleanupOnFail: true
-    crds: CreateReplace
     remediation:
       retries: 3
       remediateLastFailure: true

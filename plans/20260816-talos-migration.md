@@ -123,10 +123,11 @@ one-time bootstrap configuration. Mealie remains the first live proof of recover
 
 ### Explicit reconciliation policies
 
-Apollo resources declare Helm failure handling, CRD policies, Kustomization deletion policy, and Namespace
-pruning metadata locally. Conftest requires those declarations in CI while allowing each resource to
-choose its values without opt-out labels. Namespaces remain ordinary resources with explicit Pod Security
-and pruning metadata; no shared namespace component is needed.
+Apollo resources declare Helm failure handling, Kustomization deletion policy, and Namespace pruning
+metadata locally. CRD declarations stay chart-specific. Conftest requires relevant fields and guards
+against deletion with disabled pruning, with an explained exception available on the owning resource.
+Namespaces remain ordinary resources with explicit Pod Security and pruning metadata; no shared namespace
+component is needed.
 
 This replaces the proposed root defaults: parent patches override app-local fields and make exceptions
 harder to read. Existing root decryption and substitution wiring stays in place. Source lint catches
@@ -487,7 +488,7 @@ Platform:
 - [ ] Complete `plans/04-envoy-gateway.md` for Apollo's IPs, VLAN, cloudflared integration, raw load-balancer services, and Tailscale Ingresses.
 - [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, and `longhorn-snapclass`.
 - [x] Create the `volsync` and `postgres` components before the first app rebuild; keep Namespace configuration explicit.
-- [x] Declare reconciliation policies in Apollo resources and enforce field presence with Conftest; use app-local values without opt-out labels.
+- [x] Declare reconciliation policies in Apollo resources and validate with Conftest, including explained exceptions for intentional deletion with disabled pruning.
 - [x] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
 - [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.

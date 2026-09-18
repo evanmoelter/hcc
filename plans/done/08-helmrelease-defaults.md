@@ -230,8 +230,6 @@ None - can be implemented independently.
 4. Test by breaking a HelmRelease (e.g., bad values) and verify retry behavior
 5. Test upgrade and verify CRDs are updated
 
-
-
 ## Apollo execution record — 2026-09-17
 
 The operator chose explicit declarations with lint checks as an alternative to PR #294's shared defaults.
@@ -251,3 +249,24 @@ lives in [docs/flux.md](../../docs/flux.md). No live cluster mutations are part 
 Validation passed: 12 Conftest policy tests, Apollo source lint, 19 component/runner tests, Apollo
 kubeconform, and all 91 Flux render checks. The rendered diff changes only HelmRelease policy fields and
 Kustomization deletion policies; chart-rendered workloads are unchanged. Deployment awaits merge.
+
+
+### Review follow-up
+
+CRD fields are no longer universally required. Newly introduced CRD settings were removed; pre-existing
+chart-specific declarations remain. Rollback cleanup is required only for upgrade remediation that uses
+rollback, including the omitted strategy's default. Retry and uninstall strategies need no rollback block.
+
+The operator approved value checks where useful. Lint now rejects disabled pruning combined with `Delete`
+or `WaitForTermination`, unless the owning Kustomization supplies a nonblank
+`lint.flux.home.arpa/delete-without-prune-reason` annotation. The exception does not waive required fields.
+The runner reports missing source directories, and CI invokes the shared lint task with pinned Task and
+Conftest tools.
+
+The PR changes runtime behavior: rollback cleanup is enabled on the existing releases; Flux operator gains
+install/upgrade retries, final upgrade remediation, and upgrade cleanup; pruning Kustomizations now wait
+for termination when deleted. Render checks establish that chart-generated workloads are unchanged, but
+do not exercise these failure and deletion paths. No live failure or deletion tests were performed.
+
+Review validation passed: 20 policy tests, Apollo source lint, 20 component/runner tests, Apollo kubeconform,
+and all 91 Flux render checks. The full diff still changes only HelmRelease and Kustomization policies.

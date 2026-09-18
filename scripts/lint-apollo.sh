@@ -10,7 +10,10 @@ if [[ "$(basename -- "$cluster_dir")" != apollo ]]; then
 fi
 
 for directory in apps flux components; do
-    test -d "$cluster_dir/$directory"
+    if [[ ! -d "$cluster_dir/$directory" ]]; then
+        echo "Missing Apollo source directory: $cluster_dir/$directory" >&2
+        exit 1
+    fi
 done
 
 files=()

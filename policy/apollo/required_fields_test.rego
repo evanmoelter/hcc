@@ -25,10 +25,8 @@ release := {
 
 release_fields := [
 	["spec", "install", "strategy", "name"],
-	["spec", "install", "crds"],
 	["spec", "install", "remediation", "retries"],
 	["spec", "upgrade", "strategy", "name"],
-	["spec", "upgrade", "crds"],
 	["spec", "upgrade", "cleanupOnFail"],
 	["spec", "upgrade", "remediation", "retries"],
 	["spec", "upgrade", "remediation", "remediateLastFailure"],
@@ -37,6 +35,28 @@ release_fields := [
 
 test_explicit_nondefault_values_pass if {
 	count(main.deny) == 0 with input as release
+}
+
+test_crd_policies_are_optional if {
+	resource := json.remove(release, [["spec", "install", "crds"], ["spec", "upgrade", "crds"]])
+	count(main.deny) == 0 with input as resource
+}
+
+test_uninstall_remediation_without_rollback_passes if {
+	resource := json.patch(release, [
+		{"op": "add", "path": "/spec/upgrade/remediation/strategy", "value": "uninstall"},
+		{"op": "remove", "path": "/spec/rollback"},
+	])
+	count(main.deny) == 0 with input as resource
+}
+
+test_explicit_rollback_remediation_requires_cleanup if {
+	resource := json.patch(release, [
+		{"op": "add", "path": "/spec/upgrade/remediation/strategy", "value": "rollback"},
+		{"op": "remove", "path": "/spec/rollback"},
+	])
+	failures := main.deny with input as resource
+	"HelmRelease example must declare spec.rollback.cleanupOnFail" in failures
 }
 
 test_each_missing_release_field_fails if {
@@ -69,6 +89,7 @@ retry_release := json.patch(release, [
 	{"op": "replace", "path": "/spec/upgrade/strategy", "value": {"name": "RetryOnFailure", "retryInterval": "2m"}},
 	{"op": "remove", "path": "/spec/install/remediation"},
 	{"op": "remove", "path": "/spec/upgrade/remediation"},
+	{"op": "remove", "path": "/spec/rollback"},
 ])
 
 test_retry_strategy_without_remediation_passes if {
@@ -86,7 +107,7 @@ test_deletion_policy_choices_pass if {
 	every value in ["Orphan", "Delete", "MirrorPrune", "WaitForTermination"] {
 		resource := {
 			"apiVersion": "kustomize.toolkit.fluxcd.io/v1", "kind": "Kustomization",
-			"metadata": {"name": "example"}, "spec": {"deletionPolicy": value},
+			"metadata": {"name": "example"}, "spec": {"prune": true, "deletionPolicy": value},
 		}
 		count(main.deny) == 0 with input as resource
 	}
@@ -98,6 +119,67 @@ test_missing_deletion_policy_fails if {
 		"metadata": {"name": "example"}, "spec": {"prune": false},
 	}
 	count(main.deny) == 1 with input as resource
+}
+
+kustomization := {
+	"apiVersion": "kustomize.toolkit.fluxcd.io/v1",
+	"kind": "Kustomization",
+	"metadata": {"name": "example"},
+	"spec": {"prune": false, "deletionPolicy": "Orphan"},
+}
+
+test_retention_policies_without_pruning_pass if {
+	every policy in ["Orphan", "MirrorPrune"] {
+		resource := json.patch(kustomization, [{"op": "replace", "path": "/spec/deletionPolicy", "value": policy}])
+		count(main.deny) == 0 with input as resource
+	}
+}
+
+test_deletion_without_pruning_requires_explanation if {
+	every policy in ["Delete", "WaitForTermination"] {
+		resource := json.patch(kustomization, [{"op": "replace", "path": "/spec/deletionPolicy", "value": policy}])
+		failures := main.deny with input as resource
+		count(failures) == 1
+		some msg in failures
+		contains(msg, "requires a nonblank lint.flux.home.arpa/delete-without-prune-reason annotation")
+	}
+}
+
+test_explained_deletion_without_pruning_passes if {
+	every policy in ["Delete", "WaitForTermination"] {
+		resource := json.patch(kustomization, [
+			{"op": "replace", "path": "/spec/deletionPolicy", "value": policy},
+			{"op": "add", "path": "/metadata/annotations", "value": {
+				"lint.flux.home.arpa/delete-without-prune-reason": "Keep removed resources until the owner is deleted.",
+			}},
+		])
+		count(main.deny) == 0 with input as resource
+	}
+}
+
+test_invalid_deletion_explanations_fail if {
+	every policy in ["Delete", "WaitForTermination"] {
+		every reason in [null, "", " \t\n", false, true, 0, [], {}] {
+			resource := json.patch(kustomization, [
+				{"op": "replace", "path": "/spec/deletionPolicy", "value": policy},
+				{"op": "add", "path": "/metadata/annotations", "value": {
+					"lint.flux.home.arpa/delete-without-prune-reason": reason,
+				}},
+			])
+			count(main.deny) == 1 with input as resource
+		}
+	}
+}
+
+test_deletion_exception_does_not_bypass_required_fields if {
+	resource := json.patch(kustomization, [
+		{"op": "remove", "path": "/spec/deletionPolicy"},
+		{"op": "add", "path": "/metadata/annotations", "value": {
+			"lint.flux.home.arpa/delete-without-prune-reason": "Keep removed resources until the owner is deleted.",
+		}},
+	])
+	failures := main.deny with input as resource
+	"Kustomization example must declare spec.deletionPolicy" in failures
 }
 
 test_namespace_annotation_or_label_passes if {

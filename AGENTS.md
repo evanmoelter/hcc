@@ -64,10 +64,11 @@ Guidelines rather than rules. Follow them where they fit. If one takes jumping t
 
 ### Manifest conventions
 
-Apollo resources declare Helm failure/CRD policies, Kustomization deletion policy, and Namespace pruning
-metadata locally. [Conftest checks](./docs/flux.md) require explicit fields without enforcing shared values
-or opt-out labels. Run `task kubernetes:lint CLUSTER=apollo` alongside kubeconform. For resource retention,
-review both `prune` and `deletionPolicy`: `WaitForTermination` deletes even when `prune` is false.
+Apollo resources declare Helm failure policies, Kustomization deletion policy, and Namespace pruning
+metadata locally. [Conftest checks](./docs/flux.md) require explicit fields; CRD declarations stay chart-specific.
+Lint rejects deletion with disabled pruning unless the owning resource documents an exception.
+Run `task kubernetes:lint CLUSTER=apollo` alongside kubeconform. For resource retention, review both
+`prune` and `deletionPolicy`: `WaitForTermination` deletes even when `prune` is false.
 
 New manifests should open with a `# yaml-language-server: $schema=` comment, and the schema URL tracks the chart version, so bumping one means bumping the other. Use YAML anchors (`name: &app mealie`) instead of repeating the app name. Pin chart and image versions so Renovate can bump them. Take `${SECRET_DOMAIN}` and `${TIMEZONE}` from `kubernetes/*/flux/vars/` rather than writing literals.
 
