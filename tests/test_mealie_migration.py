@@ -138,7 +138,7 @@ class MealieMigrationTest(unittest.TestCase):
         self.assertEqual(remote["RESTIC_PASSWORD"], "mealie")
         self.assertEqual(remote["R2_ACCESS_KEY_ID"], "volsync-r2")
 
-    def test_restore_dependencies_and_backup_gate(self):
+    def test_restore_and_backup_dependencies(self):
         required = {
             "mealie-restore-preflight": {"onepassword-store"},
             "mealie-storage": {"mealie-restore-preflight", "volsync", "longhorn-config"},
@@ -157,7 +157,7 @@ class MealieMigrationTest(unittest.TestCase):
             ready = {name for name in pending if not graph[name] & pending}
             self.assertTrue(ready, f"Dependency cycle: {pending}")
             pending -= ready
-        self.assertTrue(self.owners["mealie-backup"]["spec"]["suspend"])
+        self.assertFalse(self.owners["mealie-backup"]["spec"].get("suspend", False))
         app_resources = self.resources["mealie"]
         self.assertFalse(any(resource["kind"] in {"Ingress", "HTTPRoute"} for resource in app_resources))
         values = self.resource("mealie", "HelmRelease")["spec"]["values"]

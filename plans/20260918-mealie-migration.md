@@ -199,7 +199,7 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
 ## Execution record
 
 - Apollo prerequisites: the operator confirmed the required credentials are ready and Authentik's
-  verified-email configuration is complete on 2026-09-19. End-to-end login remains a cutover check.
+  verified-email configuration is complete on 2026-09-19.
 - Old app disabled: verified on 2026-09-19 after main applied `2959631` (rollout fix PR #300).
   Mealie has zero replicas, no app pods, and no Ingress; public DNS and checked ownership records
   returned NXDOMAIN. The database remains healthy and the 5 GiB app PVC remains bound.
@@ -218,9 +218,17 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
   Recipe, user, group, household, ingredient, instruction, and attachment record counts match the
   source. Restored recipe/user files and `.initialized` are present. Both permanent volumes are
   healthy with three replicas. Application database upgrades and startup completed successfully.
-  Representative recipe/image checks remain part of access verification.
-- LAN/public/Tailscale access and OIDC: pending.
+  The operator subsequently confirmed representative recipe/image checks passed.
+- Access rollout: verified after Apollo applied `2eea07f` (PR #301). Both HTTPRoutes reported
+  Accepted and ResolvedRefs for their current generation. LAN DNS points to the internal Gateway;
+  LAN, Cloudflare public-path, and Tailscale HTTPS requests returned 200 with certificate verification.
+  The Tailscale proxy uses the expected non-root security context and memory limit.
+  The operator confirmed cellular access and the Tailscale recipe/image check. Fresh Tailscale
+  login/logout confirmation is pending clarification after two OIDC state-mismatch callback errors.
+- New writes: the operator created a temporary recipe, uploaded an image, and confirmed both persisted
+  after refresh. Keep that test data through the first Apollo PVC backup.
 - First Apollo database backup: `mealie-pg-20260919221734` completed using the Barman plugin,
   with backup ID `20260919T221904`. Continuous WAL archiving is healthy.
-  New writes and the first Apollo PVC snapshot remain pending; `mealie-backup` stays suspended.
+  The PVC backup lifecycle is enabled on its regular schedule. Verification of its first actual restic
+  snapshot remains pending; restore machinery stays in place until that succeeds.
 - Restore cleanup and credential revocation: pending.
