@@ -6,8 +6,8 @@ Mealie is the first household app prepared for Apollo. The operator selected it 
 currently unused, allowing the PVC restore and recovery from the old in-tree Barman archive to be
 proved before another app moves. Authentik remains on `main`; its version decision is deferred.
 Upgrade Mealie and app-template on Apollo as part of the restore. Keep the existing PostgreSQL major,
-OIDC provider, and `food.${SECRET_DOMAIN}` hostname. Add LAN access through the internal Gateway;
-Tailscale access is deferred.
+OIDC provider, and `food.${SECRET_DOMAIN}` hostname. Add LAN access through the internal Gateway
+and a standalone Tailscale HTTPS Ingress using the `mealie-apollo` tailnet hostname.
 
 Mealie enforces its [verified-email requirement](https://github.com/mealie-recipes/mealie/releases/tag/v3.22.0).
 The operator will configure and verify Authentik's claim mapping before cutover; its
@@ -24,10 +24,11 @@ Do not merge both cutover PRs together. No live mutating commands are authorized
 1. **Disable on main:** set the Mealie Deployment to zero replicas and remove its external Ingress.
    Retain its HelmRelease, PVC, database, Secrets, and backup configuration for final backups and rollback.
 2. **Restore on Apollo:** restore the 5 GiB data PVC and the 5 GiB PostgreSQL database before starting
-   the app. Include disabled LAN/public routes in the HelmRelease and a suspended Apollo PVC backup lifecycle.
+   the app. Include disabled LAN/public routes and Tailscale Ingress in the HelmRelease, and a
+   suspended Apollo PVC backup lifecycle.
 
-After inspecting restored data, activate routes through a follow-up git change. After checking login
-and app behavior, activate PVC backups. This explicit gate implements the VolSync requirement to
+After inspecting restored data, activate routes and Tailscale Ingress through a follow-up git change.
+After checking login and app behavior, activate PVC backups. This explicit gate implements the VolSync requirement to
 verify data before publishing traffic or enabling backups. The CNPG component starts its independent
 Apollo WAL archive and scheduled base backups after recovery.
 
@@ -59,6 +60,13 @@ record that explicitly; preserved identities/configuration and file checks still
 
 Check that Apollo can resolve and reach the existing Authentik discovery URL. Preserve the existing
 provider credentials and redirect URI; never enable password login as an implicit migration fallback.
+For the additional tailnet URL, register `https://mealie-apollo.<tailnet-dns-name>/login` on the same
+Authentik provider, retaining the existing public callback. Include `/login?direct=1` if the provider
+uses RP-initiated logout, and add the tailnet origin if it enforces allowed origins; see
+[Mealie's OIDC setup](https://docs.mealie.io/documentation/getting-started/authentication/oidc/).
+Keep the canonical `BASE_URL` at the LAN/public hostname. Confirm the requested tailnet hostname is
+available and the tailnet client can reach Authentik on `main`.
+
 Confirm Authentik supplies `email_verified: true` for the intended Mealie users; leave Mealie's
 verified-email enforcement enabled. Review any recipe-import, image-fetch, webhook, or action targets:
 [newer Mealie blocks private HTTP destinations by default](https://github.com/mealie-recipes/mealie/releases/tag/v3.26.0).
@@ -113,17 +121,24 @@ kubectl --context apollo -n default logs deployment/mealie
 kubectl --context apollo -n default get backups.postgresql.cnpg.io
 ```
 
-Routes remain unpublished during this gate. Use a read-only database/file inspection or local port
-forward to inspect the restored application. OIDC's canonical redirect still requires the real hostname,
-so its end-to-end test follows route activation.
+Routes and Tailscale Ingress remain unpublished during this gate. Use a read-only database/file
+inspection or local port forward to inspect the restored application. End-to-end OIDC tests through
+the registered public and tailnet hostnames follow access activation.
 
 ### 3. Activate and verify
 
-Set `spec.values.route.internal.enabled` and `spec.values.route.external.enabled` to `true` in
-`app/helmrelease.yaml` through git. Verify both HTTPRoutes report Accepted and ResolvedRefs as True
-for their current generation; HelmRelease readiness alone does not establish route readiness.
+Set `spec.values.route.internal.enabled`, `spec.values.route.external.enabled`, and
+`spec.values.ingress.tailscale.enabled` to `true` in `app/helmrelease.yaml` through git.
+Verify both HTTPRoutes report Accepted and ResolvedRefs as True for their current generation;
+HelmRelease readiness alone does not establish route readiness.
 Verify LAN DNS points to the internal Gateway, public DNS uses Apollo's tunnel alias, and TLS works
 on both paths. Confirm public access from outside the LAN.
+
+Get the assigned tailnet hostname with
+`kubectl --context apollo -n default get ingress mealie-tailscale`. Verify a trusted HTTPS certificate
+and Mealie response from a tailnet client, then test OIDC login and logout at that hostname. Check
+that the Tailscale proxy uses the `tailscale-ingress` ProxyClass. HelmRelease readiness or an assigned
+Ingress hostname alone does not prove tailnet connectivity or authentication.
 
 Verify OIDC login through Authentik on `main`, admin/user group mapping, representative recipes and
 attachments, and a new write. Check logs for database and permission errors. With an initially empty
@@ -147,7 +162,7 @@ After data, login, writes, and both Apollo backups pass, make a cleanup commit:
   `dataSourceRef`, and the same `mealie-storage` Kustomization.
 - Remove the database's temporary source ObjectStore, source ExternalSecret, and externalClusters patch.
   Remove the patch deleting `cnpg.io/skipEmptyWalArchiveCheck` so future recovery can reuse Apollo's
-  archive. Keep the PostgreSQL tuning patch and the same `mealie-cluster` Kustomization.
+  archive. Keep the PostgreSQL tuning patch and the same `mealie-database` Kustomization.
 - Confirm temporary restore resources and temporary PVCs are removed, while app/database volumes remain
   healthy with three replicas. The operator revokes the old-bucket migration credentials afterward.
 
@@ -156,9 +171,10 @@ execution record to `plans/done/` only when the migration and cleanup gates have
 
 ## Rollback
 
-First set both HelmRelease routes' `enabled` values to `false` through git and confirm DNS ownership
-is released. Cloudflare's `upsert-only` policy will leave its CNAME/TXT records behind; the operator must remove the Apollo-owned
-records before the old controller can reclaim the hostname. Stopping reconciliation alone does not
+First set both HelmRelease routes and the Tailscale Ingress `enabled` values to `false` through git.
+Confirm the tailnet Ingress/proxy is removed and DNS ownership is released. Cloudflare's `upsert-only`
+policy will leave its CNAME/TXT records behind; the operator must remove the Apollo-owned records
+before the old controller can reclaim the hostname. Stopping reconciliation alone does not
 remove routes or stop workloads.
 
 Stop the Apollo app through git and verify its pods are gone. Revert the old disable PR and verify
@@ -184,6 +200,6 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
 
 - Final source backups: pending.
 - Apollo restore and data comparison: pending.
-- LAN/public routing and OIDC: pending.
+- LAN/public/Tailscale access and OIDC: pending.
 - New writes and first Apollo backups: pending.
 - Restore cleanup and credential revocation: pending.

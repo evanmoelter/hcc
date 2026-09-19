@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: postgres-example-cluster
+    - name: postgres-example-database
   targetNamespace: default
   path: ./kubernetes/apollo/apps/default/postgres-example/app
   prune: true
