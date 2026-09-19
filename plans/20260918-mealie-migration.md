@@ -116,7 +116,7 @@ kubectl --context apollo -n flux-system get kustomizations
 kubectl --context apollo -n default get externalsecrets
 kubectl --context apollo -n default get jobs,replicationdestinations,pvc
 kubectl --context apollo -n default get cluster mealie-pg
-kubectl --context apollo -n default logs job/mealie-preflight-migration-v1
+kubectl --context apollo -n default logs job/mealie-restore-preflight-migration-v1
 kubectl --context apollo -n default logs deployment/mealie
 kubectl --context apollo -n default get backups.postgresql.cnpg.io
 ```

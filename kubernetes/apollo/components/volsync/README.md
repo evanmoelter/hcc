@@ -10,6 +10,7 @@ app-name/
   storage/         app-owned PVC manifests
 ```
 
+Name the restore preflight Kustomization `<app>-restore-preflight` to distinguish it from app-specific checks.
 Preflight and backup point `spec.path` directly at the shared `volsync/restore-preflight` and `volsync/backup`
 bases here. Storage includes `volsync/restore` through `spec.components` only during recovery.
 The ordering is **preflight → storage → app → backup**. Preflight needs `onepassword-store`; storage needs

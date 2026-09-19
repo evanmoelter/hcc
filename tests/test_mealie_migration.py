@@ -103,14 +103,14 @@ class MealieMigrationTest(unittest.TestCase):
             "name": destination["metadata"]["name"],
         })
         self.assertEqual(pvc["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
-        secret = self.resource("mealie-preflight", "ExternalSecret")
+        secret = self.resource("mealie-restore-preflight", "ExternalSecret")
         self.assertEqual(destination["spec"]["restic"]["repository"], secret["spec"]["target"]["name"])
         template = secret["spec"]["target"]["template"]["data"]
         self.assertTrue(template["RESTIC_REPOSITORY"].endswith("/tf-hcc-volsync/mealie-data"))
         remote = {entry["secretKey"]: entry["remoteRef"]["key"] for entry in secret["spec"]["data"]}
         self.assertEqual(remote["RESTIC_PASSWORD"], "mealie-volsync-migration")
         self.assertEqual(remote["R2_ACCESS_KEY_ID"], "mealie-volsync-migration")
-        preflight = self.resource("mealie-preflight", "Job")
+        preflight = self.resource("mealie-restore-preflight", "Job")
         self.assertIn({"secretRef": {"name": secret["spec"]["target"]["name"]}},
                       preflight["spec"]["template"]["spec"]["containers"][0]["envFrom"])
 
@@ -127,8 +127,8 @@ class MealieMigrationTest(unittest.TestCase):
 
     def test_restore_dependencies_and_manual_publication_gates(self):
         required = {
-            "mealie-preflight": {"onepassword-store"},
-            "mealie-storage": {"mealie-preflight", "volsync", "longhorn-config"},
+            "mealie-restore-preflight": {"onepassword-store"},
+            "mealie-storage": {"mealie-restore-preflight", "volsync", "longhorn-config"},
             "mealie-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "mealie": {"mealie-storage", "mealie-database", "onepassword-store",
                        "envoy-gateway-config", "cloudflare-dns", "unifi-dns", "tailscale-config"},

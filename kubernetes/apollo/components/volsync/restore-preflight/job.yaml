@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: ${APP}-preflight-${VOLSYNC_RESTORE_ID}
+  name: ${APP}-restore-preflight-${VOLSYNC_RESTORE_ID}
   annotations:
     kustomize.toolkit.fluxcd.io/force: enabled
 spec:

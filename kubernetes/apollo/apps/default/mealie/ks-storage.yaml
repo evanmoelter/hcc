@@ -2,7 +2,7 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: mealie-preflight
+  name: mealie-restore-preflight
   namespace: flux-system
 spec:
   dependsOn:
@@ -35,7 +35,7 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: mealie-preflight
+    - name: mealie-restore-preflight
     - name: volsync
     - name: longhorn-config
   targetNamespace: default
