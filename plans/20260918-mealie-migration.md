@@ -5,13 +5,15 @@
 Mealie is the first household app prepared for Apollo. The operator selected it because it is
 currently unused, allowing the PVC restore and recovery from the old in-tree Barman archive to be
 proved before another app moves. Authentik remains on `main`; its version decision is deferred.
-Keep the existing Mealie image, chart, PostgreSQL major, OIDC provider, and `food.${SECRET_DOMAIN}`
-hostname for this proof. Add LAN access through the internal Gateway; Tailscale access is deferred.
+Upgrade Mealie and app-template on Apollo as part of the restore. Keep the existing PostgreSQL major,
+OIDC provider, and `food.${SECRET_DOMAIN}` hostname. Add LAN access through the internal Gateway;
+Tailscale access is deferred.
 
-Later Mealie releases introduce a
-[verified-email requirement](https://github.com/mealie-recipes/mealie/releases/tag/v3.22.0), so review
-OIDC compatibility before upgrading. Apollo cannot express a Flux dependency on Authentik in another
-cluster; verify discovery and login again when Authentik migrates.
+Mealie enforces its [verified-email requirement](https://github.com/mealie-recipes/mealie/releases/tag/v3.22.0).
+The operator will configure and verify Authentik's claim mapping before cutover; its
+[2025.10 default mapping](https://docs.goauthentik.io/releases/2025.10/#default-oauth-scope-mappings)
+reports unverified email. Apollo cannot express a Flux dependency on Authentik in another cluster;
+verify discovery and login again when Authentik migrates. AI credentials are omitted at the operator's request.
 
 Use the [standard migration](./20260816-talos-migration.md) and the tested
 [VolSync](../kubernetes/apollo/components/volsync/) and [Postgres](../docs/databases.md) lifecycles.
@@ -22,7 +24,7 @@ Do not merge both cutover PRs together. No live mutating commands are authorized
 1. **Disable on main:** set the Mealie Deployment to zero replicas and remove its external Ingress.
    Retain its HelmRelease, PVC, database, Secrets, and backup configuration for final backups and rollback.
 2. **Restore on Apollo:** restore the 5 GiB data PVC and the 5 GiB PostgreSQL database before starting
-   the app. Include final LAN/public routes and the Apollo PVC backup lifecycle, initially suspended.
+   the app. Include disabled LAN/public routes in the HelmRelease and a suspended Apollo PVC backup lifecycle.
 
 After inspecting restored data, activate routes through a follow-up git change. After checking login
 and app behavior, activate PVC backups. This explicit gate implements the VolSync requirement to
@@ -38,15 +40,11 @@ The operator supplies these fields in `hcc-apollo`; agents do not read or write 
 
 | Item | Fields and scope |
 |---|---|
-| `mealie` | Existing `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`; `OPENAI_API_KEY`; a new `RESTIC_PASSWORD` for Apollo backups |
+| `mealie` | Existing `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`; a new `RESTIC_PASSWORD` for Apollo backups |
 | `mealie-volsync-migration` | Original `RESTIC_PASSWORD`; `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` with Object Read & Write on the old VolSync bucket for restic locks |
 | `mealie-postgres-migration` | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` with Object Read on `tf-hcc-cloudnativepg` |
 | `cloudflare-r2` | Existing shared `ACCOUNT_ID`; source and destination buckets are in this account |
 | `volsync-r2`, `cnpg-r2` | Existing write credentials scoped to their respective Apollo buckets |
-
-Create the `OPENAI_API_KEY` field before deployment: ESO requires it to synchronize `mealie-secret`.
-Mealie receives it through the existing environment bundle; supplying the key enables its OpenAI
-features. Non-secret model and endpoint settings remain application configuration, not secret fields.
 
 Confirm `tf-hcc-apollo-volsync/mealie` and `tf-hcc-apollo-cnpg/mealie/` are unused. A previous attempt
 needs diagnosis and an explicit recovery decision; never silently reuse a partial destination archive.
@@ -61,6 +59,11 @@ record that explicitly; preserved identities/configuration and file checks still
 
 Check that Apollo can resolve and reach the existing Authentik discovery URL. Preserve the existing
 provider credentials and redirect URI; never enable password login as an implicit migration fallback.
+Confirm Authentik supplies `email_verified: true` for the intended Mealie users; leave Mealie's
+verified-email enforcement enabled. Review any recipe-import, image-fetch, webhook, or action targets:
+[newer Mealie blocks private HTTP destinations by default](https://github.com/mealie-recipes/mealie/releases/tag/v3.26.0).
+If an existing integration needs a LAN destination, add only its required hostname or CIDR to
+`HTTP_ALLOW_LIST` through Helm values before testing it.
 
 ## Merge gates
 
@@ -95,6 +98,8 @@ Inspect bootstrap logs before they disappear: confirm recovery from the old Barm
 than an empty `initdb`. Confirm the final backup was selected and replay completed. Inspect PVC
 restore results and compare representative data with the source record. Preserve non-sensitive
 verification evidence here; pod health alone does not prove recovery.
+The upgraded app applies its database migrations to Apollo's restored copy. Verify migration completion
+and app startup before publishing routes; the source database remains available for rollback.
 
 Useful read-only checks:
 
@@ -114,9 +119,11 @@ so its end-to-end test follows route activation.
 
 ### 3. Activate and verify
 
-Remove `spec.suspend: true` from `ks-routes.yaml` through git. Verify both HTTPRoutes are Accepted
-with ResolvedRefs, LAN DNS points to the internal Gateway, public DNS uses Apollo's tunnel alias,
-and TLS works on both paths. Confirm public access from outside the LAN.
+Set `spec.values.route.internal.enabled` and `spec.values.route.external.enabled` to `true` in
+`app/helmrelease.yaml` through git. Verify both HTTPRoutes report Accepted and ResolvedRefs as True
+for their current generation; HelmRelease readiness alone does not establish route readiness.
+Verify LAN DNS points to the internal Gateway, public DNS uses Apollo's tunnel alias, and TLS works
+on both paths. Confirm public access from outside the LAN.
 
 Verify OIDC login through Authentik on `main`, admin/user group mapping, representative recipes and
 attachments, and a new write. Check logs for database and permission errors. With an initially empty
@@ -149,8 +156,8 @@ execution record to `plans/done/` only when the migration and cleanup gates have
 
 ## Rollback
 
-First remove the Apollo routes through git and confirm DNS ownership is released. Cloudflare's
-`upsert-only` policy will leave its CNAME/TXT records behind; the operator must remove the Apollo-owned
+First set both HelmRelease routes' `enabled` values to `false` through git and confirm DNS ownership
+is released. Cloudflare's `upsert-only` policy will leave its CNAME/TXT records behind; the operator must remove the Apollo-owned
 records before the old controller can reclaim the hostname. Stopping reconciliation alone does not
 remove routes or stop workloads.
 

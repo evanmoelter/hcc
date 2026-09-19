@@ -130,8 +130,8 @@ class MealieMigrationTest(unittest.TestCase):
             "mealie-preflight": {"onepassword-store"},
             "mealie-storage": {"mealie-preflight", "volsync", "longhorn-config"},
             "mealie-cluster": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
-            "mealie": {"mealie-storage", "mealie-cluster", "onepassword-store"},
-            "mealie-routes": {"mealie", "envoy-gateway-config", "cloudflare-dns", "unifi-dns"},
+            "mealie": {"mealie-storage", "mealie-cluster", "onepassword-store",
+                       "envoy-gateway-config", "cloudflare-dns", "unifi-dns"},
             "mealie-backup": {"mealie", "volsync", "onepassword-store"},
         }
         graph = {name: {dependency["name"] for dependency in owner["spec"].get("dependsOn", [])}
@@ -144,13 +144,14 @@ class MealieMigrationTest(unittest.TestCase):
             ready = {name for name in pending if not graph[name] & pending}
             self.assertTrue(ready, f"Dependency cycle: {pending}")
             pending -= ready
-        for name in ["mealie-routes", "mealie-backup"]:
-            self.assertTrue(self.owners[name]["spec"]["suspend"])
+        self.assertTrue(self.owners["mealie-backup"]["spec"]["suspend"])
         app_resources = self.resources["mealie"]
         self.assertFalse(any(resource["kind"] in {"Ingress", "HTTPRoute"} for resource in app_resources))
         values = self.resource("mealie", "HelmRelease")["spec"]["values"]
         self.assertFalse(values.get("ingress"))
-        self.assertFalse(values.get("route"))
+        self.assertTrue(values["route"])
+        for route in values["route"].values():
+            self.assertIs(route["enabled"], False)
 
 
 if __name__ == "__main__":
