@@ -17,10 +17,11 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 | Path | Cluster | Rule |
 |---|---|---|
 | `kubernetes/apollo/` | Talos, the cluster going forward | where new work goes |
-| `kubernetes/main/` | k3s, serving everything today | frozen; disable-only |
+| `kubernetes/main/` | k3s, serving remaining apps | frozen; disable-only |
 
 Apollo's platform and integration documentation is indexed in [docs/index.md](./docs/index.md).
-No household apps have moved yet. New platform components and new apps go in `kubernetes/apollo/`.
+Mealie is restored on Apollo; its [cutover record](./plans/20260918-mealie-migration.md) tracks
+verification, PVC backup activation, and cleanup. New platform components and new apps go in `kubernetes/apollo/`.
 Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing
 against the migration: work that Wave 1 will throw away is usually not worth doing.
 
