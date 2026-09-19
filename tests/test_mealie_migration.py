@@ -144,7 +144,7 @@ class MealieMigrationTest(unittest.TestCase):
             "mealie-storage": {"mealie-restore-preflight", "volsync", "longhorn-config"},
             "mealie-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "mealie": {"mealie-storage", "mealie-database", "onepassword-store",
-                       "envoy-gateway-config", "cloudflare-dns", "unifi-dns", "tailscale-config"},
+                       "envoy-gateway-config", "cloudflare-dns", "unifi-dns"},
             "mealie-backup": {"mealie", "volsync", "onepassword-store"},
         }
         graph = {name: {dependency["name"] for dependency in owner["spec"].get("dependsOn", [])}
@@ -161,9 +161,7 @@ class MealieMigrationTest(unittest.TestCase):
         app_resources = self.resources["mealie"]
         self.assertFalse(any(resource["kind"] in {"Ingress", "HTTPRoute"} for resource in app_resources))
         values = self.resource("mealie", "HelmRelease")["spec"]["values"]
-        self.assertTrue(values["ingress"])
-        for ingress in values["ingress"].values():
-            self.assertIs(ingress["enabled"], True)
+        self.assertFalse(values.get("ingress"))
         self.assertTrue(values["route"])
         for route in values["route"].values():
             self.assertIs(route["enabled"], True)
