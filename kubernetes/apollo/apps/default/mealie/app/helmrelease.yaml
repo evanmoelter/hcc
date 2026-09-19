@@ -110,7 +110,7 @@ spec:
             port: 9000
     route:
       internal:
-        enabled: false
+        enabled: true
         hostnames:
           - food.${SECRET_DOMAIN}
         parentRefs:
@@ -122,7 +122,7 @@ spec:
               - identifier: app
                 port: http
       external:
-        enabled: false
+        enabled: true
         hostnames:
           - food.${SECRET_DOMAIN}
         parentRefs:
@@ -135,7 +135,7 @@ spec:
                 port: http
     ingress:
       tailscale:
-        enabled: false
+        enabled: true
         forceRename: mealie-tailscale
         annotations:
           tailscale.com/proxy-class: tailscale-ingress

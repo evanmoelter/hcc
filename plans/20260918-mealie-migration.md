@@ -208,7 +208,19 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
   at `21:58:16Z` using `barmanObjectStore`, with backup ID `20260919T215811`.
   The old `mealie-backup` Flux Kustomization is suspended and `mealie-data-r2` is paused with no
   schedule. No Mealie backup jobs or mover pods remained at verification.
-- Apollo restore and data comparison: pending.
+- Apollo restore: verified on 2026-09-19 after Apollo applied `ecd3ff7` (PR #298).
+  Preflight, storage, database, and app Kustomizations became Ready. VolSync restored snapshot
+  `b451cb5f`, taken at `21:56:54Z` during the final source sync, and completed at `22:18:10Z`.
+  CNPG's `mealie-pg-1-full-recovery` job completed at `22:18:26Z`; its pod had already been
+  deleted when inspected, so selection of source backup `20260919T215811` could not be verified
+  directly. This evidence gap remains recorded; recovery is supported by the completed recovery
+  job and source/Apollo aggregate comparisons, not pod readiness alone.
+  Recipe, user, group, household, ingredient, instruction, and attachment record counts match the
+  source. Restored recipe/user files and `.initialized` are present. Both permanent volumes are
+  healthy with three replicas. Application database upgrades and startup completed successfully.
+  Representative recipe/image checks remain part of access verification.
 - LAN/public/Tailscale access and OIDC: pending.
-- New writes and first Apollo backups: pending.
+- First Apollo database backup: `mealie-pg-20260919221734` completed using the Barman plugin,
+  with backup ID `20260919T221904`. Continuous WAL archiving is healthy.
+  New writes and the first Apollo PVC snapshot remain pending; `mealie-backup` stays suspended.
 - Restore cleanup and credential revocation: pending.

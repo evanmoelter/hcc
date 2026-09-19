@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo's nodes run Talos and this tree is building out its platform components, but no workload has moved yet, so everything described here still runs on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo's nodes run Talos and Mealie is the first household app restored there. Other household apps still run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving all apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, and echo-server; no household apps yet |
+| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, and Mealie |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -19,7 +19,8 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 
 [Documentation index](./docs/index.md) covers Apollo platform setup, app integrations, and operations.
 
-Mealie is the first app prepared for migration, with routes gated on restored-data verification.
+Mealie is restored on Apollo with LAN, public, and Tailscale access enabled. Login and write
+verification, PVC backup activation, and restore cleanup remain pending.
 [The cutover record](./plans/20260918-mealie-migration.md) tracks activation and cleanup.
 
 ## Hardware
