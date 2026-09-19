@@ -198,7 +198,16 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
 
 ## Execution record
 
-- Final source backups: pending.
+- Apollo prerequisites: the operator confirmed the required credentials are ready and Authentik's
+  verified-email configuration is complete on 2026-09-19. End-to-end login remains a cutover check.
+- Old app disabled: verified on 2026-09-19 after main applied `2959631` (rollout fix PR #300).
+  Mealie has zero replicas, no app pods, and no Ingress; public DNS and checked ownership records
+  returned NXDOMAIN. The database remains healthy and the 5 GiB app PVC remains bound.
+- Final source backups: verified after shutdown on 2026-09-19. VolSync completed manual trigger
+  `mealie-final-20260919215607` at `21:57:03Z`. CNPG Backup `mealie-final-20260919215607` completed
+  at `21:58:16Z` using `barmanObjectStore`, with backup ID `20260919T215811`.
+  The old `mealie-backup` Flux Kustomization is suspended and `mealie-data-r2` is paused with no
+  schedule. No Mealie backup jobs or mover pods remained at verification.
 - Apollo restore and data comparison: pending.
 - LAN/public/Tailscale access and OIDC: pending.
 - New writes and first Apollo backups: pending.
