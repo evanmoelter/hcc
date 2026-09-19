@@ -386,7 +386,7 @@ Logical import permits a PostgreSQL major-version change, but check each app's s
 |---|---|
 | Home Assistant | Require verified IoT networking; prefer hcc6 but allow other eligible nodes without USB; use Apple TV for Thread and keep any future USB/OTBR workload separate; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
 | Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 50Gi for the library PVC |
-| Mealie | Restore LAN reachability using the chosen Gateway pattern; consider adding its missing Tailscale Ingress; recover the database instead of using initdb |
+| Mealie | Restore LAN reachability using the chosen Gateway pattern; add a Tailscale Ingress; recover the database instead of using initdb |
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
 | External apps | Replace the old tunnel target with `external-apollo.${SECRET_DOMAIN}` |
 | All apps | Convert internal and external Ingresses to `HTTPRoute`; retain Tailscale Ingresses |

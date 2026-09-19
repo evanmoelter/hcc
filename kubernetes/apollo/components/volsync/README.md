@@ -10,6 +10,7 @@ app-name/
   storage/         app-owned PVC manifests
 ```
 
+Name the restore preflight Kustomization `<app>-restore-preflight` to distinguish it from app-specific checks.
 Preflight and backup point `spec.path` directly at the shared `volsync/restore-preflight` and `volsync/backup`
 bases here. Storage includes `volsync/restore` through `spec.components` only during recovery.
 The ordering is **preflight → storage → app → backup**. Preflight needs `onepassword-store`; storage needs
@@ -22,8 +23,12 @@ omits preflight and the restore component. Protect durable claims with
 `kustomize.toolkit.fluxcd.io/prune: disabled`.
 
 Set `APP` for each backup stream; backup `CLAIM` and repository paths default to `APP`.
-Recovery requires `VOLSYNC_RESTORE_ID` on preflight and storage, `VOLSYNC_RESTORE_BUCKET` on preflight,
-and `VOLSYNC_CAPACITY` matching the claim. A claim smaller than the restore snapshot fails provisioning.
+Recovery requires `VOLSYNC_RESTORE_ID` on preflight and storage and `VOLSYNC_RESTORE_BUCKET` on preflight.
+Supply restore capacity from the app PVC with a Kustomize replacement, as in
+[Mealie's storage configuration](../../apps/default/mealie/storage/kustomization.yaml): copy
+`spec.resources.requests.storage` to the ReplicationDestination's `spec.restic.capacity`.
+The replacement runs before Flux substitution, so `VOLSYNC_CAPACITY` is unnecessary for this pattern.
+A claim smaller than the restore snapshot fails provisioning.
 `VOLSYNC_STORAGECLASS` must support the claim's CSI snapshot driver; size `VOLSYNC_CACHE_CAPACITY` for
 repository metadata. The PVC reference and readiness expression must name the destination for that restore ID.
 
@@ -40,8 +45,8 @@ snapshot into the app PVC; deleting it when the restic mover finishes can strand
 app can mount and verify its data. The restic cache can be removed immediately.
 
 After data verification and the first Apollo backup, make a cleanup commit: remove preflight, the storage
-restore component, and storage's preflight/VolSync dependencies and destination health check. Keep the same
-storage Kustomization, PVC manifest, and PVC readiness check. Flux prunes the temporary destination and
+restore component and capacity replacement, and storage's preflight/VolSync dependencies and destination
+health check. Keep the same storage Kustomization, PVC manifest, and PVC readiness check. Flux prunes the temporary destination and
 restore credentials; deleting the destination also garbage-collects its retained temporary PVC.
 Preserve the PVC's immutable `dataSourceRef` exactly; it remains valid on the bound PVC.
 With its destination gone, a newly provisioned replacement claim blocks until recovery is explicitly configured.

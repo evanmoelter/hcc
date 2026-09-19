@@ -1,0 +1,182 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app mealie
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    strategy:
+      name: RemediateOnFailure
+    remediation:
+      retries: 3
+  upgrade:
+    strategy:
+      name: RemediateOnFailure
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+      strategy: rollback
+  rollback:
+    cleanupOnFail: true
+  values:
+    controllers:
+      mealie:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        replicas: 1
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            runAsNonRoot: true
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          app:
+            image:
+              repository: ghcr.io/mealie-recipes/mealie
+              tag: v3.27.0@sha256:ba24b88462380fb59a6c7d04c6d9e607e0b6b04e31306592181186bcdab1952b
+            env:
+              TZ: ${TIMEZONE}
+              ALLOW_SIGNUP: "false"
+              ALLOW_PASSWORD_LOGIN: "false"
+              BASE_URL: https://food.${SECRET_DOMAIN}
+              DB_ENGINE: postgres
+              POSTGRES_PORT: "5432"
+              POSTGRES_DB: mealie
+              POSTGRES_SERVER:
+                valueFrom:
+                  secretKeyRef:
+                    name: &dbSecret mealie-pg-app
+                    key: host
+              POSTGRES_USER:
+                valueFrom:
+                  secretKeyRef:
+                    name: *dbSecret
+                    key: username
+              POSTGRES_PASSWORD:
+                valueFrom:
+                  secretKeyRef:
+                    name: *dbSecret
+                    key: password
+              OIDC_AUTH_ENABLED: "true"
+              OIDC_REQUIRES_EMAIL_VERIFICATION: "true"
+              OIDC_PROVIDER_NAME: authentik
+              OIDC_SIGNUP_ENABLED: "true"
+              OIDC_CONFIGURATION_URL: https://sso.${SECRET_DOMAIN}/application/o/mealie/.well-known/openid-configuration
+              OIDC_AUTO_REDIRECT: "true"
+              OIDC_REMEMBER_ME: "true"
+              OIDC_ADMIN_GROUP: mealie-admins
+              OIDC_USER_GROUP: mealie-users
+            envFrom:
+              - secretRef:
+                  name: mealie-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+    service:
+      app:
+        controller: mealie
+        ports:
+          http:
+            port: 9000
+    route:
+      internal:
+        enabled: false
+        hostnames:
+          - food.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: http
+      external:
+        enabled: false
+        hostnames:
+          - food.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-external
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: http
+    ingress:
+      tailscale:
+        enabled: false
+        forceRename: mealie-tailscale
+        annotations:
+          tailscale.com/proxy-class: tailscale-ingress
+        className: tailscale
+        defaultBackend:
+          service:
+            name: *app
+            port:
+              name: http
+        tls:
+          - hosts:
+              - mealie-apollo
+    externalSecrets:
+      oidc:
+        forceRename: mealie-secret
+        refreshInterval: 1h
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword
+        target:
+          creationPolicy: Owner
+          deletionPolicy: Retain
+        data:
+          - secretKey: OIDC_CLIENT_ID
+            remoteRef:
+              key: *app
+              property: OIDC_CLIENT_ID
+          - secretKey: OIDC_CLIENT_SECRET
+            remoteRef:
+              key: *app
+              property: OIDC_CLIENT_SECRET
+    persistence:
+      data:
+        existingClaim: mealie-data
+        globalMounts:
+          - path: /app/data
+      nltk-data:
+        type: emptyDir
+        globalMounts:
+          - path: /nltk_data
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

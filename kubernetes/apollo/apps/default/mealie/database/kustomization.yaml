@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./source-objectstore.yaml
+  - ./externalsecret.yaml
+patches:
+  - target:
+      group: postgresql.cnpg.io
+      kind: Cluster
+    patch: |-
+      - op: replace
+        path: /spec/externalClusters
+        value:
+          - name: mealie-pg-backup
+            plugin:
+              name: barman-cloud.cloudnative-pg.io
+              parameters:
+                barmanObjectName: mealie-pg-source
+                serverName: mealie-pg-v1
+      - op: remove
+        path: /metadata/annotations/cnpg.io~1skipEmptyWalArchiveCheck
+      - op: add
+        path: /spec/postgresql
+        value:
+          parameters:
+            max_connections: "100"
+            shared_buffers: 64MB
