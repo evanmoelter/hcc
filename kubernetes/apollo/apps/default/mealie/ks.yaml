@@ -7,11 +7,12 @@ metadata:
 spec:
   dependsOn:
     - name: mealie-storage
-    - name: mealie-cluster
+    - name: mealie-database
     - name: onepassword-store
     - name: envoy-gateway-config
     - name: cloudflare-dns
     - name: unifi-dns
+    - name: tailscale-config
   targetNamespace: default
   commonMetadata:
     labels:

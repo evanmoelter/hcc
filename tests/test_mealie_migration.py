@@ -57,7 +57,7 @@ class MealieMigrationTest(unittest.TestCase):
                     and (name is None or resource["metadata"]["name"] == name))
 
     def test_database_requires_old_archive_and_preserves_source(self):
-        cluster = self.resource("mealie-cluster", "Cluster")
+        cluster = self.resource("mealie-database", "Cluster")
         bootstrap = cluster["spec"]["bootstrap"]
         self.assertEqual(set(bootstrap), {"recovery"})
         external = next(source for source in cluster["spec"]["externalClusters"]
@@ -65,8 +65,8 @@ class MealieMigrationTest(unittest.TestCase):
         source_parameters = external["plugin"]["parameters"]
         writer_parameters = next(plugin for plugin in cluster["spec"]["plugins"]
                                  if plugin.get("isWALArchiver"))["parameters"]
-        source = self.resource("mealie-cluster", "ObjectStore", source_parameters["barmanObjectName"])
-        writer = self.resource("mealie-cluster", "ObjectStore", writer_parameters["barmanObjectName"])
+        source = self.resource("mealie-database", "ObjectStore", source_parameters["barmanObjectName"])
+        writer = self.resource("mealie-database", "ObjectStore", writer_parameters["barmanObjectName"])
         self.assertEqual(source_parameters["serverName"], "mealie-pg-v1")
         self.assertEqual(writer_parameters["serverName"], "mealie-pg-apollo-v1")
         self.assertEqual(source["spec"]["configuration"]["destinationPath"], "s3://tf-hcc-cloudnativepg/")
@@ -81,11 +81,11 @@ class MealieMigrationTest(unittest.TestCase):
     def test_database_stores_use_their_own_credentials_and_shared_account(self):
         for store_name, item in [("mealie-pg-source", "mealie-postgres-migration"), ("mealie-pg", "cnpg-r2")]:
             with self.subTest(store=store_name):
-                store = self.resource("mealie-cluster", "ObjectStore", store_name)
+                store = self.resource("mealie-database", "ObjectStore", store_name)
                 credentials = store["spec"]["configuration"]["s3Credentials"]
                 secret_name = credentials["accessKeyId"]["name"]
                 self.assertEqual(credentials["secretAccessKey"]["name"], secret_name)
-                secret = self.resource("mealie-cluster", "ExternalSecret", secret_name)
+                secret = self.resource("mealie-database", "ExternalSecret", secret_name)
                 remote = {entry["secretKey"]: entry["remoteRef"] for entry in secret["spec"]["data"]}
                 self.assertEqual(remote["ACCOUNT_ID"]["key"], "cloudflare-r2")
                 self.assertEqual(remote["R2_ACCESS_KEY_ID"]["key"], item)
@@ -129,9 +129,9 @@ class MealieMigrationTest(unittest.TestCase):
         required = {
             "mealie-preflight": {"onepassword-store"},
             "mealie-storage": {"mealie-preflight", "volsync", "longhorn-config"},
-            "mealie-cluster": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
-            "mealie": {"mealie-storage", "mealie-cluster", "onepassword-store",
-                       "envoy-gateway-config", "cloudflare-dns", "unifi-dns"},
+            "mealie-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
+            "mealie": {"mealie-storage", "mealie-database", "onepassword-store",
+                       "envoy-gateway-config", "cloudflare-dns", "unifi-dns", "tailscale-config"},
             "mealie-backup": {"mealie", "volsync", "onepassword-store"},
         }
         graph = {name: {dependency["name"] for dependency in owner["spec"].get("dependsOn", [])}
@@ -148,7 +148,9 @@ class MealieMigrationTest(unittest.TestCase):
         app_resources = self.resources["mealie"]
         self.assertFalse(any(resource["kind"] in {"Ingress", "HTTPRoute"} for resource in app_resources))
         values = self.resource("mealie", "HelmRelease")["spec"]["values"]
-        self.assertFalse(values.get("ingress"))
+        self.assertTrue(values["ingress"])
+        for ingress in values["ingress"].values():
+            self.assertIs(ingress["enabled"], False)
         self.assertTrue(values["route"])
         for route in values["route"].values():
             self.assertIs(route["enabled"], False)

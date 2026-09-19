@@ -100,10 +100,10 @@ def render(mode="recovery", substitutions=None):
             "flux", "build", "kustomization", "cluster-apps", "--dry-run",
             "--path", str(root / APOLLO / "apps"), "--kustomization-file", str(root / "parent.yaml"),
         ))
-        database = next(o for o in owners if o["metadata"]["name"] == "postgres-example-cluster")
+        database = next(o for o in owners if o["metadata"]["name"] == "postgres-example-database")
         write(owner_path, database)
         resources = documents(command(
-            "flux", "build", "kustomization", "postgres-example-cluster", "--dry-run", "--strict-substitute",
+            "flux", "build", "kustomization", "postgres-example-database", "--dry-run", "--strict-substitute",
             "--path", str(root / APP / "database"), "--kustomization-file", str(owner_path),
         ))
         for resource in resources:
@@ -187,8 +187,8 @@ class PostgresComponentTest(unittest.TestCase):
 
     def test_application_waits_for_database_and_platform_dependencies(self):
         owners = {r["metadata"]["name"]: r for r in self.states["recovery"][0]}
-        self.assertEqual(owners["postgres-example"]["spec"]["dependsOn"], [{"name": "postgres-example-cluster"}])
-        database = owners["postgres-example-cluster"]["spec"]
+        self.assertEqual(owners["postgres-example"]["spec"]["dependsOn"], [{"name": "postgres-example-database"}])
+        database = owners["postgres-example-database"]["spec"]
         self.assertTrue(database["wait"])
         self.assertEqual({d["name"] for d in database["dependsOn"]},
                          {"plugin-barman-cloud", "longhorn-config", "onepassword-store"})
