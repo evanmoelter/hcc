@@ -25,11 +25,16 @@ def build(root, owner, path):
     ]))
 
 
-def render():
+def render(pvc_size=None):
     with tempfile.TemporaryDirectory(prefix="mealie-migration-") as directory:
         root = Path(directory)
         for path in ["apps/default", "components/postgres", "components/volsync"]:
             shutil.copytree(ROOT / APOLLO / path, root / APOLLO / path)
+        if pvc_size is not None:
+            pvc_path = root / APOLLO / "apps/default/mealie/storage/pvc.yaml"
+            pvc = documents(pvc_path.read_bytes())[0]
+            pvc["spec"]["resources"]["requests"]["storage"] = pvc_size
+            pvc_path.write_text(json.dumps(pvc))
         parent = documents((ROOT / APOLLO / "flux/apps.yaml").read_bytes())[0]
         parent["spec"]["postBuild"] = {"substitute": {"TEST_RENDER": "true"}}
         owners = {
@@ -113,6 +118,14 @@ class MealieMigrationTest(unittest.TestCase):
         preflight = self.resource("mealie-restore-preflight", "Job")
         self.assertIn({"secretRef": {"name": secret["spec"]["target"]["name"]}},
                       preflight["spec"]["template"]["spec"]["containers"][0]["envFrom"])
+
+    def test_restore_capacity_tracks_pvc_size(self):
+        for resources in [self.resources, render(pvc_size="7Gi")[1]]:
+            storage = resources["mealie-storage"]
+            pvc = next(resource for resource in storage if resource["kind"] == "PersistentVolumeClaim")
+            destination = next(resource for resource in storage if resource["kind"] == "ReplicationDestination")
+            self.assertEqual(destination["spec"]["restic"]["capacity"],
+                             pvc["spec"]["resources"]["requests"]["storage"])
 
     def test_new_pvc_backup_uses_apollo_repository_and_password(self):
         source = self.resource("mealie-backup", "ReplicationSource")

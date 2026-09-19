@@ -157,8 +157,8 @@ and healthy WAL archiving. A successful mover with no restic snapshot does not s
 
 After data, login, writes, and both Apollo backups pass, make a cleanup commit:
 
-- Remove the preflight Kustomization, storage's restore component and preflight/VolSync dependencies,
-  and its ReplicationDestination health check. Keep PVC readiness, its protected manifest, its immutable
+- Remove the preflight Kustomization, storage's restore component, capacity replacement, preflight/VolSync
+  dependencies, and ReplicationDestination health check. Keep PVC readiness, its protected manifest, its immutable
   `dataSourceRef`, and the same `mealie-storage` Kustomization.
 - Remove the database's temporary source ObjectStore, source ExternalSecret, and externalClusters patch.
   Remove the patch deleting `cnpg.io/skipEmptyWalArchiveCheck` so future recovery can reuse Apollo's
