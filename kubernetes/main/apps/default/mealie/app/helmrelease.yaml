@@ -115,7 +115,9 @@ spec:
           http:
             port: 9000
 
-    ingress: {}
+    ingress:
+      app:
+        enabled: false
 
     persistence:
       data:
