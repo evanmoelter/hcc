@@ -9,6 +9,9 @@ spec:
     - name: mealie-storage
     - name: mealie-cluster
     - name: onepassword-store
+    - name: envoy-gateway-config
+    - name: cloudflare-dns
+    - name: unifi-dns
   targetNamespace: default
   commonMetadata:
     labels:

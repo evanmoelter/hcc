@@ -6,4 +6,3 @@ resources:
   - ./mealie/ks.yaml
   - ./mealie/ks-database.yaml
   - ./mealie/ks-storage.yaml
-  - ./mealie/ks-routes.yaml
