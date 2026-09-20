@@ -57,15 +57,16 @@ spec:
       log_level: info
 
     server:
+      replicas: 0
       autoscaling:
-        enabled: true
+        enabled: false
         minReplicas: 1
       metrics:
         prometheus:
           serviceMonitor:
             enabled: true
       ingress:
-        enabled: true
+        enabled: false
         ingressClassName: external
         annotations:
           external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}
@@ -79,8 +80,9 @@ spec:
             - *host
 
     worker:
+      replicas: 0
       autoscaling:
-        enabled: true
+        enabled: false
         minReplicas: 1
 
     postgresql:
