@@ -133,21 +133,6 @@ spec:
           - backendRefs:
               - identifier: app
                 port: http
-    ingress:
-      tailscale:
-        enabled: true
-        forceRename: mealie-tailscale
-        annotations:
-          tailscale.com/proxy-class: tailscale-ingress
-        className: tailscale
-        defaultBackend:
-          service:
-            name: *app
-            port:
-              name: http
-        tls:
-          - hosts:
-              - mealie-apollo
     externalSecrets:
       oidc:
         forceRename: mealie-secret

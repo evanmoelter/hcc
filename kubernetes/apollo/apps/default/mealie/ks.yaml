@@ -12,7 +12,6 @@ spec:
     - name: envoy-gateway-config
     - name: cloudflare-dns
     - name: unifi-dns
-    - name: tailscale-config
   targetNamespace: default
   commonMetadata:
     labels:

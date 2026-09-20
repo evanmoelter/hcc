@@ -77,7 +77,6 @@ metadata:
   name: mealie-backup
   namespace: flux-system
 spec:
-  suspend: true
   dependsOn:
     - name: mealie
     - name: volsync
