@@ -22,8 +22,7 @@
   ],
   ignorePaths: [
     '**/*.sops.*',
-    'kubernetes/main/bootstrap/**',
-    'kubernetes/main/apps/default/teslamate/backup/**',
+    'kubernetes/main/**',
   ],
 
   // Manager configurations
