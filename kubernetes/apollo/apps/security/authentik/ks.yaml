@@ -2,22 +2,20 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: &app mealie
+  name: &app authentik
   namespace: flux-system
 spec:
   dependsOn:
-    - name: authentik
-    - name: mealie-storage
-    - name: mealie-database
+    - name: authentik-database
     - name: onepassword-store
     - name: envoy-gateway-config
     - name: cloudflare-dns
     - name: unifi-dns
-  targetNamespace: default
+  targetNamespace: security
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  path: ./kubernetes/apollo/apps/default/mealie/app
+  path: ./kubernetes/apollo/apps/security/authentik/app
   prune: true
   deletionPolicy: WaitForTermination
   sourceRef:
