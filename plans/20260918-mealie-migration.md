@@ -216,13 +216,24 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
   The operator confirmed canonical-hostname login, recipe/image reads, and cellular access.
   Tailscale transport worked, but its login redirected to the canonical hostname and logs showed
   two OIDC state-mismatch callback failures. The operator chose LAN/public access only rather than
-  fixing the separate tailnet login. Remove Mealie's Tailscale Ingress and Flux dependency; after
-  deployment, verify the Ingress and its operator-managed proxy are gone. Any Mealie-specific tailnet
+  fixing the separate tailnet login. After Apollo applied `3fde89c` (PR #302), the Ingress and its
+  operator-managed StatefulSet/pod were absent; LAN/public HTTPS still passed. Any Mealie-specific tailnet
   redirect URIs added in Authentik can be removed by the operator; retain the canonical callback.
 - New writes: the operator created a temporary recipe, uploaded an image, and confirmed both persisted
   after refresh. Keep that test data through the first Apollo PVC backup.
 - First Apollo database backup: `mealie-pg-20260919221734` completed using the Barman plugin,
   with backup ID `20260919T221904`. Continuous WAL archiving is healthy.
-  The PVC backup lifecycle is enabled on its regular schedule. Verification of its first actual restic
-  snapshot remains pending; restore machinery stays in place until that succeeds.
-- Restore cleanup and credential revocation: pending.
+  The next scheduled database backup, `mealie-pg-20260920000000`, also completed with backup ID
+  `20260920T000000`; WAL archiving remained healthy.
+- First Apollo PVC backup: verified after PR #302. VolSync completed at `2026-09-20T00:30:24Z`,
+  processing 192 files and saving restic snapshot `a8be9559` in the Apollo repository. This confirms
+  a stored snapshot, not merely a successful mover exit. Scheduled PVC backups are enabled.
+- Restore cleanup: the cleanup change removes the preflight lifecycle, restore destination, temporary
+  source ObjectStore/ExternalSecrets, and old-archive recovery override. The permanent PVC manifest,
+  its immutable restore reference, the database Cluster, and their owning Kustomizations are retained.
+  Before cleanup, both permanent volumes were healthy with three replicas and the app PVC clone was
+  complete. Post-deployment verification of temporary-resource removal and continued health is pending.
+- Credential revocation: pending operator action after cleanup verification. Revoke only the old-bucket
+  R2 migration credentials in `mealie-volsync-migration` and `mealie-postgres-migration`. Preserve the
+  original restic password/source backups for rollback and keep the old cluster's writer paused.
+  Apollo's `volsync-r2`, `cnpg-r2`, and `mealie` credentials remain in use.

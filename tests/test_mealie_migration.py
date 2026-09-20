@@ -25,16 +25,11 @@ def build(root, owner, path):
     ]))
 
 
-def render(pvc_size=None):
+def render():
     with tempfile.TemporaryDirectory(prefix="mealie-migration-") as directory:
         root = Path(directory)
         for path in ["apps/default", "components/postgres", "components/volsync"]:
             shutil.copytree(ROOT / APOLLO / path, root / APOLLO / path)
-        if pvc_size is not None:
-            pvc_path = root / APOLLO / "apps/default/mealie/storage/pvc.yaml"
-            pvc = documents(pvc_path.read_bytes())[0]
-            pvc["spec"]["resources"]["requests"]["storage"] = pvc_size
-            pvc_path.write_text(json.dumps(pvc))
         parent = documents((ROOT / APOLLO / "flux/apps.yaml").read_bytes())[0]
         parent["spec"]["postBuild"] = {"substitute": {"TEST_RENDER": "true"}}
         owners = {
@@ -61,71 +56,53 @@ class MealieMigrationTest(unittest.TestCase):
                     if resource["kind"] == kind
                     and (name is None or resource["metadata"]["name"] == name))
 
-    def test_database_requires_old_archive_and_preserves_source(self):
+    def test_database_recovers_from_its_apollo_archive(self):
         cluster = self.resource("mealie-database", "Cluster")
-        bootstrap = cluster["spec"]["bootstrap"]
-        self.assertEqual(set(bootstrap), {"recovery"})
+        self.assertEqual(set(cluster["spec"]["bootstrap"]), {"recovery"})
         external = next(source for source in cluster["spec"]["externalClusters"]
-                        if source["name"] == bootstrap["recovery"]["source"])
-        source_parameters = external["plugin"]["parameters"]
-        writer_parameters = next(plugin for plugin in cluster["spec"]["plugins"]
-                                 if plugin.get("isWALArchiver"))["parameters"]
-        source = self.resource("mealie-database", "ObjectStore", source_parameters["barmanObjectName"])
-        writer = self.resource("mealie-database", "ObjectStore", writer_parameters["barmanObjectName"])
-        self.assertEqual(source_parameters["serverName"], "mealie-pg-v1")
-        self.assertEqual(writer_parameters["serverName"], "mealie-pg-apollo-v1")
-        self.assertEqual(source["spec"]["configuration"]["destinationPath"], "s3://tf-hcc-cloudnativepg/")
-        self.assertEqual(writer["spec"]["configuration"]["destinationPath"], "s3://tf-hcc-apollo-cnpg/mealie/")
-        self.assertNotEqual(source["spec"]["configuration"]["s3Credentials"],
-                            writer["spec"]["configuration"]["s3Credentials"])
-        self.assertNotIn("retentionPolicy", source["spec"])
-        self.assertNotIn("cnpg.io/skipEmptyWalArchiveCheck", cluster["metadata"]["annotations"])
-        self.assertEqual(cluster["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
+                        if source["name"] == cluster["spec"]["bootstrap"]["recovery"]["source"])
+        writer = next(plugin for plugin in cluster["spec"]["plugins"] if plugin.get("isWALArchiver"))
+        self.assertEqual(external["plugin"]["parameters"], writer["parameters"])
+        self.assertEqual(writer["parameters"], {
+            "barmanObjectName": "mealie-pg", "serverName": "mealie-pg-apollo-v1",
+        })
+        annotations = cluster["metadata"]["annotations"]
+        self.assertEqual(annotations["cnpg.io/skipEmptyWalArchiveCheck"], "enabled")
+        self.assertEqual(annotations["kustomize.toolkit.fluxcd.io/prune"], "disabled")
         self.assertTrue(cluster["spec"]["imageName"].split(":", 1)[1].startswith("18."))
+        self.assertEqual(cluster["spec"]["postgresql"]["parameters"], {
+            "max_connections": "100", "shared_buffers": "64MB",
+        })
+        store = self.resource("mealie-database", "ObjectStore", "mealie-pg")
+        self.assertEqual(store["spec"]["configuration"]["destinationPath"],
+                         "s3://tf-hcc-apollo-cnpg/mealie/")
+        secret = self.resource("mealie-database", "ExternalSecret", "mealie-pg-r2")
+        remote = {entry["secretKey"]: entry["remoteRef"]["key"] for entry in secret["spec"]["data"]}
+        self.assertEqual(remote["R2_ACCESS_KEY_ID"], "cnpg-r2")
+        self.assertEqual(remote["R2_SECRET_ACCESS_KEY"], "cnpg-r2")
 
-    def test_database_stores_use_their_own_credentials_and_shared_account(self):
-        for store_name, item in [("mealie-pg-source", "mealie-postgres-migration"), ("mealie-pg", "cnpg-r2")]:
-            with self.subTest(store=store_name):
-                store = self.resource("mealie-database", "ObjectStore", store_name)
-                credentials = store["spec"]["configuration"]["s3Credentials"]
-                secret_name = credentials["accessKeyId"]["name"]
-                self.assertEqual(credentials["secretAccessKey"]["name"], secret_name)
-                secret = self.resource("mealie-database", "ExternalSecret", secret_name)
-                remote = {entry["secretKey"]: entry["remoteRef"] for entry in secret["spec"]["data"]}
-                self.assertEqual(remote["ACCOUNT_ID"]["key"], "cloudflare-r2")
-                self.assertEqual(remote["R2_ACCESS_KEY_ID"]["key"], item)
-                self.assertEqual(remote["R2_SECRET_ACCESS_KEY"]["key"], item)
-                endpoint = next(env for env in store["spec"]["instanceSidecarConfiguration"]["env"]
-                                if env["name"] == "AWS_ENDPOINT_URL_S3")
-                self.assertEqual(endpoint["valueFrom"]["secretKeyRef"],
-                                 {"name": secret_name, "key": "ENDPOINT_URL"})
-
-    def test_pvc_cannot_start_empty_or_restore_from_new_backup_repository(self):
+    def test_cleanup_preserves_protected_pvc_and_immutable_restore_reference(self):
+        storage = self.resources["mealie-storage"]
+        self.assertEqual(len(storage), 1)
         pvc = self.resource("mealie-storage", "PersistentVolumeClaim", "mealie-data")
-        destination = self.resource("mealie-storage", "ReplicationDestination")
         self.assertEqual(pvc["spec"]["dataSourceRef"], {
             "apiGroup": "volsync.backube", "kind": "ReplicationDestination",
-            "name": destination["metadata"]["name"],
+            "name": "mealie-bootstrap-migration-v1",
         })
+        self.assertEqual(pvc["spec"]["resources"]["requests"]["storage"], "5Gi")
         self.assertEqual(pvc["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
-        secret = self.resource("mealie-restore-preflight", "ExternalSecret")
-        self.assertEqual(destination["spec"]["restic"]["repository"], secret["spec"]["target"]["name"])
-        template = secret["spec"]["target"]["template"]["data"]
-        self.assertTrue(template["RESTIC_REPOSITORY"].endswith("/tf-hcc-volsync/mealie-data"))
-        remote = {entry["secretKey"]: entry["remoteRef"]["key"] for entry in secret["spec"]["data"]}
-        self.assertEqual(remote["RESTIC_PASSWORD"], "mealie-volsync-migration")
-        self.assertEqual(remote["R2_ACCESS_KEY_ID"], "mealie-volsync-migration")
-        preflight = self.resource("mealie-restore-preflight", "Job")
-        self.assertIn({"secretRef": {"name": secret["spec"]["target"]["name"]}},
-                      preflight["spec"]["template"]["spec"]["containers"][0]["envFrom"])
+        health_checks = self.owners["mealie-storage"]["spec"]["healthCheckExprs"]
+        self.assertEqual([check["kind"] for check in health_checks], ["PersistentVolumeClaim"])
 
-    def test_restore_capacity_tracks_pvc_size(self):
-        for resources in [self.resources, render(pvc_size="7Gi")[1]]:
-            storage = resources["mealie-storage"]
-            pvc = next(resource for resource in storage if resource["kind"] == "PersistentVolumeClaim")
-            destination = next(resource for resource in storage if resource["kind"] == "ReplicationDestination")
-            self.assertEqual(destination["spec"]["restic"]["capacity"],
-                             pvc["spec"]["resources"]["requests"]["storage"])
+    def test_cleanup_removes_restore_resources_and_source_credentials(self):
+        self.assertNotIn("mealie-restore-preflight", self.owners)
+        resources = [resource for owned in self.resources.values() for resource in owned]
+        self.assertFalse(any(resource["kind"] in {"ReplicationDestination", "Job"} for resource in resources))
+        rendered = json.dumps(resources)
+        for retired in ["mealie-volsync-migration", "mealie-postgres-migration", "mealie-pg-source",
+                        "mealie-volsync-restore-migration-v1", "tf-hcc-cloudnativepg", "tf-hcc-volsync"]:
+            with self.subTest(retired=retired):
+                self.assertNotIn(retired, rendered)
 
     def test_new_pvc_backup_uses_apollo_repository_and_password(self):
         source = self.resource("mealie-backup", "ReplicationSource")
@@ -138,10 +115,9 @@ class MealieMigrationTest(unittest.TestCase):
         self.assertEqual(remote["RESTIC_PASSWORD"], "mealie")
         self.assertEqual(remote["R2_ACCESS_KEY_ID"], "volsync-r2")
 
-    def test_restore_and_backup_dependencies(self):
+    def test_app_and_backup_dependencies(self):
         required = {
-            "mealie-restore-preflight": {"onepassword-store"},
-            "mealie-storage": {"mealie-restore-preflight", "volsync", "longhorn-config"},
+            "mealie-storage": {"longhorn-config"},
             "mealie-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "mealie": {"mealie-storage", "mealie-database", "onepassword-store",
                        "envoy-gateway-config", "cloudflare-dns", "unifi-dns"},
@@ -149,6 +125,7 @@ class MealieMigrationTest(unittest.TestCase):
         }
         graph = {name: {dependency["name"] for dependency in owner["spec"].get("dependsOn", [])}
                  for name, owner in self.owners.items()}
+        self.assertEqual(graph["mealie-storage"], {"longhorn-config"})
         for name, dependencies in required.items():
             self.assertLessEqual(dependencies, graph[name])
             self.assertTrue(self.owners[name]["spec"]["wait"])
