@@ -27,6 +27,7 @@ spec:
   values:
     controllers:
       webfinger:
+        replicas: 0
         strategy: RollingUpdate
         containers:
           app:
@@ -66,7 +67,7 @@ spec:
 
     ingress:
       webfinger:
-        enabled: true
+        enabled: false
         className: external
         annotations:
           external-dns.alpha.kubernetes.io/target: "external.${SECRET_DOMAIN}"
