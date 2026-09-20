@@ -1,8 +1,11 @@
 # Apollo gateway
 
-Envoy Gateway provides Apollo's HTTP and HTTPS ingress in `network`. Household apps still run on
-`main`. Cloudflare and UniFi external-dns provide split-horizon records, and Apollo has its own locally
+Envoy Gateway provides Apollo's HTTP and HTTPS ingress in `network`. Mealie uses LAN/public routes
+on Apollo; other household apps remain on `main`. Cloudflare and UniFi external-dns provide split-horizon records, and Apollo has its own locally
 managed Cloudflare tunnel. [DNS and tunnel integration](./dns.md) covers credentials and verification.
+
+Mealie uses the same canonical hostname on both paths and authenticates through Authentik on `main`.
+Its separate Tailscale Ingress was removed because login redirected to the canonical hostname.
 
 | Gateway | LoadBalancer IP | Purpose |
 |---|---|---|
