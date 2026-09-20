@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo's nodes run Talos and Mealie is the first household app restored there. Other household apps still run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, with Authentik and WebFinger defined for the next cutover. Remaining household apps run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, and Mealie |
+| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie; Authentik and WebFinger cutover prepared |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -22,6 +22,10 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 Mealie’s migration is complete, with LAN/public access and verified PVC/database backups.
 [The completed cutover record](./plans/done/20260918-mealie-migration.md) preserves recovery, cleanup,
 and credential-revocation evidence.
+
+Authentik and WebFinger use the [identity integration](./docs/identity.md). Their
+[cutover record](./plans/20260919-authentik-migration.md) tracks the PostgreSQL import, login verification,
+and cleanup gates; preparation does not mean deployment or verification is complete.
 
 ## Hardware
 

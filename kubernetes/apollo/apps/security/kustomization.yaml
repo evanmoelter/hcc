@@ -9,3 +9,6 @@ resources:
   - ./cert-manager/ks.yaml
   - ./cert-manager/ks-secrets.yaml
   - ./cert-manager/ks-issuers.yaml
+  - ./authentik/ks.yaml
+  - ./authentik/ks-database.yaml
+  - ./webfinger/ks.yaml

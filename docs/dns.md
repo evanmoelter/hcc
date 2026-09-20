@@ -15,6 +15,8 @@ LoadBalancer Services with that prefix’s `hostname` key for LAN DNS. Terraform
 
 Public apps with LAN access use separate HTTPRoutes on the internal and external Gateways with the same
 hostname and backend. UniFi's Gateway filter prevents it from publishing both Gateway addresses for that name.
+The tunnel matches both the apex domain and wildcard subdomains. The apex serves only the
+[WebFinger discovery route](identity.md#tailscale-discovery); the wildcard alone does not match it.
 The filter leaves its LoadBalancer Service source enabled. External-only routes, such as the Flux webhook,
 do not create UniFi records; local clients use public DNS for those names.
 The external Gateway accepts HTTPS only from cloudflared. Direct LAN requests use the internal Gateway;

@@ -413,7 +413,9 @@ Migrate in this order:
 1. Mealie — completed the hybrid PVC/database and old-archive Barman recovery. Keep OIDC
    pointed at the existing Authentik service on `main` until Authentik moves.
 2. authentik, before Paperless. Its configuration is database-backed; the operator confirmed there are
-   no additional files or outposts to migrate. Decide its version upgrade strategy when preparing that cutover.
+   no additional files or outposts to migrate. The operator chose to retain 2025.10.3 during migration,
+   import into PostgreSQL 18, and preserve WebFinger. The
+   [prepared cutover](20260919-authentik-migration.md) records the two-PR stack and verification gates.
 3. Paperless, after VolSync and Barman recovery have been exercised.
 4. TeslaMate and Grafana together.
 5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
@@ -422,7 +424,8 @@ Migrate in this order:
 The operator selected Mealie first on 2026-09-18 because it is not currently used.
 [Mealie's completed cutover record](./done/20260918-mealie-migration.md) preserves preparation, recovery,
 verification, cleanup, and migration-token revocation. LAN/public access is retained; the operator dropped
-separate Tailscale access after its login redirected to the canonical hostname. Authentik is next.
+separate Tailscale access after its login redirected to the canonical hostname. Authentik's cutover is
+prepared; deployment and verification remain pending. Paperless follows only after those gates pass.
 
 ## Execution waves
 
