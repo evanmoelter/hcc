@@ -20,7 +20,8 @@ Apps cut over one at a time from verified backups. `kubernetes/main` stays intac
 [Documentation index](./docs/index.md) covers Apollo platform setup, app integrations, and operations.
 
 Mealie is restored on Apollo with LAN/public access and scheduled PVC backups enabled.
-Verification of the first PVC snapshot and restore cleanup remain pending.
+The first PVC and database backups are verified. Cleanup deployment verification and migration-credential
+revocation remain pending.
 [The cutover record](./plans/20260918-mealie-migration.md) tracks activation and cleanup.
 
 ## Hardware

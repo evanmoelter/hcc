@@ -21,7 +21,7 @@ This is a GitOps repository for a home Kubernetes cluster. Flux applies whatever
 
 Apollo's platform and integration documentation is indexed in [docs/index.md](./docs/index.md).
 Mealie is restored on Apollo; its [cutover record](./plans/20260918-mealie-migration.md) tracks
-verification of the first PVC backup and restore cleanup. New platform components and new apps go in `kubernetes/apollo/`.
+cleanup verification and migration-credential revocation. New platform components and new apps go in `kubernetes/apollo/`.
 Changes to an app still served by `kubernetes/main/` land in that tree, and each one is worth weighing
 against the migration: work that Wave 1 will throw away is usually not worth doing.
 
