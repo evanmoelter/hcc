@@ -119,7 +119,8 @@ or an app release in another build. Dependencies and readiness checks stay on th
 
 The Postgres component and its explicit initialization opt-in are implemented. Per-app cutovers must
 supply compatible images and credentials, verify restored data and the first Apollo backup, then remove
-one-time bootstrap configuration. Mealie remains the first live proof of recovery from the old Barman archive.
+one-time bootstrap configuration. Mealie completed the first live recovery from the old Barman archive; its
+[execution record](./done/20260918-mealie-migration.md) includes the verification evidence and limits.
 
 ### Explicit reconciliation policies
 
@@ -386,7 +387,7 @@ Logical import permits a PostgreSQL major-version change, but check each app's s
 |---|---|
 | Home Assistant | Require verified IoT networking; prefer hcc6 but allow other eligible nodes without USB; use Apple TV for Thread and keep any future USB/OTBR workload separate; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
 | Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 50Gi for the library PVC |
-| Mealie | Restore LAN reachability using the chosen Gateway pattern; add a Tailscale Ingress; recover the database instead of using initdb |
+| Mealie | Completed: LAN/public Gateway routes and database recovery. Separate Tailscale access was removed at the operator’s request. |
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
 | External apps | Replace the old tunnel target with `external-apollo.${SECRET_DOMAIN}` |
 | All apps | Convert internal and external Ingresses to `HTTPRoute`; retain Tailscale Ingresses |
@@ -409,7 +410,7 @@ Keep `postgres-lb` until every logical import finishes; then decide whether exte
 
 Migrate in this order:
 
-1. Mealie, currently unused, to prove the smaller hybrid and old-archive Barman recovery. Keep OIDC
+1. Mealie — completed the hybrid PVC/database and old-archive Barman recovery. Keep OIDC
    pointed at the existing Authentik service on `main` until Authentik moves.
 2. authentik, before Paperless. Its configuration is database-backed; the operator confirmed there are
    no additional files or outposts to migrate. Decide its version upgrade strategy when preparing that cutover.
@@ -419,8 +420,9 @@ Migrate in this order:
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
 
 The operator selected Mealie first on 2026-09-18 because it is not currently used.
-[Mealie's cutover record](./20260918-mealie-migration.md) tracks the two-PR preparation, restore gates,
-and activation. LAN and public access are retained; Tailscale access is deferred.
+[Mealie's completed cutover record](./done/20260918-mealie-migration.md) preserves preparation, recovery,
+verification, cleanup, and migration-token revocation. LAN/public access is retained; the operator dropped
+separate Tailscale access after its login redirected to the canonical hostname. Authentik is next.
 
 ## Execution waves
 
@@ -513,8 +515,9 @@ Per app:
 - [ ] Review the app and its `app-template` chart for compatible upgrades before finalizing the Apollo PR.
 - [ ] For apps without their own chart, prefer a digest-pinned `home-operations/containers` image where compatible and retire the corresponding personal image.
 - [ ] Merge the stack in cutover order, including a verified final backup and suspension of the old `ReplicationSource` between the two PRs.
-- [ ] Use Barman recovery for Mealie and Home Assistant, with a fresh on-demand backup; verify recorder history after Home Assistant restores.
-- [ ] Prove on Mealie, before any other database moves, that the plugin recovers from an archive the old cluster wrote with the in-tree integration. The object-store format is unchanged, but Mealie is the first real use of it.
+- [x] Recover Mealie from a fresh on-demand Barman backup and verify restored data and Apollo backups.
+- [ ] Use Barman recovery for Home Assistant with a fresh on-demand backup; verify recorder history after restore.
+- [x] Prove on Mealie, before any other database moves, that the plugin recovers from an archive the old cluster wrote with the in-tree integration. Recovery-job completion, source data comparisons, and app checks passed; direct selection of the final backup ID could not be verified after the bootstrap pod was removed.
 - [ ] Put every CNPG cluster and its `ObjectStore` in the app namespace, and check the supported PostgreSQL major and required extensions before import.
 - [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
 - [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.

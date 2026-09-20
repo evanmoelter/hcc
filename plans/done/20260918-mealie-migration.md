@@ -1,5 +1,21 @@
 # Mealie migration
 
+Completed after cleanup verification and operator-confirmed migration-token revocation.
+
+## Migration pull requests
+
+Listed in cutover order:
+
+| PR | Change |
+|---|---|
+| [#297](https://github.com/evanmoelter/hcc/pull/297) | Disable the old Mealie workload on `main`, retaining its data and backup configuration for the final sync and rollback. |
+| [#300](https://github.com/evanmoelter/hcc/pull/300) | Fix the disable rollout by explicitly setting the old chart's Ingress to disabled. |
+| [#298](https://github.com/evanmoelter/hcc/pull/298) | Restore the PVC and database on Apollo, upgrade Mealie, and prepare gated access and PVC backups. |
+| [#301](https://github.com/evanmoelter/hcc/pull/301) | Enable LAN/public routes and the initial Tailscale Ingress after restore verification. |
+| [#302](https://github.com/evanmoelter/hcc/pull/302) | Enable Apollo PVC backups and remove the Tailscale Ingress after the operator selected LAN/public access only. |
+| [#304](https://github.com/evanmoelter/hcc/pull/304) | Remove temporary restore resources and old-archive references while preserving permanent volumes and active backups. |
+| [#305](https://github.com/evanmoelter/hcc/pull/305) | Record cleanup verification and migration-token revocation, archive this plan, and update migration status. |
+
 ## Scope and decisions
 
 Mealie is the first household app prepared for Apollo. The operator selected it because it is
@@ -16,8 +32,8 @@ The operator will configure and verify Authentik's claim mapping before cutover;
 reports unverified email. Apollo cannot express a Flux dependency on Authentik in another cluster;
 verify discovery and login again when Authentik migrates. AI credentials are omitted at the operator's request.
 
-Use the [standard migration](./20260816-talos-migration.md) and the tested
-[VolSync](../kubernetes/apollo/components/volsync/) and [Postgres](../docs/databases.md) lifecycles.
+Use the [standard migration](../20260816-talos-migration.md) and the tested
+[VolSync](../../kubernetes/apollo/components/volsync/) and [Postgres](../../docs/databases.md) lifecycles.
 Do not merge both cutover PRs together. No live mutating commands are authorized by this document.
 
 ## Prepared changes
@@ -228,12 +244,15 @@ cutover backups or live recovery verification. Authentik upgrades remain a later
 - First Apollo PVC backup: verified after PR #302. VolSync completed at `2026-09-20T00:30:24Z`,
   processing 192 files and saving restic snapshot `a8be9559` in the Apollo repository. This confirms
   a stored snapshot, not merely a successful mover exit. Scheduled PVC backups are enabled.
-- Restore cleanup: the cleanup change removes the preflight lifecycle, restore destination, temporary
-  source ObjectStore/ExternalSecrets, and old-archive recovery override. The permanent PVC manifest,
-  its immutable restore reference, the database Cluster, and their owning Kustomizations are retained.
-  Before cleanup, both permanent volumes were healthy with three replicas and the app PVC clone was
-  complete. Post-deployment verification of temporary-resource removal and continued health is pending.
-- Credential revocation: pending operator action after cleanup verification. Revoke only the old-bucket
-  R2 migration credentials in `mealie-volsync-migration` and `mealie-postgres-migration`. Preserve the
-  original restic password/source backups for rollback and keep the old cluster's writer paused.
-  Apollo's `volsync-r2`, `cnpg-r2`, and `mealie` credentials remain in use.
+- Restore cleanup: verified after Apollo applied `0b0da63` (PR #304) on 2026-09-20 UTC.
+  All four remaining Mealie Kustomizations were Ready at that revision. The preflight lifecycle,
+  restore destination/snapshot, temporary restore PVC/volume, and source ObjectStore/ExternalSecrets
+  were gone. Both permanent PVC/PV identities and the database Cluster UID were unchanged, with
+  healthy three-replica volumes. Recovery references Apollo's archive; the database pod references
+  only its active Apollo R2 Secret. LAN/public HTTPS, database archiving, and PVC backup status remained
+  healthy. The old application stayed at zero replicas and its VolSync writer stayed paused.
+- Credential revocation: the operator confirmed both old-bucket R2 migration tokens were revoked.
+  The operator also plans to archive the `mealie-volsync-migration` and `mealie-postgres-migration`
+  1Password items. Preserve the original restic password/source backups for rollback and keep the old
+  cluster's writer paused through Wave 1. Apollo's `volsync-r2`, `cnpg-r2`, and `mealie` credentials
+  remain in use.
