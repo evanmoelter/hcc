@@ -17,6 +17,10 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 
 Apps cut over one at a time from verified backups. `kubernetes/main` stays intact for rollback until the last app has moved. [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) holds the full design: node topology, storage, networking, and per-app data migration.
 
+The old cluster's GitHub webhook triggers reconciliation only for pushes to `main` that change
+`kubernetes/main/`. Apollo-only pushes do not trigger it. Scheduled reconciliation continues and can
+still observe new Git revisions from Apollo-only commits.
+
 [Documentation index](./docs/index.md) covers Apollo platform setup, app integrations, and operations.
 
 Mealie is restored on Apollo with LAN/public access and scheduled PVC backups enabled.
