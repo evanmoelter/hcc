@@ -2,6 +2,20 @@
 
 Completed after cleanup verification and operator-confirmed migration-token revocation.
 
+## Migration pull requests
+
+Listed in cutover order:
+
+| PR | Change |
+|---|---|
+| [#297](https://github.com/evanmoelter/hcc/pull/297) | Disable the old Mealie workload on `main`, retaining its data and backup configuration for the final sync and rollback. |
+| [#300](https://github.com/evanmoelter/hcc/pull/300) | Fix the disable rollout by explicitly setting the old chart's Ingress to disabled. |
+| [#298](https://github.com/evanmoelter/hcc/pull/298) | Restore the PVC and database on Apollo, upgrade Mealie, and prepare gated access and PVC backups. |
+| [#301](https://github.com/evanmoelter/hcc/pull/301) | Enable LAN/public routes and the initial Tailscale Ingress after restore verification. |
+| [#302](https://github.com/evanmoelter/hcc/pull/302) | Enable Apollo PVC backups and remove the Tailscale Ingress after the operator selected LAN/public access only. |
+| [#304](https://github.com/evanmoelter/hcc/pull/304) | Remove temporary restore resources and old-archive references while preserving permanent volumes and active backups. |
+| [#305](https://github.com/evanmoelter/hcc/pull/305) | Record cleanup verification and migration-token revocation, archive this plan, and update migration status. |
+
 ## Scope and decisions
 
 Mealie is the first household app prepared for Apollo. The operator selected it because it is
