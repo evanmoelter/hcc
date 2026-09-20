@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: authentik
+spec:
+  interval: 1h
+  url: oci://ghcr.io/goauthentik/helm-charts/authentik
+  ref:
+    tag: 2025.10.3
+    digest: sha256:20879494adea3ce9c51eea2b4afb7a50da3204b6b55650e0a9c890cf578861ba
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
