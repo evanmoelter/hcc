@@ -104,7 +104,6 @@ class AuthentikMigrationTest(unittest.TestCase):
                          "10.42.0.0/16,127.0.0.1/32,::1/128")
         for name in ["internal", "external"]:
             route = values["server"]["route"][name]
-            self.assertTrue(route["enabled"])
             self.assertEqual(route["parentRefs"][0]["name"], f"envoy-{name}")
             self.assertEqual(route["parentRefs"][0]["sectionName"], "https")
             headers = route["filters"][0]["requestHeaderModifier"]
@@ -140,20 +139,6 @@ class AuthentikMigrationTest(unittest.TestCase):
         self.assertTrue(any(rule.get("hostname") == "${SECRET_DOMAIN}"
                             and rule.get("service") == "https://envoy-external.network.svc.cluster.local:443"
                             for rule in ingress))
-
-    def test_old_workloads_and_public_ingresses_are_disabled(self):
-        path = ROOT / "kubernetes/main/apps/security/authentik/app"
-        values = documents((path / "helmrelease.yaml").read_bytes())[0]["spec"]["values"]
-        for component in ["server", "worker"]:
-            self.assertEqual(values[component]["replicas"], 0)
-            self.assertFalse(values[component]["autoscaling"]["enabled"])
-        self.assertFalse(values["server"]["ingress"]["enabled"])
-        webfinger = documents((path / "webfinger.yaml").read_bytes())[0]["spec"]["values"]
-        self.assertEqual(webfinger["controllers"]["webfinger"]["replicas"], 0)
-        self.assertFalse(webfinger["ingress"]["webfinger"]["enabled"])
-        resources = documents((path / "kustomization.yaml").read_bytes())[0]["resources"]
-        self.assertIn("./internal-ingress.yaml", resources)
-        self.assertIn("./secret.sops.yaml", resources)
 
 
 if __name__ == "__main__":

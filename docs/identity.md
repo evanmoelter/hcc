@@ -5,6 +5,9 @@ connect directly to that database with CNPG-generated app credentials and certif
 Redis and a connection pooler are not required. Database readiness gates the app; Mealie and
 WebFinger depend on Authentik. Future in-cluster OIDC consumers should declare the same dependency.
 
+The database connection limit provides provisional headroom for direct server and worker connections
+without a pooler; tune it from observed usage after cutover rather than treating it as a measured requirement.
+
 The operator confirmed that this instance has no files or separately managed outposts to migrate.
 Its durable state lives in PostgreSQL. No media PVC is provisioned, and the read-only filesystem
 prevents local uploads from becoming unbacked state. Add persistent media storage before enabling
@@ -31,7 +34,7 @@ the ingress policy bounds which pods can supply proxy headers.
 Authentik's migration release selects the first X-Forwarded-For address. Envoy can retain a
 client-supplied leading address even after detecting the real client, so both app routes replace XFF
 with `%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%`. They fix the forwarded scheme and canonical host,
-and remove alternative forwarding and client-certificate headers. Keep both route filters identical.
+and remove alternative forwarding and client-certificate headers.
 Use a comma-separated string for `trusted_proxy_cidrs`; the Go listener does not parse a YAML or JSON list
 from the environment variable produced by this chart.
 
@@ -45,8 +48,7 @@ WebFinger serves only `/.well-known/webfinger` at `${SECRET_DOMAIN}`, through bo
 advertises the existing Authentik `tailscale` provider. It uses the upstream stateless image with a
 pinned digest; its own forwarded-IP logging is disabled. It does not need a Tailscale Ingress.
 
-The tunnel explicitly matches the apex domain as well as wildcard subdomains. The existing certificate
-covers both. Removing the apex tunnel rule breaks public Tailscale discovery even when SSO works.
+Public discovery requires the [apex tunnel route](dns.md#apex-domain-routing).
 
 ## References
 

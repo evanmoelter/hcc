@@ -1,7 +1,7 @@
 # Authentik migration
 
-Prepared for review; cutover and application verification are pending. This is the next app in the
-[Talos migration](20260816-talos-migration.md), after Mealie.
+Cutover procedure and execution record for Authentik, following Mealie in the
+[Talos migration](20260816-talos-migration.md). The checklist below records verification still required.
 
 ## Decisions
 
@@ -137,6 +137,11 @@ all of these before declaring the move successful:
   prove origin handling. Check both Authentik and Envoy logs without recording sensitive content.
 - Verify SMTP delivery with an operator-selected test notification and confirm Prometheus scrapes
   server and worker. Confirm the NetworkPolicy permits the two Gateways and monitoring only.
+- Check whether the imported database contains a "Local Kubernetes Cluster" service connection.
+  Authentik can create this automatically when a service-account token is present on the old instance.
+  Apollo deliberately has no token, so an imported local connection may report authentication errors.
+  If present, confirm no outpost uses it, then have the operator remove the unused connection from
+  Apollo. Do not dismiss other worker errors or re-enable cluster credentials to hide this warning.
 - Verify an Apollo base backup completes and WAL archiving is healthy. Record the backup identifier
   and completion time. Keep the old data intact until Wave 2.
 
@@ -146,9 +151,14 @@ through git before restoring the old serving copy.
 
 ### 4. Cleanup and later upgrades
 
-After data, login, and backup verification, remove the temporary source ExternalSecret and the
-bootstrap/externalClusters patches from `database/kustomization.yaml`, retaining the PostgreSQL
-parameter patch. The Postgres component then supplies normal recovery from the Apollo archive.
+After data, login, and backup verification, remove the temporary source ExternalSecret and its resource
+registration. In `database/kustomization.yaml`, remove the bootstrap/externalClusters replacements and
+the operation removing `cnpg.io/skipEmptyWalArchiveCheck`, retaining only the PostgreSQL parameter patch.
+The Postgres component then supplies normal recovery from the Apollo archive, including its empty-archive bypass.
+In the same cleanup PR, update `tests/test_authentik_migration.py` to check recovery from that archive,
+removal of source configuration and credentials, and preservation of archive identity and pruning protection.
+Replace the import-only assertions; do not weaken them ahead of the verified cleanup. Run the component
+tests, Apollo schema validation, lint, and Flux rendering before merging cleanup.
 Keep the protected Cluster and database Kustomization. Remove the migration item from `hcc-apollo`;
 do not rotate or revoke the source app password while it is still needed for rollback.
 
@@ -159,13 +169,20 @@ decision to retain 2025.10.3 is specific to this migration, not a long-term supp
 
 ## Rollback
 
-Remove both Apollo apps' routes and stop Authentik server/worker and WebFinger through git. Verify
-the workloads stopped. Apollo external-dns uses `upsert-only`, so route deletion alone does not release
+Through git, set both Authentik `server.route.*.enabled` values and both WebFinger `route.*.enabled`
+values to `false`, retaining the route configuration for recovery and its proxy-header tests. Set
+Authentik `server.replicas` and `worker.replicas` and WebFinger `controllers.webfinger.replicas` to zero;
+keep autoscaling disabled. Verify the workloads stopped and the rendered HTTPRoutes are gone.
+Apollo external-dns uses `upsert-only`, so route deletion alone does not release
 its public records: have the operator remove or hand off only the two app records and their Apollo
 ownership records after checking ownership. Ensure UniFi removes the corresponding Apollo LAN records.
 
-Then revert the old disable commit through git. Confirm both HPAs, server/worker, WebFinger, public
-Ingresses, and the old DNS ownership return. The source database has not undergone Authentik or
+Then revert all changes from [the shutdown PR #307](https://github.com/evanmoelter/hcc/pull/307) through git,
+including `tests/test_authentik_shutdown.py`. Revert the merged PR commit if it was squashed, or all its
+commits if they were retained; reverting only the initial manifest commit leaves a test requiring shutdown.
+The standalone shutdown test belongs to that PR so restoring service removes the test with its assertions.
+Confirm both HPAs, server/worker, WebFinger, public Ingresses, and the old DNS ownership return.
+The source database has not undergone Authentik or
 PostgreSQL upgrades. Writes accepted on Apollo after the import will not exist there; agree to that
 loss before rollback. Do not restore the shared physical backup over Paperless or TeslaMate's newer
 data. Retain a failed Apollo database for diagnosis until an explicit cleanup decision.
