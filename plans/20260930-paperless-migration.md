@@ -20,10 +20,10 @@ Paperless cutover and application-data verification remain outstanding.
 
 The operator approved this two-PR Graphite stack, to be reviewed and merged in cutover order:
 
-1. **Disable on main:** stop Paperless and SFTP, remove the SFTP load-balancer Service and old
+1. **[Disable on main, PR #315](https://github.com/evanmoelter/hcc/pull/315):** stop Paperless and SFTP, remove the SFTP load-balancer Service and old
    Tailscale Ingress. Retain the internal Ingress without ready endpoints, both PVCs, source database,
    encrypted Secrets, HelmReleases, and VolSync configuration for final backup and rollback.
-2. **Rebuild on Apollo:** add separate restore-preflight, storage, database, broker, app, SFTP, and
+2. **[Rebuild on Apollo, PR #317](https://github.com/evanmoelter/hcc/pull/317):** add separate restore-preflight, storage, database, broker, app, SFTP, and
    backup lifecycles. The library backup Kustomization starts suspended pending data verification.
 
 Do not merge the stack together. This document does not authorize live changes. Merges, on-demand
@@ -236,7 +236,7 @@ read-only root filesystem, PostgreSQL 18, OCR ingestion, and export. A separate 
 checked password uploads with the Brother-compatible SSH algorithms. These are preparation evidence,
 not an Apollo restore or a physical scanner test.
 
-Local validation passed schema checks for both cluster trees, Apollo policy lint, all 38 component
+Local validation passed schema checks for both cluster trees, Apollo policy lint, all 39 component
 tests, and the full Apollo Flux/Helm render (115 passed; the intentionally suspended library backup
 was skipped and is covered by the component tests). The old Helm render changes only replica counts,
 the Tailscale Ingress, and the SFTP Service plus its generated probes. The internal Ingress's explicit
