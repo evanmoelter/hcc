@@ -22,8 +22,8 @@ spec:
     global:
       image:
         repository: ghcr.io/goauthentik/server
-        tag: 2026.5.7
-        digest: sha256:76bf433fd434c067cb25dc3e197cee793998441cda912441ea275293e76cc32c
+        tag: 2026.8.3
+        digest: sha256:ab9b4e8cc4ab3f8d1198d2db6aeea66bafea1963b3f2843589e0d163f97d9849
       deploymentAnnotations:
         reloader.stakater.com/auto: "true"
       deploymentStrategy:

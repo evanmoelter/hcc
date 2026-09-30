@@ -20,7 +20,8 @@ SMTP configuration lives in Helm values; database credentials come from `authent
 
 Both Gateways serve `sso.${SECRET_DOMAIN}` over HTTPS. The app NetworkPolicy admits HTTP only from
 those Gateway pods and metrics only from Prometheus. Authentik trusts the Apollo pod CIDR and loopback;
-the ingress policy bounds which pods can supply proxy headers.
+the ingress policy bounds which pods can supply proxy headers. Forwarded headers are honored only
+for connections from trusted proxies.
 
 Both routes replace X-Forwarded-For with Envoy's `%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%` to prevent
 client-supplied addresses from taking precedence. They fix the forwarded scheme and canonical host and
@@ -40,6 +41,6 @@ The official chart and per-app CNPG layout draw from
 Upstream documents [Kubernetes deployment](https://docs.goauthentik.io/install-config/install/kubernetes/)
 and [Tailscale integration](https://integrations.goauthentik.io/networking/tailscale/).
 Proxy handling is defined in the pinned
-[Go middleware](https://github.com/goauthentik/authentik/blob/version/2025.10.3/internal/utils/web/http_forwarded.go)
-and [Django middleware](https://github.com/goauthentik/authentik/blob/version/2025.10.3/authentik/root/middleware.py).
+[Go middleware](https://github.com/goauthentik/authentik/blob/version/2026.8.3/internal/utils/web/http_forwarded.go)
+and [Django middleware](https://github.com/goauthentik/authentik/blob/version/2026.8.3/authentik/root/middleware.py).
 Envoy documents [dynamic request headers](https://gateway.envoyproxy.io/docs/tasks/traffic/http-request-headers/).

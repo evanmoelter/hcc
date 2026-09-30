@@ -98,6 +98,11 @@ the old main-cluster database no longer includes changes made since the Apollo c
 ## Execution record
 
 - Cleanup PR #311 reconciled at `7ea5075`; Authentik was healthy on 2025.10.3 before preparation.
+- A local rehearsal on 2026-09-30 bootstrapped a synthetic PostgreSQL 18 database at 2025.10.3,
+  then upgraded it through every target in sequence. Migrations, server readiness, and worker
+  `ak healthcheck` passed at every step under UID/GID 568, a read-only root filesystem, writable
+  `/tmp`, and the corresponding read-only media/data mount. The rehearsal used no production data,
+  external integrations, or database TLS; it does not replace the live verification gates.
 - [ ] Fresh Apollo backup completed before the 2025.10.4 merge.
 - [ ] 2025.10.4 deployed and operator verification passed.
 - [ ] 2025.12.6 deployed and operator verification passed.
