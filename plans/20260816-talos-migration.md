@@ -420,7 +420,9 @@ Migrate in this order:
    no additional files or outposts to migrate. The operator chose to retain 2025.10.3 during migration,
    import into PostgreSQL 18, and preserve WebFinger. The
    [cutover record](done/20260919-authentik-migration.md) records the two-PR stack and verification gates.
-3. Paperless, after VolSync and Barman recovery have been exercised.
+3. Paperless, after VolSync and Barman recovery have been exercised. The
+   [cutover record](20260930-paperless-migration.md) prepares migration on 2.20.15, with LAN/Tailscale
+   access and scanner SFTP; the separate 3.x upgrade follows verified migration.
 4. TeslaMate and Grafana together.
 5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
@@ -430,8 +432,9 @@ The operator selected Mealie first on 2026-09-18 because it is not currently use
 verification, cleanup, and migration-token revocation. LAN/public access is retained; the operator dropped
 separate Tailscale access after its login redirected to the canonical hostname. Apollo hosts Authentik
 and WebFinger, and the [sequential Authentik upgrades](done/20260930-authentik-upgrades.md) have deployed.
-Their cutover record tracks outstanding operator verification. Paperless follows only after
-those gates pass.
+The operator confirmed Authentik's migration data and access verification gates passed on 2026-09-30,
+so Paperless preparation and cutover can proceed. Authentik's import cleanup is verified; temporary
+credential retirement remains outstanding in its archived cutover record.
 
 ## Execution waves
 
@@ -531,7 +534,7 @@ Per app:
 - [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
 - [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.
 - [ ] Verify HA/Matter Server rescheduling from hcc6 to another eligible node without USB or OTBR: preserve the IoT address, both PVCs, existing Matter pairings, and device control. Schedule the disruptive test with operator approval.
-- [ ] Verify external OIDC login to Mealie after Authentik moves.
+- [x] Verify external OIDC login to Mealie after Authentik moves.
 
 Wave 2:
 

@@ -1,0 +1,201 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app paperless
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 5m
+    cleanupOnFail: true
+  rollback:
+    cleanupOnFail: true
+  values:
+    controllers:
+      paperless:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        replicas: 1
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        initContainers:
+          init-directories:
+            image: &image
+              repository: ghcr.io/paperless-ngx/paperless-ngx
+              tag: 2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
+            command: [python3, -c]
+            args:
+              - >-
+                from pathlib import Path;
+                Path('/library/export').mkdir(parents=True, exist_ok=True);
+                Path('/consume/receipt').mkdir(parents=True, exist_ok=True)
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 128Mi
+        containers:
+          app:
+            image: *image
+            env:
+              PAPERLESS_URL: https://paperless.${SECRET_DOMAIN}
+              PAPERLESS_ALLOWED_HOSTS: paperless.${SECRET_TAILSCALE_DOMAIN}
+              PAPERLESS_CSRF_TRUSTED_ORIGINS: https://paperless.${SECRET_TAILSCALE_DOMAIN}
+              PAPERLESS_CORS_ALLOWED_HOSTS: https://paperless.${SECRET_TAILSCALE_DOMAIN}
+              PAPERLESS_PORT: "8000"
+              PAPERLESS_TIME_ZONE: ${TIMEZONE}
+              PAPERLESS_WEBSERVER_WORKERS: "2"
+              PAPERLESS_TASK_WORKERS: "2"
+              PAPERLESS_DATE_ORDER: MDY
+              PAPERLESS_NUMBER_OF_SUGGESTED_DATES: "6"
+              PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect
+              PAPERLESS_ACCOUNT_ALLOW_SIGNUPS: "false"
+              PAPERLESS_CONSUMPTION_DIR: /consume
+              PAPERLESS_DATA_DIR: /library/data
+              PAPERLESS_EXPORT_DIR: /library/export
+              PAPERLESS_MEDIA_ROOT: /library/media
+              PAPERLESS_CONSUMER_POLLING: "60"
+              PAPERLESS_CONSUMER_RECURSIVE: "true"
+              PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
+              PAPERLESS_CONSUMER_ENABLE_ASN_BARCODE: "true"
+              PAPERLESS_CONSUMER_ASN_BARCODE_PREFIX: ASN
+              PAPERLESS_CONSUMER_ENABLE_TAG_BARCODE: "true"
+              PAPERLESS_CONSUMER_TAG_BARCODE_MAPPING: '{"ASN.*": "ASN"}'
+              PAPERLESS_CONSUMER_BARCODE_UPSCALE: "2"
+              PAPERLESS_CONSUMER_BARCODE_DPI: "600"
+              PAPERLESS_CONSUMER_BARCODE_MAX_PAGES: "2"
+              PAPERLESS_DBENGINE: postgresql
+              PAPERLESS_DBHOST: paperless-pg-rw.default.svc.cluster.local
+              PAPERLESS_DBPORT: "5432"
+              PAPERLESS_DBNAME: *app
+              PAPERLESS_DBUSER:
+                valueFrom:
+                  secretKeyRef:
+                    name: &database paperless-pg-app
+                    key: username
+              PAPERLESS_DBPASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: *database
+                    key: password
+              PAPERLESS_DBSSLMODE: verify-full
+              PAPERLESS_DBSSLROOTCERT: /etc/postgresql/ca.crt
+              PAPERLESS_REDIS_PREFIX: pngx
+              S6_READ_ONLY_ROOT: "1"
+              S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES: "1"
+            envFrom:
+              - secretRef:
+                  name: paperless-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8000
+                    httpHeaders:
+                      - name: Host
+                        value: paperless.${SECRET_DOMAIN}
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+              startup:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8000
+                    httpHeaders:
+                      - name: Host
+                        value: paperless.${SECRET_DOMAIN}
+                  failureThreshold: 120
+                  periodSeconds: 5
+                  timeoutSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 200m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+    service:
+      app:
+        controller: paperless
+        ports:
+          http:
+            port: 8000
+    route:
+      internal:
+        enabled: true
+        hostnames:
+          - paperless.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: http
+    persistence:
+      library:
+        existingClaim: paperless-library
+        globalMounts:
+          - path: /library
+      consume:
+        existingClaim: paperless-consume
+        globalMounts:
+          - path: /consume
+      database-ca:
+        type: secret
+        name: paperless-pg-ca
+        items:
+          - key: ca.crt
+            path: ca.crt
+        globalMounts:
+          - path: /etc/postgresql
+            readOnly: true
+      run:
+        type: emptyDir
+        globalMounts:
+          - path: /run
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      default-export:
+        type: emptyDir
+        globalMounts:
+          - path: /usr/src/paperless/export

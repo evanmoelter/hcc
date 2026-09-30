@@ -91,6 +91,7 @@ The HCC VLAN gets its own zone. Baseline: Default reaches HCC; HCC and Home Auto
 |---|---|
 | HCC → `192.168.4.1:443` | UniFi Integration API, for external-dns |
 | HCC → `192.168.6.21:5432` | temporary; the old cluster's Postgres, for the authentik, Paperless, and TeslaMate imports. Remove once all three have moved. |
+| Brother scanner's reserved IoT address → `192.168.21.102:22` | SFTP document ingestion only; scope the source to the scanner's actual address. |
 
 Home Assistant needs no rule. Its IoT interface is an attachment on VLAN 2 rather than traffic crossing the boundary, which is the point of doing it with multus.
 

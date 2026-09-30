@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/dragonflydb.io/dragonfly_v1alpha1.json
+apiVersion: dragonflydb.io/v1alpha1
+kind: Dragonfly
+metadata:
+  name: &app paperless-dragonfly
+spec:
+  image: ghcr.io/dragonflydb/dragonfly:v2.0.0@sha256:7426fdb31ddcf7bd9499b4205f36ebaa83b26149ba1609a0d5f8f474b3631233
+  replicas: 2
+  args:
+    - --maxmemory=256Mi
+    - --proactor_threads=1
+  authentication:
+    passwordFromSecret:
+      name: *app
+      key: password
+  serviceAccountName: *app
+  podSecurityContext:
+    runAsUser: 568
+    runAsGroup: 568
+    runAsNonRoot: true
+    fsGroup: 568
+    fsGroupChangePolicy: OnRootMismatch
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app: *app

@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, and WebFinger. Remaining household apps run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, and Paperless with scanner SFTP. Remaining household apps run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly operator, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, and WebFinger |
+| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, and scanner SFTP |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -27,6 +27,10 @@ Authentik and WebFinger use the [identity integration](./docs/identity.md). Thei
 [cutover record](./plans/done/20260919-authentik-migration.md) tracks the PostgreSQL import, login verification,
 and cleanup gates, including unrecorded verification at archival. The [upgrade record](./plans/done/20260930-authentik-upgrades.md)
 records the completed release sequence and pre-upgrade recovery points.
+
+Paperless retains LAN and Tailscale access with scanner ingestion over SFTP. Its
+[service notes](./docs/paperless.md) describe storage and runtime constraints; the
+[cutover record](./plans/20260930-paperless-migration.md) tracks restore, import, and verification.
 
 ## Hardware
 

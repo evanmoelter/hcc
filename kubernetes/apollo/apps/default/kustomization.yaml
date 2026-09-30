@@ -6,3 +6,9 @@ resources:
   - ./mealie/ks.yaml
   - ./mealie/ks-database.yaml
   - ./mealie/ks-storage.yaml
+  - ./paperless/ks.yaml
+  - ./paperless/ks-storage.yaml
+  - ./paperless/ks-database.yaml
+  - ./paperless/ks-broker.yaml
+  - ./paperless/ks-sftp.yaml
+  - ./paperless/ks-tailscale.yaml
