@@ -166,6 +166,7 @@ Keep the temporary database firewall path and `postgres-lb` for Paperless and Te
 old shared Dragonfly service for Paperless. Upgrade Authentik on Apollo only after cutover verification,
 following each upstream release family in sequence with a fresh backup before schema changes. The
 decision to retain 2025.10.3 is specific to this migration, not a long-term support policy.
+The [Apollo upgrade sequence](20260930-authentik-upgrades.md) tracks the subsequent release steps.
 
 ## Rollback
 
