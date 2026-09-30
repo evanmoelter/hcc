@@ -5,7 +5,9 @@ CNPG-generated credentials and certificate verification; the connection limit al
 Database readiness gates Authentik. In-cluster OIDC consumers declare a Flux dependency on Authentik.
 
 Durable state lives in PostgreSQL. Local uploads require persistent media storage; the read-only
-filesystem prevents unbacked uploads. The workloads have no Kubernetes API credentials or managed-outpost
+filesystem prevents unbacked uploads. A read-only empty mount at `/media/public` satisfies Authentik's
+[tenant-file startup migration](https://github.com/goauthentik/authentik/blob/version/2025.10.3/lifecycle/system_migrations/tenant_files.py).
+The workloads have no Kubernetes API credentials or managed-outpost
 permissions. Helm retries failed upgrades without automatic rollback because Authentik
 [does not support downgrades](https://docs.goauthentik.io/install-config/upgrade/).
 

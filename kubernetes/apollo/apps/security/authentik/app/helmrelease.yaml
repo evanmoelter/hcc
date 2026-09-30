@@ -57,6 +57,8 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+        - name: media
+          emptyDir: {}
         - name: postgres-ca
           secret:
             secretName: authentik-pg-ca
@@ -66,6 +68,9 @@ spec:
       volumeMounts:
         - name: tmp
           mountPath: /tmp
+        - name: media
+          mountPath: /media/public
+          readOnly: true
         - name: postgres-ca
           mountPath: /etc/postgresql
           readOnly: true
