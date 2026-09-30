@@ -22,8 +22,8 @@ spec:
     global:
       image:
         repository: ghcr.io/goauthentik/server
-        tag: 2026.2.7
-        digest: sha256:da7024c4a7136b2f0fbbae3740c5ed54633edb393b10dc4fae2cdc056b8f70a8
+        tag: 2026.5.7
+        digest: sha256:76bf433fd434c067cb25dc3e197cee793998441cda912441ea275293e76cc32c
       deploymentAnnotations:
         reloader.stakater.com/auto: "true"
       deploymentStrategy:
@@ -90,6 +90,9 @@ spec:
         use_tls: true
         from: sso@${SECRET_DOMAIN}
       listen:
+        http: 0.0.0.0:9000
+        https: 0.0.0.0:9443
+        metrics: 0.0.0.0:9300
         trusted_proxy_cidrs: 10.42.0.0/16,127.0.0.1/32,::1/128
     server:
       replicas: 1
