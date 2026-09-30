@@ -377,7 +377,11 @@ Backup jobs remain separate from app readiness.
 
 `mealie-pg` and `home-assistant-pg` already hold one app each on PostgreSQL 18.1. The `postgres` component defaults to `bootstrap.recovery`, so neither needs the switch that copied manifests used to need; what each needs is a source `ObjectStore` naming the old cluster's `mealie-pg-v1` or `home-assistant-pg-v1` server name, referenced from `externalClusters[].plugin`. Both back up weekly, so take an on-demand backup after disabling the app. Confirm Home Assistant recorder history after restore.
 
-authentik, Paperless, and TeslaMate still share `cnpg-cluster` on PostgreSQL 16.2. Create one cluster per app in that app's namespace and use CNPG `bootstrap.initdb.import` with the microservice `pg_dump` method. Connect to `192.168.6.21`, not its internal DNS name, and stop the source app first. Physical Barman recovery cannot select one database from a shared instance. See `plans/11-cnpg-database-split.md` for the full database comparison.
+Paperless and TeslaMate still use shared `cnpg-cluster` on PostgreSQL 16.2; Authentik now uses its own
+PostgreSQL 18 cluster on Apollo. Create one cluster per remaining app in that app's namespace and use
+CNPG `bootstrap.initdb.import` with the microservice `pg_dump` method. Connect to `192.168.6.21`, not its
+internal DNS name, and stop the source app first. Physical Barman recovery cannot select one database
+from a shared instance. See `plans/11-cnpg-database-split.md` for the full database comparison.
 
 Logical import permits a PostgreSQL major-version change, but check each app's supported range immediately before cutover. Upgrade the old app first if required, and verify TeslaMate's `cube` and `earthdistance` extensions. A lagging app may remain on PostgreSQL 16. Update Grafana's TeslaMate datasource to `teslamate-pg` at the same time.
 

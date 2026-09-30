@@ -192,13 +192,19 @@ data. Retain a failed Apollo database for diagnosis until an explicit cleanup de
 - Read-only checks: source Authentik server/worker 2025.10.3, PostgreSQL 16.2; database and public
   tables owned by `authentik`, only `plpgsql`, approximately 136 MB. Recent shared backups completed.
 - All Apollo Flux Kustomizations were Ready before preparation; hcc5, hcc6, and hcc7 Longhorn nodes
-  were Ready and Schedulable. Capacity and cross-VLAN database connectivity still require cutover checks.
-- [ ] Both PRs reviewed and CI passed; operator supplied the required ESO items.
+  were Ready and Schedulable. Cutover checks confirmed capacity; the successful import verified the
+  cross-VLAN database path.
+- [x] Both PRs reviewed and CI passed; operator supplied the required ESO items.
 - [x] Source writers stopped; public DNS released; final shared backup completed.
   `authentik-cutover-20260930061650` completed at 2026-09-30 06:19:25 UTC after shutdown.
 - Logical import completed at 2026-09-30 06:35:59 UTC, including all three `pg_restore` sections.
   Initial application startup failed because `tenant_files.py` tried to create `/media/public` on the
   read-only root filesystem. The read-only empty mount supplies that directory without allowing uploads.
+- After #310, Authentik server, worker, and WebFinger became Ready with zero restarts. All related
+  Flux Kustomizations, including Mealie, reconciled revision `8982076`. LAN and public login pages
+  returned HTTP 200; both WebFinger paths returned the expected Tailscale issuer. Old workloads remained stopped.
+- The worker reported an imported Kubernetes service connection without a token. Confirm no outpost
+  uses it before removing the connection; this warning is separate from the resolved startup failure.
 - [ ] Source/destination application data compared.
 - [ ] LAN/public login, Mealie OIDC, WebFinger/Tailscale, SMTP, and proxy-header checks passed.
 - [x] First Apollo base backup and continuous WAL archiving verified.
