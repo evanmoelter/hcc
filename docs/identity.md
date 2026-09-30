@@ -1,29 +1,19 @@
 # Apollo identity
 
-Authentik uses its upstream chart and a dedicated CNPG database in `security`. Server and worker
-connect directly to that database with CNPG-generated app credentials and certificate verification.
-Redis and a connection pooler are not required. Database readiness gates the app; Mealie and
-WebFinger depend on Authentik. Future in-cluster OIDC consumers should declare the same dependency.
+Authentik runs in `security` with a dedicated CNPG database. Server and worker connect directly using
+CNPG-generated credentials and certificate verification; the connection limit allows headroom for both.
+Database readiness gates Authentik. In-cluster OIDC consumers declare a Flux dependency on Authentik.
 
-The database connection limit provides provisional headroom for direct server and worker connections
-without a pooler; tune it from observed usage after cutover rather than treating it as a measured requirement.
-
-The operator confirmed that this instance has no files or separately managed outposts to migrate.
-Its durable state lives in PostgreSQL. No media PVC is provisioned, and the read-only filesystem
-prevents local uploads from becoming unbacked state. Add persistent media storage before enabling
-file uploads. Temporary runtime files use an `emptyDir` at `/tmp`.
-
-The chart's managed-outpost service account is disabled. Server and worker use an unprivileged
-ServiceAccount with token automount disabled. Both export metrics to Prometheus and opt into Reloader.
-Helm retries failed upgrades without automatically rolling back the application version: Authentik
+Durable state lives in PostgreSQL. Local uploads require persistent media storage; the read-only
+filesystem prevents unbacked uploads. The workloads have no Kubernetes API credentials or managed-outpost
+permissions. Helm retries failed upgrades without automatic rollback because Authentik
 [does not support downgrades](https://docs.goauthentik.io/install-config/upgrade/).
 
 ## Credentials
 
 The `hcc-apollo/authentik` item supplies `AUTHENTIK_SECRET_KEY`, `AUTHENTIK_EMAIL__USERNAME`, and
-`AUTHENTIK_EMAIL__PASSWORD` through ESO. Preserve the original secret key during migration;
-generating a replacement changes signed data and user identifiers. SMTP configuration remains in Helm
-values. The database password comes from `authentik-pg-app`, not the legacy shared database credential.
+`AUTHENTIK_EMAIL__PASSWORD` through ESO. Replacing the secret key changes signed data and user identifiers.
+SMTP configuration lives in Helm values; database credentials come from `authentik-pg-app`.
 
 ## Access and proxy trust
 
@@ -31,31 +21,21 @@ Both Gateways serve `sso.${SECRET_DOMAIN}` over HTTPS. The app NetworkPolicy adm
 those Gateway pods and metrics only from Prometheus. Authentik trusts the Apollo pod CIDR and loopback;
 the ingress policy bounds which pods can supply proxy headers.
 
-Authentik's migration release selects the first X-Forwarded-For address. Envoy can retain a
-client-supplied leading address even after detecting the real client, so both app routes replace XFF
-with `%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%`. They fix the forwarded scheme and canonical host,
-and remove alternative forwarding and client-certificate headers.
-Use a comma-separated string for `trusted_proxy_cidrs`; the Go listener does not parse a YAML or JSON list
-from the environment variable produced by this chart.
-
-After deployment, verify normal and forged-header requests on both LAN and public paths against
-Authentik's recorded client address. Route acceptance and chart rendering do not prove this behavior.
-See the [Gateway trust model](gateway.md) and the [Authentik cutover gates](../plans/20260919-authentik-migration.md).
+Both routes replace X-Forwarded-For with Envoy's `%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%` to prevent
+client-supplied addresses from taking precedence. They fix the forwarded scheme and canonical host and
+remove alternative forwarding and client-certificate headers. See the [Gateway trust model](gateway.md).
+Use a comma-separated string for `trusted_proxy_cidrs`; the Go listener does not parse YAML or JSON lists.
 
 ## Tailscale discovery
 
-WebFinger serves only `/.well-known/webfinger` at `${SECRET_DOMAIN}`, through both Gateways. It
-advertises the existing Authentik `tailscale` provider. It uses the upstream stateless image with a
-pinned digest; its own forwarded-IP logging is disabled. It does not need a Tailscale Ingress.
-
-Public discovery requires the [apex tunnel route](dns.md#apex-domain-routing).
+WebFinger serves `/.well-known/webfinger` at `${SECRET_DOMAIN}` through both Gateways and advertises
+the Authentik `tailscale` provider. Public discovery uses the [apex tunnel route](dns.md#apex-domain-routing).
 
 ## References
 
 The official chart and per-app CNPG layout draw from
 [joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/security/authentik) and
 [Mafyuh](https://github.com/Mafyuh/iac/tree/main/kubernetes/apps/security/authentik).
-The other requested community repositories had no current Authentik deployment paths when researched.
 Upstream documents [Kubernetes deployment](https://docs.goauthentik.io/install-config/install/kubernetes/)
 and [Tailscale integration](https://integrations.goauthentik.io/networking/tailscale/).
 Proxy handling is defined in the pinned
