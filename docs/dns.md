@@ -24,6 +24,13 @@ was configured.
 Both DNS releases use the signed [OCI mirror](https://github.com/home-operations/charts-mirror).
 Move to upstream OCI when available; the mirror prunes charts six months afterward.
 
+## Apex domain routing
+
+The tunnel explicitly matches the apex domain as well as wildcard subdomains; the wildcard alone does
+not match the apex. The existing certificate covers both. The apex serves only the
+[WebFinger discovery route](identity.md#tailscale-discovery). Removing its tunnel rule breaks public
+Tailscale discovery even when SSO works.
+
 ## Operator setup
 
 Run `init`, review `plan`, then `apply` in [terraform/cloudflare](../terraform/cloudflare/) using Mise.
