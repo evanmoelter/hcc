@@ -57,7 +57,7 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-        - name: media
+        - name: data
           persistentVolumeClaim:
             claimName: authentik-data
         - name: postgres-ca
@@ -69,7 +69,7 @@ spec:
       volumeMounts:
         - name: tmp
           mountPath: /tmp
-        - name: media
+        - name: data
           mountPath: /data
         - name: postgres-ca
           mountPath: /etc/postgresql
@@ -116,7 +116,7 @@ spec:
             limits:
               memory: 64Mi
           volumeMounts:
-            - name: media
+            - name: data
               mountPath: /data
       resources: &resources
         requests:

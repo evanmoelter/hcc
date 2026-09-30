@@ -7,10 +7,11 @@ HTTP, HTTPS, and metrics listeners explicitly bind IPv4 because the upstream def
 in the 2026.5 release family; Apollo routes and Prometheus use IPv4 pod addresses.
 
 Configuration and identity state live in PostgreSQL. Uploaded files and disk-backed exports use the
-shared `authentik-data` PVC at `/data`. Longhorn
+shared `authentik-data` PVC at `/data`. This includes application/source icons, logos, favicons, and flow
+backgrounds managed through Customization > Files, plus managed report files. Longhorn
 [ReadWriteMany](https://longhorn.io/docs/1.12.1/nodes-and-volumes/volumes/rwx-volumes/) lets server and
-worker mount the same files across nodes and during rolling updates. A seed file ensures an empty installation can establish
-its first VolSync restore point. VolSync snapshots the claim and reads the temporary backup volume as
+worker mount the same files across nodes and during rolling updates. A seed file ensures an empty
+installation can establish its first VolSync restore point. VolSync snapshots the claim and reads the temporary backup volume as
 ReadWriteOnce; backups use Apollo's R2 repository independently of the database archive.
 The workloads have no Kubernetes API credentials or managed-outpost
 permissions. Helm retries failed upgrades without automatic rollback because Authentik
@@ -25,6 +26,11 @@ The same 1Password item also needs a unique `RESTIC_PASSWORD` for the media back
 the VolSync ExternalSecret consumes it separately from the application credentials.
 
 ## File backup and recovery
+
+The [disposable RWX rehearsal](../tests/fixtures/authentik-rwx/README.md) passed on Apollo on 2026-09-30:
+UID 568 writes across Talos nodes, an RWX snapshot cloned as RWO, and an RWO snapshot restored as RWX.
+Repeat it after relevant storage changes with operator approval. The rehearsal does not replace the
+first VolSync/R2 backup verification below.
 
 Before enabling uploads, confirm `authentik-storage`, `authentik`, and `authentik-backup` are Ready,
 then check the ReplicationSource's `status.lastSyncTime` and `status.latestMoverStatus` for a successful
