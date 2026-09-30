@@ -55,33 +55,42 @@ class AuthentikMigrationTest(unittest.TestCase):
     def resource(self, owner, kind):
         return next(resource for resource in self.resources[owner] if resource["kind"] == kind)
 
-    def test_bootstrap_imports_only_authentik_and_protects_rollback_data(self):
+    def test_database_recovers_from_its_apollo_archive(self):
         cluster = self.resource("authentik-database", "Cluster")
         spec = cluster["spec"]
-        self.assertEqual(set(spec["bootstrap"]), {"initdb"})
-        init = spec["bootstrap"]["initdb"]
-        self.assertEqual((init["database"], init["owner"]), ("authentik", "authentik"))
-        self.assertEqual(init["import"]["type"], "microservice")
-        self.assertEqual(init["import"]["databases"], ["authentik"])
+        self.assertEqual(set(spec["bootstrap"]), {"recovery"})
+        recovery = spec["bootstrap"]["recovery"]
+        self.assertEqual((recovery["database"], recovery["owner"]), ("authentik", "authentik"))
+        self.assertEqual(len(spec["externalClusters"]), 1)
         source = next(source for source in spec["externalClusters"]
-                      if source["name"] == init["import"]["source"]["externalCluster"])
-        self.assertEqual(source["connectionParameters"]["host"], "192.168.6.21")
-        self.assertEqual(source["connectionParameters"]["user"], "authentik")
-        self.assertEqual(source["connectionParameters"]["sslmode"], "require")
-        secret = next(resource for resource in self.resources["authentik-database"]
-                      if resource["kind"] == "ExternalSecret"
-                      and resource["metadata"]["name"] == source["password"]["name"])
-        self.assertTrue(any(entry["secretKey"] == source["password"]["key"]
-                            for entry in secret["spec"]["data"]))
-        self.assertNotIn("cnpg.io/skipEmptyWalArchiveCheck", cluster["metadata"]["annotations"])
+                      if source["name"] == recovery["source"])
+        writer = next(plugin for plugin in spec["plugins"] if plugin.get("isWALArchiver"))
+        self.assertEqual(source["plugin"]["name"], "barman-cloud.cloudnative-pg.io")
+        self.assertEqual(source["plugin"]["parameters"], writer["parameters"])
+        self.assertEqual(writer["parameters"], {
+            "barmanObjectName": "authentik-pg", "serverName": "authentik-pg-apollo-v1",
+        })
+        self.assertEqual(cluster["metadata"]["annotations"]["cnpg.io/skipEmptyWalArchiveCheck"], "enabled")
         self.assertEqual(cluster["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
         self.assertTrue(spec["imageName"].split(":", 1)[1].startswith("18."))
         store = self.resource("authentik-database", "ObjectStore")
         self.assertEqual(store["spec"]["configuration"]["destinationPath"],
                          "s3://tf-hcc-apollo-cnpg/authentik/")
-        self.assertEqual(spec["plugins"][0]["parameters"]["serverName"], "authentik-pg-apollo-v1")
+        self.assertEqual(spec["storage"]["size"], "10Gi")
+        self.assertEqual(spec["postgresql"]["parameters"]["max_connections"], "200")
 
-    def test_application_waits_for_import_and_uses_new_database_credentials(self):
+    def test_cleanup_removes_source_configuration_and_credentials(self):
+        rendered = json.dumps(self.resources)
+        for retired in ["authentik-postgres-migration", "authentik-main", "192.168.6.21"]:
+            with self.subTest(retired=retired):
+                self.assertNotIn(retired, rendered)
+        secret = self.resource("authentik-database", "ExternalSecret")
+        self.assertEqual(secret["metadata"]["name"], "authentik-pg-r2")
+        remote = {entry["secretKey"]: entry["remoteRef"]["key"] for entry in secret["spec"]["data"]}
+        self.assertEqual(remote["R2_ACCESS_KEY_ID"], "cnpg-r2")
+        self.assertEqual(remote["R2_SECRET_ACCESS_KEY"], "cnpg-r2")
+
+    def test_application_waits_for_database_and_uses_its_credentials(self):
         deps = {entry["name"] for entry in self.owners["authentik"]["spec"]["dependsOn"]}
         self.assertIn("authentik-database", deps)
         database = self.owners["authentik-database"]["spec"]
