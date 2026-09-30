@@ -58,7 +58,8 @@ spec:
         - name: tmp
           emptyDir: {}
         - name: media
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: authentik-data
         - name: postgres-ca
           secret:
             secretName: authentik-pg-ca
@@ -70,7 +71,6 @@ spec:
           mountPath: /tmp
         - name: media
           mountPath: /data
-          readOnly: true
         - name: postgres-ca
           mountPath: /etc/postgresql
           readOnly: true
@@ -104,6 +104,20 @@ spec:
         readOnlyRootFilesystem: true
         capabilities:
           drop: [ALL]
+      initContainers:
+        - name: seed-backup
+          image: "{{ .Values.global.image.repository }}:{{ .Values.global.image.tag }}@{{ .Values.global.image.digest }}"
+          command: [sh, -c, "touch /data/.volsync-seed"]
+          securityContext: *containerSecurityContext
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: media
+              mountPath: /data
       resources: &resources
         requests:
           cpu: 200m

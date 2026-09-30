@@ -28,7 +28,7 @@ def build(root, owner, path):
 def render():
     with tempfile.TemporaryDirectory(prefix="authentik-migration-") as directory:
         root = Path(directory)
-        for path in ["apps/security", "components/postgres"]:
+        for path in ["apps/security", "components/postgres", "components/volsync"]:
             shutil.copytree(ROOT / APOLLO / path, root / APOLLO / path)
         parent = documents((ROOT / APOLLO / "flux/apps.yaml").read_bytes())[0]
         parent["spec"]["postBuild"] = {"substitute": {"TEST_RENDER": "true"}}
@@ -38,7 +38,7 @@ def render():
             if resource["kind"] == "Kustomization"
         }
         resources = {}
-        for name in ["authentik-database", "authentik", "webfinger"]:
+        for name in ["authentik-database", "authentik-storage", "authentik", "authentik-backup", "webfinger"]:
             owner = owners[name]
             owner["spec"]["postBuild"].setdefault("substitute", {}).update({
                 "SECRET_DOMAIN": "example.invalid", "TIMEZONE": "Etc/UTC",
@@ -104,8 +104,41 @@ class AuthentikMigrationTest(unittest.TestCase):
         self.assertNotIn("redis", values["authentik"])
         self.assertFalse(values["postgresql"]["enabled"])
         self.assertEqual(release["spec"]["upgrade"]["strategy"]["name"], "RetryOnFailure")
-        self.assertFalse(any(resource["kind"] == "PersistentVolumeClaim"
-                             for resource in self.resources["authentik"]))
+
+    def test_shared_data_storage_precedes_app_and_has_snapshot_backups(self):
+        claim = self.resource("authentik-storage", "PersistentVolumeClaim")
+        claim_name = claim["metadata"]["name"]
+        self.assertEqual(claim["spec"]["accessModes"], ["ReadWriteMany"])
+        self.assertEqual(claim["spec"]["storageClassName"], "longhorn")
+        self.assertEqual(claim["spec"]["resources"]["requests"]["storage"], "1Gi")
+        self.assertNotIn("dataSourceRef", claim["spec"])
+        self.assertEqual(claim["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
+        self.assertIn("authentik-storage", {
+            dep["name"] for dep in self.owners["authentik"]["spec"]["dependsOn"]
+        })
+        values = self.resource("authentik", "HelmRelease")["spec"]["values"]
+        mount = next(mount for mount in values["global"]["volumeMounts"] if mount["mountPath"] == "/data")
+        self.assertFalse(mount.get("readOnly", False))
+        volume = next(volume for volume in values["global"]["volumes"] if volume["name"] == mount["name"])
+        self.assertEqual(volume["persistentVolumeClaim"]["claimName"], claim_name)
+        self.assertNotIn("emptyDir", volume)
+        seed = next(container for container in values["server"]["initContainers"]
+                    if container["name"] == "seed-backup")
+        self.assertIn({"name": mount["name"], "mountPath": "/data"}, seed["volumeMounts"])
+        self.assertIn("touch /data/.volsync-seed", seed["command"])
+        self.assertIn("authentik", {
+            dep["name"] for dep in self.owners["authentik-backup"]["spec"]["dependsOn"]
+        })
+        source = self.resource("authentik-backup", "ReplicationSource")["spec"]
+        self.assertEqual(source["sourcePVC"], claim_name)
+        self.assertEqual(source["restic"]["copyMethod"], "Snapshot")
+        self.assertEqual(source["restic"]["accessModes"], ["ReadWriteOnce"])
+        secret = self.resource("authentik-backup", "ExternalSecret")["spec"]
+        self.assertEqual(source["restic"]["repository"], secret["target"]["name"])
+        password = next(entry for entry in secret["data"] if entry["secretKey"] == "RESTIC_PASSWORD")
+        self.assertEqual(password["remoteRef"], {"key": "authentik", "property": "RESTIC_PASSWORD"})
+        self.assertTrue(secret["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
+            "/tf-hcc-apollo-volsync/authentik"))
 
     def test_proxy_headers_are_normalized_on_both_paths(self):
         values = self.resource("authentik", "HelmRelease")["spec"]["values"]
