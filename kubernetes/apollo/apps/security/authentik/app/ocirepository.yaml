@@ -7,8 +7,8 @@ spec:
   interval: 1h
   url: oci://ghcr.io/goauthentik/helm-charts/authentik
   ref:
-    tag: 2026.2.3
-    digest: sha256:1b98a4c8520c29d18cfaea06d501fab71e713dc5030f12132966fc41291f7f8f
+    tag: 2026.5.6
+    digest: sha256:853e8b39f752cf80323399a12bde077e5e400d3bda885f1897bd82b02a49facc
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
