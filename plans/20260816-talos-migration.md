@@ -429,7 +429,8 @@ The operator selected Mealie first on 2026-09-18 because it is not currently use
 [Mealie's completed cutover record](./done/20260918-mealie-migration.md) preserves preparation, recovery,
 verification, cleanup, and migration-token revocation. LAN/public access is retained; the operator dropped
 separate Tailscale access after its login redirected to the canonical hostname. Apollo hosts Authentik
-and WebFinger; their cutover record tracks outstanding verification. Paperless follows only after
+and WebFinger, and the [sequential Authentik upgrades](20260930-authentik-upgrades.md) have deployed.
+Their cutover record tracks outstanding operator verification. Paperless follows only after
 those gates pass.
 
 ## Execution waves

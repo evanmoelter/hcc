@@ -164,7 +164,9 @@ do not rotate or revoke the source app password while it is still needed for rol
 
 Keep the temporary database firewall path and `postgres-lb` for Paperless and TeslaMate. Keep the
 old shared Dragonfly service for Paperless. Upgrade Authentik on Apollo only after cutover verification,
-following each upstream release family in sequence with a fresh backup before schema changes. The
+following each upstream release family in sequence with a verified pre-upgrade recovery point.
+A retained base backup plus continuous WAL supplies that point; see the
+[database recovery guidance](../docs/databases.md#recovery-points-before-application-upgrades). The
 decision to retain 2025.10.3 is specific to this migration, not a long-term support policy.
 The [Apollo upgrade sequence](20260930-authentik-upgrades.md) tracks the subsequent release steps.
 
@@ -211,4 +213,15 @@ data. Retain a failed Apollo database for diagnosis until an explicit cleanup de
 - [x] First Apollo base backup and continuous WAL archiving verified.
   `authentik-pg-20260930063525` completed at 2026-09-30 06:36:41 UTC; CNPG reported
   `ContinuousArchiving=True`.
-- [ ] Temporary import configuration and credentials removed; plan archived under `plans/done/`.
+- [x] Temporary import manifests and their generated Kubernetes credential Secret removed by #311.
+  Read-only verification after upgrades found only `authentik-pg-r2` and `authentik-secret` for this app,
+  both ExternalSecrets Ready. The shared component supplies recovery from the Apollo archive;
+  archive identity, database pruning protection, and the connection-limit patch remain intact.
+- Sequential Apollo upgrades completed through the [upgrade record](20260930-authentik-upgrades.md).
+  The old server, worker, and WebFinger Deployments remain at zero replicas.
+- [ ] Operator confirms deletion of `hcc-apollo/authentik-postgres-migration` and the unused imported
+  Kubernetes connection after checking outpost references. Keep the original source credentials intact.
+- [ ] Remaining verification recorded; plan archived under `plans/done/`.
+
+The remaining shared database, temporary firewall path, and Dragonfly service are still needed for
+Paperless/TeslaMate migration. Retire old Authentik data and manifests only with the Wave 2 cleanup.

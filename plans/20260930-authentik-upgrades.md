@@ -1,6 +1,7 @@
 # Authentik upgrades on Apollo
 
-Upgrade the migrated Apollo instance from 2025.10.3 through each supported release family.
+Apollo has completed the sequential upgrades from 2025.10.3 through 2026.8.3.
+This record preserves the procedure, rollout evidence, and outstanding operator verification.
 The [migration record](20260919-authentik-migration.md) retains the import and cutover evidence.
 
 ## Sequence
@@ -55,33 +56,24 @@ Keep PostgreSQL 18, verified database TLS, and the read-only `/media/public` mou
 ## Before each merge
 
 Confirm the current Authentik server and worker are Ready, login works, and CNPG reports successful
-continuous archiving. With explicit operator approval, create a fresh backup of the Apollo database:
+continuous archiving. Follow the [database recovery-point procedure](../docs/databases.md#recovery-points-before-application-upgrades):
+a completed base backup plus uninterrupted archived WAL covers subsequent upgrade checkpoints. A new
+full backup at every step is optional, primarily to shorten recovery time.
+
+Before new application pods start, record the current application version and a UTC recovery timestamp,
+LSN, and WAL segment with this read-only query:
 
 ```sh
-authentik_backup_name="authentik-preupgrade-$(date -u +%Y%m%d%H%M%S)"
-kubectl --context apollo create -f - <<EOF
-apiVersion: postgresql.cnpg.io/v1
-kind: Backup
-metadata:
-  name: ${authentik_backup_name}
-  namespace: security
-spec:
-  cluster:
-    name: authentik-pg
-  method: plugin
-  pluginConfiguration:
-    name: barman-cloud.cloudnative-pg.io
-EOF
-kubectl --context apollo -n security wait \
-  "backups.postgresql.cnpg.io/${authentik_backup_name}" \
-  --for=jsonpath='{.status.phase}'=completed --timeout=15m
-kubectl --context apollo -n security get \
-  "backups.postgresql.cnpg.io/${authentik_backup_name}" \
-  -o custom-columns='NAME:.metadata.name,PHASE:.status.phase,FINISHED:.status.stoppedAt,ERROR:.status.error'
+kubectl --context apollo -n security exec authentik-pg-1 -c postgres -- \
+  psql -U postgres -d authentik -Atc 'BEGIN READ ONLY;
+    SELECT clock_timestamp(), pg_current_wal_lsn(), pg_walfile_name(pg_current_wal_lsn());
+    SELECT last_archived_wal, last_archived_time, failed_count FROM pg_stat_archiver;
+    ROLLBACK;'
 ```
 
-Record the backup identifier and completion time before merging. Keep an administrator/recovery
-login available. Do not merge multiple upgrade PRs together or let a version bump skip a family.
+Confirm the checkpoint segment has archived on the same timeline before relying on it for recovery.
+Record the base backup and retain it with all required WAL through the rollback window. Keep an
+administrator/recovery login available. Merge one release family at a time.
 
 ## Verify each step
 
@@ -91,8 +83,10 @@ login available. Do not merge multiple upgrade PRs together or let a version bum
 - Confirm CNPG readiness and continuous archiving remain healthy. Record operator verification below.
 
 If a step fails, stop advancing and diagnose it. Reverting only the image is not a supported downgrade.
-A rollback requires restoring an Apollo backup from before that upgrade with a compatible application
-version, following the database recovery procedure and operator approval. Agree on any lost writes first;
+A rollback requires restoring an Apollo base backup and replaying WAL only to the recorded pre-upgrade
+`spec.bootstrap.recovery.recoveryTarget.targetTime`, then running the matching application version.
+Default recovery replays the latest archived WAL and would reapply the schema upgrade. Follow the
+database recovery procedure with operator approval. Agree on any lost writes first;
 the old main-cluster database no longer includes changes made since the Apollo cutover.
 
 ## Execution record
@@ -103,9 +97,44 @@ the old main-cluster database no longer includes changes made since the Apollo c
   `ak healthcheck` passed at every step under UID/GID 568, a read-only root filesystem, writable
   `/tmp`, and the corresponding read-only media/data mount. The rehearsal used no production data,
   external integrations, or database TLS; it does not replace the live verification gates.
-- [ ] Fresh Apollo backup completed before the 2025.10.4 merge.
-- [ ] 2025.10.4 deployed and operator verification passed.
-- [ ] 2025.12.6 deployed and operator verification passed.
-- [ ] 2026.2.7 deployed and operator verification passed.
-- [ ] 2026.5.7 deployed and operator verification passed.
-- [ ] 2026.8.3 deployed and operator verification passed.
+- Before #312, `authentik-preupgrade-20260930151710` completed at 2026-09-30 15:17:23 UTC.
+  Subsequent steps used this base backup and continuous WAL; no additional full backup was required.
+- All five upgrade PRs merged on 2026-09-30. Each rollout reached Flux/Helm readiness with server and
+  worker Ready and zero restarts. LAN/public login pages returned HTTP 200 and WebFinger returned
+  the expected Tailscale issuer. These HTTP checks do not establish authenticated login success.
+
+| PR | Application | Applied revision | Pre-upgrade recovery time (UTC) | Checkpoint WAL segment |
+|---|---|---|---|---|
+| #312 | 2025.10.4 | `4ac5486` | Base backup completed 15:17:23 | Base backup before first merge |
+| #313 | 2025.12.6 | `b4228f2` | 2026-09-30 15:24:22.412583+00 | `000000010000000000000074` |
+| #314 | 2026.2.7 | `3bb2588` | 2026-09-30 15:29:29.082740+00 | `000000010000000000000075` |
+| #316 | 2026.5.7 | `719a030` | 2026-09-30 15:33:15.269429+00 | `000000010000000000000076` |
+| #318 | 2026.8.3 | `4c1c590` | 2026-09-30 15:38:21.753128+00 | `000000010000000000000077` |
+
+The timestamps were recorded while the previous version still served, before new-version pods started.
+Each checkpoint WAL segment subsequently archived with zero reported archive failures. This verifies
+archival progress, not a production PITR rehearsal; recovery also depends on retained base backups and WAL.
+
+- 2025.12.6: RBAC migrations completed and both workloads moved to the read-only `/data` mount.
+- 2026.2.7: migrations completed; a read-only count found no SCIM providers requiring filter review.
+- 2026.5.7: 26 migration records applied. The Rust worker passed `ak healthcheck`; server and worker
+  metrics were scraped successfully over IPv4 on port 9300 after startup.
+
+- 2026.8.3: 59 migration records applied between 15:39:22 and 15:39:38 UTC. All four SSO/WebFinger
+  HTTPRoutes were Accepted with ResolvedRefs at their current generations. Server, worker, and database
+  Prometheus targets were healthy. Startup logs contained no warning/error events in the checked window.
+- Final proxy checks sent normal and forged forwarding/client-certificate headers over both LAN and
+  Cloudflare paths. Correlated Authentik origin logs preserved the independently checked client address,
+  canonical SSO host, and HTTPS scheme for all four requests. Redirects stayed relative or on the
+  canonical HTTPS host. No authenticated client-certificate flow was exercised. The public-path checks
+  used Cloudflare from the LAN workstation; independent off-LAN login remains an operator check.
+
+## Outstanding operator verification
+
+The rollout evidence above does not replace these checks; confirmation has not yet been recorded:
+
+- [ ] Admin login and group/role permissions, including custom policies affected by the release gates.
+- [ ] Login/logout and MFA on LAN and off-LAN; fresh Mealie OIDC and Tailscale login.
+- [ ] SMTP delivery.
+
+Archive this plan under `plans/done/` after recording the remaining verification.

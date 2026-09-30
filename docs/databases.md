@@ -55,6 +55,22 @@ source configuration and credentials. Keep the Cluster and its owning Kustomizat
 bypasses the empty-archive check to reuse its own archive; never run another writer against that server name.
 Cluster pruning is disabled, so removing the component does not delete its database.
 
+## Recovery points before application upgrades
+
+A completed base backup plus uninterrupted archived WAL supports
+[point-in-time recovery](https://cloudnative-pg.io/docs/1.28/recovery/#point-in-time-recovery-pitr).
+A fresh full backup for every application upgrade is optional; it can reduce WAL replay time.
+Before schema changes, record the current application version, a UTC recovery timestamp, and its WAL
+segment. Confirm that segment is archived on the same timeline, and retain a base backup from before
+the target plus all required WAL for the rollback window. An advancing archive status is useful evidence,
+but does not replace a restore rehearsal.
+
+Application rollback requires an explicit `spec.bootstrap.recovery.recoveryTarget.targetTime` and the
+matching application version. Default recovery replays the latest archived WAL, including unwanted schema
+changes. CNPG recovery bootstraps a new Cluster; changing the bootstrap stanza of a running Cluster does
+not rewind its database. Plan recovery through git, preserve the failed database and source archive, and
+obtain operator approval before changing the live cluster. Agree on any writes lost after the target.
+
 ## SQL workloads
 
 SQL ConfigMaps containing dollar-quoted blocks need the annotation

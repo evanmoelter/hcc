@@ -9,7 +9,7 @@ their execution records.
 | Credentials and configuration reloads | [Secrets](secrets.md): ESO, 1Password setup, application integration, and Reloader. |
 | SSO and login discovery | [Identity](identity.md): Authentik, proxy trust, database credentials, and Tailscale WebFinger. |
 | Persistent files and backups | [Storage](storage.md): Longhorn, capacity, snapshots, R2 backup separation, and node registration. [VolSync lifecycle usage](../kubernetes/apollo/components/volsync/README.md) covers PVC creation, restore, backup, and cleanup. |
-| PostgreSQL and Redis-compatible services | [Databases](databases.md): Postgres components, initialization and recovery, credentials, backups, and Dragonfly integration. |
+| PostgreSQL and Redis-compatible services | [Databases](databases.md): Postgres components, initialization and recovery, credentials, backups, upgrade recovery points, and Dragonfly integration. |
 | HTTP ingress and proxy trust | [Gateway](gateway.md): LAN and external routing, listener isolation, forwarded headers, and verification. |
 | DNS and public tunnel | [DNS](dns.md): split-horizon records, ownership, tunnel setup, and external testing. |
 | TLS certificates | [Certificates](certificates.md): issuers, credentials, wildcard issuance, and checks. |
