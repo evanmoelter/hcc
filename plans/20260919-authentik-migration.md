@@ -109,7 +109,7 @@ kubectl --context apollo -n security get backups.postgresql.cnpg.io
 ```
 
 Check server and worker startup for UID, filesystem, database TLS, and permission errors. UID 568 with
-writable `/tmp` is supported by the inspected startup paths but has not been runtime-tested locally.
+writable `/tmp` and a read-only empty `/media/public` mount accommodate the startup paths.
 No writable media storage is configured because no files are being migrated. If the actual instance
 needs local files, stop and resolve that storage requirement rather than adding ephemeral media.
 
@@ -194,8 +194,14 @@ data. Retain a failed Apollo database for diagnosis until an explicit cleanup de
 - All Apollo Flux Kustomizations were Ready before preparation; hcc5, hcc6, and hcc7 Longhorn nodes
   were Ready and Schedulable. Capacity and cross-VLAN database connectivity still require cutover checks.
 - [ ] Both PRs reviewed and CI passed; operator supplied the required ESO items.
-- [ ] Source writers stopped; public DNS released; final shared backup completed.
-- [ ] Logical import completed and source/destination application data compared.
+- [x] Source writers stopped; public DNS released; final shared backup completed.
+  `authentik-cutover-20260930061650` completed at 2026-09-30 06:19:25 UTC after shutdown.
+- Logical import completed at 2026-09-30 06:35:59 UTC, including all three `pg_restore` sections.
+  Initial application startup failed because `tenant_files.py` tried to create `/media/public` on the
+  read-only root filesystem. The read-only empty mount supplies that directory without allowing uploads.
+- [ ] Source/destination application data compared.
 - [ ] LAN/public login, Mealie OIDC, WebFinger/Tailscale, SMTP, and proxy-header checks passed.
-- [ ] First Apollo base backup and continuous WAL archiving verified.
+- [x] First Apollo base backup and continuous WAL archiving verified.
+  `authentik-pg-20260930063525` completed at 2026-09-30 06:36:41 UTC; CNPG reported
+  `ContinuousArchiving=True`.
 - [ ] Temporary import configuration and credentials removed; plan archived under `plans/done/`.
