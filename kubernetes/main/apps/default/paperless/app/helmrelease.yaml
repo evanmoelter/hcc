@@ -19,6 +19,7 @@ spec:
   values:
     controllers:
       paperless:
+        replicas: 0
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
@@ -99,6 +100,8 @@ spec:
 
     ingress:
       app:
+        enabled: true
+        nameOverride: app
         className: internal
         hosts:
           - host: &hostName paperless.${SECRET_DOMAIN}
@@ -111,7 +114,7 @@ spec:
           - hosts:
               - *hostName
       tailscale:
-        enabled: true
+        enabled: false
         className: tailscale
         defaultBackend:
           service:
