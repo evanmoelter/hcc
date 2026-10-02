@@ -1,7 +1,8 @@
 # Authentik migration
 
 Cutover procedure and execution record for Authentik, following Mealie in the
-[Talos migration](20260816-talos-migration.md). The checklist below records verification still required.
+[Talos migration](../20260816-talos-migration.md). Archived at the operator's request; unchecked items retain verification or cleanup whose completion
+was not recorded.
 
 ## Decisions
 
@@ -50,7 +51,7 @@ data. Apollo reserves 10 GiB for the restored database and temporary logical dum
 three replicas. Confirm free capacity on each storage node before merging.
 
 Confirm Apollo can reach `192.168.6.21:5432` through the temporary firewall rule in
-[networking.md](../docs/networking.md). The source uses TLS with `sslmode: require`; its certificate
+[networking.md](../../docs/networking.md). The source uses TLS with `sslmode: require`; its certificate
 identity is not verified for the IP-based import. Source credential possession and the narrow network
 path are required. Apollo application connections verify the destination CNPG CA and service hostname.
 
@@ -166,7 +167,7 @@ Keep the temporary database firewall path and `postgres-lb` for Paperless and Te
 old shared Dragonfly service for Paperless. Upgrade Authentik on Apollo only after cutover verification,
 following each upstream release family in sequence with a verified pre-upgrade recovery point.
 A retained base backup plus continuous WAL supplies that point; see the
-[database recovery guidance](../docs/databases.md#recovery-points-before-application-upgrades). The
+[database recovery guidance](../../docs/databases.md#recovery-points-before-application-upgrades). The
 decision to retain 2025.10.3 is specific to this migration, not a long-term support policy.
 The [Apollo upgrade sequence](20260930-authentik-upgrades.md) tracks the subsequent release steps.
 
@@ -221,7 +222,8 @@ data. Retain a failed Apollo database for diagnosis until an explicit cleanup de
   The old server, worker, and WebFinger Deployments remain at zero replicas.
 - [ ] Operator confirms deletion of `hcc-apollo/authentik-postgres-migration` and the unused imported
   Kubernetes connection after checking outpost references. Keep the original source credentials intact.
-- [ ] Remaining verification recorded; plan archived under `plans/done/`.
+- [x] Plan archived under `plans/done/` at the operator's request in PR #319.
+  Unchecked items above are preserved as unrecorded verification or cleanup.
 
 The remaining shared database, temporary firewall path, and Dragonfly service are still needed for
 Paperless/TeslaMate migration. Retire old Authentik data and manifests only with the Wave 2 cleanup.

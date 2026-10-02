@@ -1,7 +1,8 @@
 # Authentik upgrades on Apollo
 
 Apollo has completed the sequential upgrades from 2025.10.3 through 2026.8.3.
-This record preserves the procedure, rollout evidence, and outstanding operator verification.
+Archived at the operator's request. This record preserves the procedure, rollout evidence, and
+operator verification whose completion was not recorded.
 The [migration record](20260919-authentik-migration.md) retains the import and cutover evidence.
 
 ## Sequence
@@ -56,7 +57,7 @@ Keep PostgreSQL 18, verified database TLS, and the read-only `/media/public` mou
 ## Before each merge
 
 Confirm the current Authentik server and worker are Ready, login works, and CNPG reports successful
-continuous archiving. Follow the [database recovery-point procedure](../docs/databases.md#recovery-points-before-application-upgrades):
+continuous archiving. Follow the [database recovery-point procedure](../../docs/databases.md#recovery-points-before-application-upgrades):
 a completed base backup plus uninterrupted archived WAL covers subsequent upgrade checkpoints. A new
 full backup at every step is optional, primarily to shorten recovery time.
 
@@ -129,7 +130,7 @@ archival progress, not a production PITR rehearsal; recovery also depends on ret
   canonical HTTPS host. No authenticated client-certificate flow was exercised. The public-path checks
   used Cloudflare from the LAN workstation; independent off-LAN login remains an operator check.
 
-## Outstanding operator verification
+## Operator verification not recorded at archival
 
 The rollout evidence above does not replace these checks; confirmation has not yet been recorded:
 
@@ -137,4 +138,5 @@ The rollout evidence above does not replace these checks; confirmation has not y
 - [ ] Login/logout and MFA on LAN and off-LAN; fresh Mealie OIDC and Tailscale login.
 - [ ] SMTP delivery.
 
-Archive this plan under `plans/done/` after recording the remaining verification.
+Archived under `plans/done/` at the operator's request in PR #319; these unchecked items retain the
+limits of the recorded verification.
