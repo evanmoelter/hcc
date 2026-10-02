@@ -21,7 +21,7 @@ Paperless cutover and application-data verification remain outstanding.
 The operator approved this two-PR Graphite stack, to be reviewed and merged in cutover order:
 
 1. **[Disable on main, PR #315](https://github.com/evanmoelter/hcc/pull/315):** stop Paperless and SFTP, remove the SFTP load-balancer Service and old
-   Tailscale Ingress. Retain the internal Ingress without ready endpoints, both PVCs, source database,
+   internal and Tailscale Ingresses. Retain their configuration in git, both PVCs, source database,
    encrypted Secrets, HelmReleases, and VolSync configuration for final backup and rollback.
 2. **[Rebuild on Apollo, PR #317](https://github.com/evanmoelter/hcc/pull/317):** add separate restore-preflight, storage, database, broker, app, SFTP, and
    backup lifecycles. The library backup Kustomization starts suspended pending data verification.
@@ -112,13 +112,14 @@ kubectl --context main -n default get replicationsource paperless-library-r2
 ```
 
 The old SFTP Service must be gone, releasing its address and DNS ownership. Wait for the old Tailscale
-proxy and hostname to be released if present. The internal Ingress remains without ready endpoints.
+proxy and hostname to be released if present. Both old Paperless Ingresses must be gone.
 Verify actual DNS ownership before Apollo claims the names; do not assume workload shutdown removes
 records or tailnet devices immediately.
 
-Query main's `k8s-gateway` at `192.168.6.15` explicitly: the retained internal Ingress lets it keep
-answering `192.168.6.10` even after Paperless stops. Record that answer alongside the answers from
-the resolvers actually used by LAN and IoT clients. With `SECRET_DOMAIN` set locally:
+Query main's `k8s-gateway` at `192.168.6.15` explicitly and verify it no longer returns the old
+ingress address `192.168.6.10` after the Ingress disappears and cached answers expire. Record that
+answer alongside the answers from the resolvers actually used by LAN and IoT clients. With
+`SECRET_DOMAIN` set locally:
 
 ```sh
 dig @192.168.6.15 "paperless.${SECRET_DOMAIN}" A +short
@@ -127,11 +128,10 @@ dig "paperless.${SECRET_DOMAIN}" A +short
 ```
 
 Repeat from each relevant client network using its configured resolver; a workstation's default
-lookup alone does not cover the LAN and IoT paths. Before proceeding, establish how Apollo's UniFi
-record will take precedence over forwarding to `k8s-gateway`. If that cannot be guaranteed, disable
-the old internal Ingress through git and verify its DNS answer disappears. Gate 3 must verify the
-actual client answers after Apollo creates its record and cached answers expire; a correct UniFi
-record alone does not pass the gate.
+lookup alone does not cover the LAN and IoT paths. Hold the cutover if any resolver still returns
+the old ingress address; investigate stale records or caches before proceeding. A missing DNS answer
+is expected during this outage until Apollo creates its record. Gate 3 must verify the actual client
+answers after that record appears; a correct UniFi record alone does not pass the gate.
 
 With explicit approval, trigger and verify a final VolSync sync of `paperless-library-r2` after the
 source writers stopped. Record the manual trigger, completion time, and actual restic snapshot ID.
@@ -189,8 +189,8 @@ remain. Never start the old app against the upgraded Apollo database.
 - Confirm the internal HTTPRoute reports current-generation Accepted and ResolvedRefs. Repeat the
   gate 1 DNS queries after Apollo's UniFi record appears and cached answers expire. Every resolver
   used by LAN and IoT clients for Paperless must return `192.168.21.100`, with no old ingress address.
-  The direct `k8s-gateway` query may still return `192.168.6.10` only if client resolution bypasses
-  that answer. Hold the cutover if any client still resolves the old ingress. Verify the original
+  The direct `k8s-gateway` query must also remain free of the old ingress address. Hold the cutover
+  if any client still resolves the old ingress. Verify the original
   HTTPS hostname works from those clients and confirm no public route appeared.
 - Test fresh Authentik login and logout on LAN and Tailscale, preserving existing account linkage.
   Test from outside the LAN over Tailscale: reaching its HTTPS login page alone is insufficient.
@@ -240,7 +240,8 @@ not govern these LAN-only resources. If stale records remain, the operator must 
 the affected Apollo-owned records after checking ownership. Release the Tailscale hostname before the old proxy claims it.
 Restore the scanner's old IP if configured literally and remove the temporary IoT allowance when unused.
 
-Revert the entire old-disable PR through git. Resume the old `paperless`
+Revert the entire old-disable PR through git, restoring both Ingresses as well as the workloads
+and SFTP Service. Resume the old `paperless`
 Kustomization and VolSync writer only with operator approval, then verify old app, SFTP, routes, DNS,
 and ingestion before releasing the scanner. The source remains on its original database schema;
 rolling back by pointing the old image at Apollo's upgraded database is unsupported. Writes accepted
@@ -260,8 +261,7 @@ not an Apollo restore or a physical scanner test.
 Local validation passed schema checks for both cluster trees, Apollo policy lint, all 39 component
 tests, and the full Apollo Flux/Helm render (115 passed; the intentionally suspended library backup
 was skipped and is covered by the component tests). The old Helm render changes only replica counts,
-the Tailscale Ingress, and the SFTP Service plus its generated probes. The internal Ingress's explicit
-name override preserves its identity when it becomes the release's only Ingress. A separate Dragonfly
+both Paperless Ingresses, and the SFTP Service plus its generated probes. A separate Dragonfly
 runtime proof passed authenticated reads/writes and health checks with its configured security context.
 
 [Jory's Paperless configuration](https://github.com/joryirving/home-ops/blob/main/kubernetes/apps/base/self-hosted/paperless/helmrelease.yaml)

@@ -346,7 +346,7 @@ public echo at the end of the migration.
 
 For each app, draft a two-PR Graphite stack before scheduling the maintenance window. The bottom PR disables the old copy. The top PR contains the reviewed Apollo rebuild, including its restore configuration, Apollo-specific backup path, final route, and any Tailscale Ingress. Get both PRs through review and CI while the old app still serves traffic.
 
-The bottom PR sets the old workload to zero replicas and removes its external and Tailscale Ingresses. It keeps the app directory, PVC, secrets, database, and internal Ingress. Do this rather than suspending its Flux `Kustomization`: suspension stops reconciliation but leaves applied workloads and Ingresses in place, so the app keeps serving and retains its DNS and tailnet names.
+The bottom PR sets the old workload to zero replicas and disables all its Ingresses, including the internal Ingress so `k8s-gateway` stops advertising the old address. It keeps the app directory, ingress configuration, PVC, secrets, and database for rollback. Do this rather than suspending its Flux `Kustomization`: suspension stops reconciliation but leaves applied workloads and Ingresses in place, so the app keeps serving and retains its DNS and tailnet names.
 
 During the cutover:
 
