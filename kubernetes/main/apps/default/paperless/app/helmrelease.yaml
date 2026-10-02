@@ -100,8 +100,7 @@ spec:
 
     ingress:
       app:
-        enabled: true
-        nameOverride: app
+        enabled: false
         className: internal
         hosts:
           - host: &hostName paperless.${SECRET_DOMAIN}
