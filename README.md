@@ -24,8 +24,9 @@ Mealie’s migration is complete, with LAN/public access and verified PVC/databa
 and credential-revocation evidence.
 
 Authentik and WebFinger use the [identity integration](./docs/identity.md). Their
-[cutover record](./plans/20260919-authentik-migration.md) tracks the PostgreSQL import, login verification,
-and cleanup gates, including outstanding verification.
+[cutover record](./plans/done/20260919-authentik-migration.md) tracks the PostgreSQL import, login verification,
+and cleanup gates, including unrecorded verification at archival. The [upgrade record](./plans/done/20260930-authentik-upgrades.md)
+records the completed release sequence and pre-upgrade recovery points.
 
 ## Hardware
 

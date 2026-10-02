@@ -3,6 +3,8 @@
 Authentik runs in `security` with a dedicated CNPG database. Server and worker connect directly using
 CNPG-generated credentials and certificate verification; the connection limit allows headroom for both.
 Database readiness gates Authentik. In-cluster OIDC consumers declare a Flux dependency on Authentik.
+HTTP, HTTPS, and metrics listeners explicitly bind IPv4 because the upstream default changed to IPv6
+in the 2026.5 release family; Apollo routes and Prometheus use IPv4 pod addresses.
 
 Durable state lives in PostgreSQL. File storage at `/data` is mounted read-only; local uploads and
 file exports require persistent storage.
