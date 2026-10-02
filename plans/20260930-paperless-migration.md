@@ -116,6 +116,23 @@ proxy and hostname to be released if present. The internal Ingress remains witho
 Verify actual DNS ownership before Apollo claims the names; do not assume workload shutdown removes
 records or tailnet devices immediately.
 
+Query main's `k8s-gateway` at `192.168.6.15` explicitly: the retained internal Ingress lets it keep
+answering `192.168.6.10` even after Paperless stops. Record that answer alongside the answers from
+the resolvers actually used by LAN and IoT clients. With `SECRET_DOMAIN` set locally:
+
+```sh
+dig @192.168.6.15 "paperless.${SECRET_DOMAIN}" A +short
+dig @192.168.4.1 "paperless.${SECRET_DOMAIN}" A +short
+dig "paperless.${SECRET_DOMAIN}" A +short
+```
+
+Repeat from each relevant client network using its configured resolver; a workstation's default
+lookup alone does not cover the LAN and IoT paths. Before proceeding, establish how Apollo's UniFi
+record will take precedence over forwarding to `k8s-gateway`. If that cannot be guaranteed, disable
+the old internal Ingress through git and verify its DNS answer disappears. Gate 3 must verify the
+actual client answers after Apollo creates its record and cached answers expire; a correct UniFi
+record alone does not pass the gate.
+
 With explicit approval, trigger and verify a final VolSync sync of `paperless-library-r2` after the
 source writers stopped. Record the manual trigger, completion time, and actual restic snapshot ID.
 Also create and verify a final CNPG `Backup` of shared `database/cnpg-cluster` using its existing
@@ -169,8 +186,12 @@ originals, archives, thumbnails, text searches, tags, metadata, users, permissio
 Confirm the 2.20.15 database migrations completed and no ownership, database TLS, or broker errors
 remain. Never start the old app against the upgraded Apollo database.
 
-- Confirm the internal HTTPRoute reports current-generation Accepted and ResolvedRefs, LAN DNS
-  points to `192.168.21.100`, and the original HTTPS hostname works. Confirm no public route appeared.
+- Confirm the internal HTTPRoute reports current-generation Accepted and ResolvedRefs. Repeat the
+  gate 1 DNS queries after Apollo's UniFi record appears and cached answers expire. Every resolver
+  used by LAN and IoT clients for Paperless must return `192.168.21.100`, with no old ingress address.
+  The direct `k8s-gateway` query may still return `192.168.6.10` only if client resolution bypasses
+  that answer. Hold the cutover if any client still resolves the old ingress. Verify the original
+  HTTPS hostname works from those clients and confirm no public route appeared.
 - Test fresh Authentik login and logout on LAN and Tailscale, preserving existing account linkage.
   Test from outside the LAN over Tailscale: reaching its HTTPS login page alone is insufficient.
   A canonical-hostname callback must remain reachable from that client. Confirm the provider's

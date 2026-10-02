@@ -101,7 +101,7 @@ spec:
         controller: sftp
         annotations:
           external-dns.alpha.kubernetes.io/hostname: paperless-sftp.${SECRET_DOMAIN}
-          io.cilium/lb-ipam-ips: 192.168.21.102
+          lbipam.cilium.io/ips: 192.168.21.102
         type: LoadBalancer
         ports:
           sftp:
