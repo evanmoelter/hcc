@@ -27,10 +27,9 @@ the VolSync ExternalSecret consumes it separately from the application credentia
 
 ## File backup and recovery
 
-The [disposable RWX rehearsal](../tests/fixtures/authentik-rwx/README.md) passed on Apollo on 2026-09-30:
-UID 568 writes across Talos nodes, an RWX snapshot cloned as RWO, and an RWO snapshot restored as RWX.
-Repeat it after relevant storage changes with operator approval. The rehearsal does not replace the
-first VolSync/R2 backup verification below.
+On 2026-09-30, an isolated Apollo rehearsal verified UID 568 writes across Talos nodes, an RWX snapshot
+cloned as RWO, and an RWO snapshot restored as RWX. All disposable resources were removed.
+This verifies CSI access-mode transitions; the first VolSync/R2 backup remains a deployment check.
 
 Before enabling uploads, confirm `authentik-storage`, `authentik`, and `authentik-backup` are Ready,
 then check the ReplicationSource's `status.lastSyncTime` and `status.latestMoverStatus` for a successful
