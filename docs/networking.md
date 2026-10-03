@@ -166,10 +166,11 @@ Cilium policy on the primary interface does not establish isolation for the dire
 On 2026-10-03, concurrent disposable probes passed all eight checks on hcc5, hcc6, and hcc7 through the
 shared `kube-system/iot` attachment: IPv4 address/prefix, primary default route, IoT gateway route and
 ICMP, Lutron TCP 8081 and mDNS at `192.168.4.35`, cluster DNS/API TCP, and outbound DNS/TLS.
-[The execution record](../plans/20261003-iot-verification.md) preserves the checks and results.
+[The execution record](../plans/done/20261003-iot-verification.md) preserves the checks and results.
 
 These nodes use `network.home.arpa/iot-ipv4: "true"`, managed through node-specific Talos configuration.
-Verify the labels live before the HA outage. Matter/Thread remains deferred until an Apple TV is available; `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
+The labels were applied and verified on all three Ready nodes on 2026-10-03. Matter/Thread remains
+deferred until an Apple TV is available; `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
 The future HA address `192.168.6.100`, address-specific rules, HA/Lutron authentication, and actual
 device control remain separate cutover checks.
 

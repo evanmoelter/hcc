@@ -74,18 +74,18 @@ and a final PASS with an empty `failed_checks` list. The checks were `iot_addres
 
 ## Cleanup and eligibility
 
-The cleanup change removes the `iot-network-test` registration, app directory, and probe-specific tests.
-The result is preserved here and in `docs/networking.md`. All three probe containers had terminated
-successfully before cleanup; after merging, verify Flux has pruned their Jobs, Pods, and ConfigMap.
-The test addresses may then be released. This record remains in `plans/` until cleanup is verified,
-then moves to `plans/done/`.
+PR #335 removed the `iot-network-test` registration, app directory, and probe-specific tests. On
+2026-10-03, read-only checks confirmed the Flux Kustomization, Jobs, Pods, and generated ConfigMap were
+absent after Flux applied `c32f07729843eb2244e090eb248fba8a38705dec`. The test addresses `.105`, `.106`,
+and `.107` are released. The result is preserved here and in `docs/networking.md`.
 
 - [x] All three nodes passed every IPv4 probe check.
-- [ ] Merge cleanup and verify the temporary resources are gone.
-- [ ] Apply the separately reviewed Talos eligibility labels and verify them live.
+- [x] Merge cleanup and verify the temporary resources are gone.
+- [x] Apply the separately reviewed Talos eligibility labels and verify them live.
 
-The separate Talos configuration change grants `network.home.arpa/iot-ipv4: "true"` to hcc5, hcc6, and
-hcc7. After its merge and cleanup verification, apply it one node at a time with explicit operator approval:
+PR #336 added `network.home.arpa/iot-ipv4: "true"` to hcc5, hcc6, and hcc7. With explicit operator
+approval on 2026-10-03, the following commands applied it sequentially. Each Talos dry run showed only
+the IPv4 label being added; each apply completed its stabilization check before proceeding:
 
 ```sh
 task talos:apply CLUSTER=apollo node=hcc5 mode=no-reboot
@@ -94,10 +94,9 @@ task talos:apply CLUSTER=apollo node=hcc7 mode=no-reboot
 kubectl --context apollo get nodes -L network.home.arpa/iot-ipv4,network.home.arpa/iot
 ```
 
-Confirm each node stays Ready and its IPv4 label is `true` before applying the next. The full IoT label
-must remain absent. These tasks apply each node's rendered machine configuration; review any other
-pending Talos changes first. `no-reboot` prevents an unexpected reboot. Verify the live labels before
-the HA outage.
+Final read-only checks confirmed all three nodes Ready with the IPv4 label set to `true` and the full
+`network.home.arpa/iot` label absent. All applies used `no-reboot`; no reboot was requested. The network
+verification, cleanup, and IPv4 scheduling-label gates are complete.
 HA requires hcc6 and at least one alternative; this test covers all three current nodes. No test labels a
 node automatically. IPv6/Thread and the full `network.home.arpa/iot` capability stay deferred until Apple TV
 and Matter are introduced. The HA address `.100`, callbacks, authentication, and actual device control
