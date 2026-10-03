@@ -175,8 +175,10 @@ Each pod uses the same `kube-system/iot` attachment as HA, binds discovery and t
 its `net1` address, and targets the operator-confirmed bridge at `192.168.4.35`. The probe checks IPv4
 addressing, IoT and default routes, gateway ICMP, Lutron TCP 8081, Lutron/HomeKit mDNS responses resolving
 to that bridge, cluster DNS/API TCP access, and outbound DNS/TLS. It uses the pinned HA image to exercise
-its installed network tools and Zeroconf library, with no HA data or credentials mounted. `NET_RAW`
-supports interface-bound ICMP; the workload remains non-root with a read-only filesystem.
+its installed network tools and Zeroconf library, with no HA data or credentials mounted. The pod-local
+`net.ipv4.ping_group_range` permits only GID 568 to open unprivileged ICMP sockets; ping binds its source
+address after the route check verifies `net1`. All capabilities remain dropped. This satisfies Apollo's
+baseline Pod Security policy, which rejects `NET_RAW`.
 
 Jobs retain their logs and completion state without a TTL or automatic retries. Failed checks prevent
 Flux readiness. Read each Job's final result; pod startup alone is not verification. Changes to the probe

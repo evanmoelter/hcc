@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import subprocess
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +31,12 @@ class ProbeTest(unittest.TestCase):
                 PROBE.check_route(route, "net1", "192.168.6.105")
         with self.assertRaises(RuntimeError):
             PROBE.check_route([{"dev": "eth0"}, {"dev": "net1"}], "eth0")
+
+    def test_gateway_ping_uses_unprivileged_source_binding(self):
+        with patch.object(PROBE.subprocess, "run", return_value=Mock(returncode=0)) as run:
+            PROBE.check_gateway("192.168.6.105")
+        self.assertEqual(run.call_args.args[0],
+                         ["ping", "-4", "-I", "192.168.6.105", "-c", "3", "-W", "3", "192.168.4.1"])
 
     def test_mdns_requires_the_expected_bridge(self):
         info = Mock()
@@ -63,7 +69,9 @@ class ProbeTest(unittest.TestCase):
             self.assertEqual(spec["backoffLimit"], 0)
             self.assertNotIn("ttlSecondsAfterFinished", spec)
             self.assertLessEqual(spec["activeDeadlineSeconds"], 300)
-            self.assertEqual(set(container["securityContext"]["capabilities"]["add"]), {"NET_RAW"})
+            self.assertEqual(container["securityContext"]["capabilities"], {"drop": ["ALL"]})
+            self.assertEqual(pod["securityContext"]["sysctls"],
+                             [{"name": "net.ipv4.ping_group_range", "value": "568 568"}])
             self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
             self.assertNotIn("envFrom", container)
             for volume in pod["volumes"]:
