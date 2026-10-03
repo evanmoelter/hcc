@@ -34,3 +34,8 @@ nodes:
     role: control-plane
     data:
       macAddr: "48:21:0b:3d:9b:a3"
+  - host: hcc8
+    ip: 192.168.21.8
+    role: worker
+    data:
+      macAddr: "48:21:0b:35:0f:cc"
