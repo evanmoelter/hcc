@@ -91,9 +91,13 @@ kubectl --context main -n database get cluster cnpg-cluster
 ```
 
 Confirm both internal Ingresses and Grafana's Tailscale Ingress and proxy have disappeared. Check
-main's k8s-gateway at `192.168.6.15`, UniFi at `192.168.4.1`, and the actual client resolver. The old
-`teslamate` and `grafana` names must stop resolving to `192.168.6.10` before Apollo claims them.
-Confirm the old tailnet `grafana` device/name is released as well.
+main's k8s-gateway at `192.168.6.15`, UniFi at `192.168.4.1`, and the actual client resolver. Main's
+k8s-gateway must stop publishing both names. If UniFi still answers `192.168.6.10`, compare a nonexistent
+hostname to distinguish its wildcard fallback from an app-specific record, as in the
+[Paperless cutover](done/20260930-paperless-migration.md). A verified wildcard fallback can remain
+during the outage; verify Apollo's explicit records override it at the client resolvers after deployment.
+Hold for any remaining app-specific old record. Confirm the old tailnet `grafana` device/name is released
+as well.
 
 Refresh the private data baseline after shutdown. With explicit approval, take an on-demand CNPG
 backup of `cnpg-cluster`, wait for completion, and record its backup ID and final archived WAL.
@@ -187,3 +191,20 @@ Archive this full record under `plans/done/` only after migration, repair, backu
   directory passed. No application configuration was changed to work around the renderer.
 - Independent manifest review found no blocking defects. Runtime UID compatibility, actual import,
   network/TLS behavior, and recording remain deployment checks.
+
+### Main shutdown and final backup, 2026-10-03 UTC
+
+- Operator merged disable PR #322 as `6e673b9f4f2512bc8c004a62cdbb660aedb9f065`.
+  Both Flux Kustomizations applied that revision. TeslaMate and Grafana have zero replicas, no pods,
+  and no remaining Ingresses. The Grafana Tailscale proxy is absent, and the workstation's tailnet peer
+  list contains no Grafana device. The source TeslaMate database has no remaining client connections.
+- Main k8s-gateway returns NXDOMAIN for both names; Pi-hole also returns NXDOMAIN for Grafana.
+  UniFi at `192.168.4.1` and `192.168.20.1` returns `192.168.6.10` for both names and a nonexistent
+  control hostname. Both resolvers return Apollo's `192.168.21.100` for Paperless's explicit record,
+  confirming the wildcard fallback behavior documented during that migration. The workstation also
+  sees the fallback. Verify the new TeslaMate and Grafana records after Apollo deployment.
+- With explicit operator approval, CNPG Backup `database/teslamate-final-20261003` completed using
+  `barmanObjectStore` on shared `cnpg-cluster`. Backup ID `20261003T045814` ran from 04:58:14 to
+  05:00:43 UTC, spanning WAL `000000010000028D00000026` through `000000010000028D00000027`.
+  The next WAL, `000000010000028D00000028`, was archived at 05:00:46 UTC. Cluster readiness,
+  continuous archiving, and last-backup success conditions were all True afterward.
