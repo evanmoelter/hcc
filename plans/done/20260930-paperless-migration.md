@@ -210,13 +210,15 @@ remain. Never start the old app against the upgraded Apollo database.
   unresolved ingestion failures must be diagnosed rather than treated as migration success.
 
 Remove `spec.suspend: true` from `paperless-library-backup` through git after data and application
-checks pass. Wait for an actual snapshot in Apollo's independent restic repository, not only a mover
-success. Verify the first Apollo CNPG backup and continuous WAL archiving. Record backup identifiers
-and completion times; keep source data and backups intact through Wave 1.
+checks pass, in the same PR as the cleanup below. After merge, wait for an actual snapshot in Apollo's
+independent restic repository, not only a mover success. Verify the first Apollo CNPG backup and
+continuous WAL archiving. Record backup identifiers and completion times; keep source data and
+backups intact through Wave 1.
 
 ### 4. Remove temporary migration resources
 
-After data, login, scanner ingestion, and both Apollo backups pass, prepare a cleanup PR:
+Prepare the combined backup enablement and cleanup PR after application verification and the Apollo
+database backup pass. Verify the first Apollo library snapshot after this PR merges:
 
 - Remove restore preflight, the storage restore component and capacity replacement, preflight/VolSync
   dependencies, and destination readiness check. Keep both protected PVCs, PVC readiness, the same
@@ -234,17 +236,19 @@ manifests and data until Wave 2. This complete plan is archived under `plans/don
 PR at the operator's request, with pending verification preserved below.
 
 The operator requested one PR for backup enablement and cleanup: [PR #321](https://github.com/evanmoelter/hcc/pull/321)
-removes the backup suspension as well as temporary migration resources. **Do not merge until the
-first actual Apollo library snapshot is recorded.** To verify that prerequisite before this combined
-PR merges, obtain explicit approval to resume the existing live backup Kustomization temporarily,
-wait for its ReplicationSource and credentials, and trigger a manual backup. Verify the snapshot ID,
-then clear the manual trigger so the configured schedule can run. Parent Flux reconciliation may
-restore the suspension before merge; the PR makes backup enablement permanent. This is a proposed
-one-time exception to enabling backups through git, not authorization to perform it.
+removes the backup suspension as well as temporary migration resources. The operator accepted
+enabling backups and pruning the restore resources in the same merge, with the first actual Apollo
+library snapshot verified afterward. The active library PVC is independent of the temporary restore
+PVC and snapshot; cleanup preserves the active library and old-cluster copies. Until the first Apollo
+backup succeeds, documents added since migration exist only on Apollo's live storage.
+
+After merge, monitor backup reconciliation and record the first actual restic snapshot ID and
+completion time. A manual backup trigger, if needed, requires separate operator approval; clear it
+after verification so the configured schedule can run.
 
 The PR removes no source-cluster resources and does not revoke credentials. After merge, verify
-pruning and permanent resource identities before retiring the two migration items. The archived
-record preserves those outstanding checks.
+pruning, the first Apollo library snapshot, and permanent resource identities before retiring the
+two migration items. The archived record preserves those outstanding checks.
 
 ## Rollback
 
