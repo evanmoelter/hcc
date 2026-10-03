@@ -129,8 +129,8 @@ class HomeAssistantMigrationTest(unittest.TestCase):
                            if resource["kind"] == "ReplicationDestination")
         self.assertEqual(destination["spec"]["restic"]["capacity"], "10Gi")
 
-    def test_backup_stays_suspended_and_uses_separate_apollo_repository(self):
-        self.assertTrue(self.owners["home-assistant-backup"]["spec"]["suspend"])
+    def test_backup_is_enabled_and_uses_separate_apollo_repository(self):
+        self.assertFalse(self.owners["home-assistant-backup"]["spec"].get("suspend", False))
         source = self.resource("home-assistant-backup", "ReplicationSource")
         self.assertEqual(source["spec"]["sourcePVC"], "home-assistant-config")
         secret = self.resource("home-assistant-backup", "ExternalSecret", source["spec"]["restic"]["repository"])

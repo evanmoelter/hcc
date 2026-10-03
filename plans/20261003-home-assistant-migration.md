@@ -147,8 +147,25 @@ passed during preparation. Rendered Services and routes were inspected for backe
 - After both backups succeeded, the approved old `home-assistant` Flux Kustomization suspension and
   `home-assistant-config-r2` ReplicationSource pause were applied. Read-only checks confirmed both flags
   `true`, no remaining HA source mover/pruner Jobs or Pods, and the old deployment still at zero replicas.
-- Apollo restore, functional checks, backup enablement, rescheduling, and cleanup remain pending.
-  The next cutover action is merging #326; retain the old suspension and writer pause for rollback.
+- PR #326 merged as `e1cb164c0e03c3ca14f52b2c44d6a65acbd36454` on 2026-10-03. Restore preflight
+  confirmed an existing source snapshot, and VolSync restored final snapshot `2c2c2042` successfully at
+  `2026-10-03T15:16:11Z`. The config PVC bound and Longhorn reported its clone completed and volume healthy.
+- PostgreSQL recovery became healthy. The restored source history matched 8,705 states (maximum ID
+  148650 and timestamp 1791039670.5619533) and 3,690 events (maximum ID 98187). New recorder writes
+  subsequently appeared on Apollo. The transient recovery Job disappeared before its selected Barman
+  backup ID could be captured; source aggregate comparison provides the recorded recovery evidence.
+- HA and the editor became Ready on hcc6 with zero restarts. The actual pod passed IPv4 address/prefix,
+  IoT/default route, source-bound Lutron TCP/mDNS, cluster DNS/API, and outbound DNS/TLS checks using
+  `192.168.6.100/22`. LAN and Tailscale HA returned HTTPS 200 with valid TLS; the editor returned its
+  expected redirect. All app/database/storage/Tailscale Flux Kustomizations reported Ready.
+- The first Apollo CNPG backup completed as `20261003T151708`. Continuous archiving reported healthy;
+  15 failures during recovery ended at `2026-10-03T15:16:20Z`, followed by successful archiving and the
+  completed backup. The failure count remained unchanged on follow-up.
+- The operator confirmed LAN/Tailscale login, existing integrations and automations, recorder history,
+  Lutron device control, and editor access on 2026-10-03. Config backup enablement is now prepared in git.
+- Verify the first nonempty Apollo config snapshot after merging backup enablement, then remove temporary
+  restore resources and source credentials. Rescheduling still requires explicit operator approval.
+  Retain the old suspension and writer pause for rollback.
 
 ## Reference patterns
 
