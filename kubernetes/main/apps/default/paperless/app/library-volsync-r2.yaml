@@ -4,6 +4,7 @@ kind: ReplicationSource
 metadata:
   name: "paperless-library-r2"
 spec:
+  paused: true
   sourcePVC: paperless-library
   trigger:
     schedule: "9 0 * * *"

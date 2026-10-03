@@ -60,7 +60,16 @@ Keep the old bucket resources through rollback: removing their blocks also remov
 
 ## Operations
 
-Change managed disk settings through git; Flux reverts UI edits. Node resources have pruning disabled,
+Main's Longhorn defaults prepare new volumes for a single copy; existing volumes require explicit
+conversion after selecting hcc3 as their retained replica location. Main's VolSync jobs are paused in git.
+The separate `longhorn-recovery-nodes` Kustomization disables replica scheduling on hcc and hcc2 without
+evicting their existing copies. Their Kubernetes storage taint is tolerated by Longhorn and does not
+prevent replica placement. Suspend and retire this Kustomization as directed by the runbook before its
+node records can be recreated after decommissioning.
+The [single-node recovery runbook](../plans/20261003-main-single-node-recovery.md) orders evacuation,
+volume verification, etcd contraction, and the independent restart before retired disks can be reused.
+
+On Apollo, change managed disk settings through git; Flux reverts UI edits. Node resources have pruning disabled,
 so removing their files does not remove them from Longhorn. Disable scheduling and evacuate replicas before disk removal.
 
 hcc8's disk manifest is prepared but unregistered because Longhorn removes Node resources without a matching

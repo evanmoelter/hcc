@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, Paperless with scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED. Old-cluster resources remain under `kubernetes/main` for rollback and Wave 2 cleanup. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, Paperless with scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED. The old cluster under `kubernetes/main` is retained for recovery. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,11 +11,16 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | retained for rollback and Wave 2 cleanup       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED |
+| Status       | preparing single-node recovery on hcc3       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
-Apps cut over one at a time from verified backups. `kubernetes/main` stays intact for rollback until the last app has moved. [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) holds the full design: node topology, storage, networking, and per-app data migration.
+Apps cut over one at a time from verified backups. `kubernetes/main` stays intact through the recovery window. [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) holds the full design: node topology, storage, networking, and per-app data migration.
+
+hcc4 has been evacuated, removed from k3s, and powered off. The
+[single-node recovery runbook](./plans/20261003-main-single-node-recovery.md) consolidates the remaining
+cluster onto hcc3, verifies an independent restart, and retains it powered off for approximately one week.
+Keep hcc and hcc2 available until their storage and etcd memberships have been safely removed.
 
 [Documentation index](./docs/index.md) covers Apollo platform setup, app integrations, and operations.
 

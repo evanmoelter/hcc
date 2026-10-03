@@ -2,7 +2,7 @@
 
 # Overview
 
-The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, starting with three new NUC11 control-plane nodes, adding hcc8 when a switch port is available, and adding the wiped hcc3 and hcc4 in Wave 2; the unsupported Odroid HC2 nodes hcc and hcc2 retire, while hcc-tablet1 has already left the live cluster. Apps are rebuilt and cut over one at a time from verified backups, while `kubernetes/main` remains intact for rollback until the old cluster shuts down in Wave 2.
+The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, starting with three new NUC11 control-plane nodes, adding hcc8 when a switch port is available, and adding the wiped hcc3 and hcc4 in Wave 2; the unsupported Odroid HC2 nodes hcc and hcc2 retire, while hcc-tablet1 has already left the live cluster. Apps are rebuilt and cut over one at a time from verified backups, while `kubernetes/main` and hcc3 remain available through the recovery window.
 
 # Functionality
 
@@ -10,7 +10,7 @@ Each hosted app gets a short maintenance window at its own cutover point. Home A
 
 Ingress hostnames and Tailscale names do not change. The old cluster releases each name before the new cluster claims it. Afterward, Flux remains the normal operating path; routine work does not use SSH or hand-applied manifests.
 
-At the end of Wave 1, every app runs on Apollo and the four-node k3s cluster remains intact for rollback. At the end of Wave 2, Apollo has three control-plane nodes and three workers, `kubernetes/main` is gone, and the ansible and k3s tooling can be removed.
+At the end of Wave 1, every app runs on Apollo. The operator selected a single-node recovery environment on hcc3 for approximately one week, following hcc4's removal. The [downsizing runbook](20261003-main-single-node-recovery.md) consolidates storage and contracts etcd before powering hcc3 off. At the end of Wave 2, Apollo has three control-plane nodes and three workers, `kubernetes/main` is gone, and the ansible and k3s tooling can be removed.
 
 # Design
 
@@ -33,10 +33,11 @@ The old cluster stays at `kubernetes/main`. Renaming a live Flux root adds risk 
 |---|---|---|---|
 | hcc | k3s controller and Longhorn storage node | retired | 2 |
 | hcc2 | k3s controller and Longhorn storage node | retired | 2 |
-| hcc-tablet1 | stale ansible entry; absent from live cluster | confirm decommissioned; remove entry | n/a |
+| hcc-tablet1 | removed from Kubernetes, etcd, Longhorn, and Ansible inventory | wipe disk before disposal or repurposing | n/a |
 | hcc5, hcc6, hcc7 | new NUC11s | Talos control-plane | 1 |
 | hcc8 | new NUC11; awaiting a switch port | Talos worker | when a port is available |
-| hcc3, hcc4 | k3s controllers; multus `enp1s0` hosts | wiped; Talos workers | 2 |
+| hcc3 | retained k3s controller; old HA's required node | wiped after rollback window; Talos worker | 2 |
+| hcc4 | removed from k3s; powered off with k3s disabled | wiped; Talos worker | 2 |
 
 ```mermaid
 flowchart LR
@@ -44,8 +45,8 @@ flowchart LR
         hcc["hcc"]
         hcc2["hcc2"]
         hcc3o["hcc3"]
-        hcc4o["hcc4"]
     end
+    hcc4o["hcc4<br/>removed from k3s; powered off"]
     subgraph apollo["kubernetes/apollo"]
         cp["hcc5, hcc6, hcc7<br/>control-plane"]
         hcc8["hcc8 worker"]
@@ -461,15 +462,38 @@ credential retirement remains outstanding in its archived cutover record.
 3. Reconcile Phase B in dependency order. Use echo-server to verify the dual-route Gateway pattern across the external, LAN, certificate, and tailnet paths.
 4. Rebuild stateful apps one at a time using the standard cutover and app order above.
 
-Do not remove a node from the old cluster during Wave 1. All four nodes are embedded-etcd controllers, so removing both Odroids without contracting membership loses quorum. Two remaining nodes also cannot satisfy Longhorn's three-replica policy. Keeping the cluster whole preserves the rollback environment when it matters.
+The operator approved removing hcc4 on 2026-10-03, then selected hcc3 as a single-node recovery environment.
+The remaining live members are hcc, hcc2, and hcc3 until the
+[downsizing runbook](20261003-main-single-node-recovery.md) is executed. Do not power off the Odroids until
+their replicas are evacuated and their etcd memberships removed in order. The old HA deployment requires hcc3.
 
-Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on the four-node old cluster. No hardware has been freed. Confirm hcc-tablet1 is decommissioned; remove its stale entry during Wave 2 cleanup.
+Wave 1 ends with all migrated apps on Apollo and their disabled copies retained in main. Keep hcc3 and
+the Odroid disks intact until the independent single-node restart and data-access checks pass.
+
+On 2026-10-03, read-only checks confirmed hcc-tablet1 was absent from Kubernetes nodes, Longhorn nodes,
+and the actual etcd member list. Etcd contained only hcc, hcc2, hcc3, and hcc4; all four Kubernetes nodes
+were Ready. The stale tablet entry was removed from Ansible inventory. No live removal was needed;
+the tablet's disk still needs wiping before disposal or repurposing.
+
+The authorized hcc4 removal completed on 2026-10-03:
+
+- Saved etcd snapshot `pre-hcc4-removal-20261003-hcc3-1791042484` on hcc3 before changing membership.
+- Cordoned hcc4 and requested Longhorn node eviction. All ten replicas moved to retained nodes,
+  including four single-replica VolSync cache volumes; hcc4 had no replicas or backing images before drain.
+- Drained workloads with disruption budgets enforced. Disabled and stopped k3s on hcc4, powered it off,
+  and deleted its Kubernetes node. K3s removed the etcd member; Longhorn removed its empty node record.
+- Verified exactly three voting etcd members (hcc, hcc2, hcc3), three Ready Kubernetes nodes, a healthy
+  API VIP, healthy retained replicas and active volumes, and ready application/platform pods.
+- Three old `cilium-test` pods remain Pending because their affinity and host-port requirements need
+  a second general-purpose node. These test fixtures were left unchanged.
+- Removed hcc4 from Ansible inventory. No disks were wiped. Node-RED's desired replicas changed to zero
+  during evacuation outside this operation.
 
 ### Wave 2
 
-1. Confirm every app is healthy on Apollo and no rollback is pending. This is the point of no return.
-2. Shut down the old cluster as a unit. Power off hcc and hcc2 for disposal.
-3. Wipe hcc3 and hcc4, install Talos, and join them as workers.
+1. Confirm every app and its backups are verified on Apollo, then execute the [single-node recovery runbook](20261003-main-single-node-recovery.md): consolidate replicas, drain and remove the Odroids, and prove hcc3 can recover independently.
+2. Power off hcc3 with its disks intact for approximately one week. The operator explicitly ends the recovery window before hcc3 is wiped; Odroid disk reuse requires the successful recovery check and separate approval.
+3. Wipe hcc4, install Talos, and join it as a worker. Convert hcc3 only after its recovery window ends.
 4. Wipe the two 1TB SSDs from the Odroids and install them in hcc5 and hcc6 in place of the unused HDDs. Work one node at a time and wait for Longhorn rebuilds.
 5. Verify the Multus parent link, VLAN trunk, and IPv6 discovery on each worker intended to host Home Assistant before adding its IoT capability label. Confirm HA can move between eligible nodes without USB hardware.
 6. Return Apollo's Cloudflare external-dns to `policy: sync`.
@@ -532,7 +556,7 @@ Platform:
 - [x] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
 - [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
 - [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.
-- [ ] Confirm hcc-tablet1 is decommissioned.
+- [x] Confirm hcc-tablet1 is absent from Kubernetes, etcd, and Longhorn; remove its Ansible inventory entry.
 
 Per app:
 
@@ -555,7 +579,9 @@ Per app:
 
 Wave 2:
 
-- [ ] Confirm no rollback is pending, then shut down the old cluster as a unit.
+- [x] Evacuate and remove hcc4, leaving hcc, hcc2, and hcc3 as the rollback cluster.
+- [ ] Complete the single-node recovery runbook, including volume coverage, etcd contraction, and independent restart.
+- [ ] Retain hcc3 for approximately one week and obtain operator approval before wiping it.
 - [ ] Add hcc3 and hcc4, transplant the wiped SSDs, and wait for each Longhorn rebuild.
 - [ ] Remove the temporary database firewall rule and return external-dns to sync policy.
 - [ ] Confirm nothing uses old DNS or pihole, then delete the old repo tree and tooling.
@@ -564,11 +590,14 @@ Wave 2:
 
 # Rollback
 
-Rollback remains available until Wave 2 because the old manifests, PVCs, and databases stay intact.
+Rollback remains available through the agreed retention window because the old manifests, PVCs, and databases stay intact.
 
 For one app, first remove its Apollo route so the name is released, then revert the old disable commit. Restore the old database service reference for authentik, Paperless, or TeslaMate and delete the partial new per-app cluster. For Mealie or Home Assistant, delete the partial recovered cluster; the old per-app database was never modified. Any writes made on Apollo after cutover are lost, so verify each migration promptly.
 
-Before Wave 2, cluster-wide rollback means leaving all four old nodes untouched. Once hcc3 and hcc4 are wiped, the retained data copies are gone and rollback is no longer available.
+Until downsizing is verified, recovery uses hcc, hcc2, and hcc3. After the
+[single-node checks](20261003-main-single-node-recovery.md#6-prove-independent-recovery-then-retain-hcc3)
+pass, boot hcc3 alone for selective data recovery. It has no node or local-storage redundancy. Keep its
+disks, the main tree, and required credentials intact until the operator ends the recovery window.
 
 # Open questions
 

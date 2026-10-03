@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - ./namespace.yaml
   - ./longhorn/ks.yaml
+  - ./longhorn/ks-recovery.yaml
   - ./snapshot-controller/ks.yaml
   - ./volsync/ks.yaml
