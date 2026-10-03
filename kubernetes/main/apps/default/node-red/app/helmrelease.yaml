@@ -18,6 +18,7 @@ spec:
   values:
     controllers:
       node-red:
+        replicas: 0
         annotations:
           reloader.stakater.com/auto: "true"
 
@@ -73,6 +74,7 @@ spec:
 
     ingress:
       app:
+        enabled: false
         className: internal
         hosts:
           - host: &host node-red.${SECRET_DOMAIN}
@@ -86,7 +88,7 @@ spec:
               - *host
 
       tailscale:
-        enabled: true
+        enabled: false
         className: tailscale
         hosts:
           - host: &tsHost node-red
