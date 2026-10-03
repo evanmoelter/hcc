@@ -128,10 +128,13 @@ dig "paperless.${SECRET_DOMAIN}" A +short
 ```
 
 Repeat from each relevant client network using its configured resolver; a workstation's default
-lookup alone does not cover the LAN and IoT paths. Hold the cutover if any resolver still returns
-the old ingress address; investigate stale records or caches before proceeding. A missing DNS answer
-is expected during this outage until Apollo creates its record. Gate 3 must verify the actual client
-answers after that record appears; a correct UniFi record alone does not pass the gate.
+lookup alone does not cover the LAN and IoT paths. Investigate any remaining old ingress answer:
+compare a nonexistent hostname in the same domain to distinguish a wildcard fallback from a stale
+Paperless record. During this cutover, UniFi answered both with `192.168.6.10`, while Mealie's actual
+configured hostname resolved to `192.168.21.100`; explicit Apollo records take precedence over the
+fallback. Hold for a remaining Paperless-specific old record. A verified wildcard fallback can remain
+during the outage, but gate 3 must verify that Apollo's new Paperless record overrides it at the actual
+client resolvers before normal use resumes.
 
 With explicit approval, trigger and verify a final VolSync sync of `paperless-library-r2` after the
 source writers stopped. Record the manual trigger, completion time, and actual restic snapshot ID.
@@ -271,12 +274,37 @@ and [szinn's FreshRSS](https://github.com/szinn/k8s-homelab/blob/main/kubernetes
 provided examples for hardened app-template workloads and disposable cache mounts; Apollo's established
 storage and database components take precedence over their cluster-specific conventions.
 
+### Source shutdown and final backups, 2026-10-03 UTC
+
+- PR #315 merged as `c956f6ab45e80f5763326a2ea2be3b9f584ebca0` at 00:12:38 UTC.
+  Main Flux applied that revision. Both Paperless Deployments had zero pods, both Ingresses and the
+  SFTP LoadBalancer Service were absent, and no old Paperless Tailscale proxy Pods or Services remained.
+- The operator confirmed the 1Password setup was complete. They had not explicitly paused and
+  drained ingestion before shutdown, but reported no scans for several days. Subsequent checks found
+  zero queued or unacknowledged entries in the source broker's database 2. A separately approved
+  temporary Pod mounted consume read-only and counted zero files, two directories, zero other entries,
+  and zero errors. That Pod was deleted after verification. These are post-shutdown observations,
+  not evidence that the original pre-shutdown drain procedure was followed.
+- With explicit operator approval, manual VolSync trigger `paperless-final-20261003` completed at
+  00:17:58 UTC and saved restic snapshot `0ff04d69` after source shutdown.
+- CNPG Backup `database/paperless-final-20261003` used `barmanObjectStore` on shared `cnpg-cluster`.
+  It ran from 00:16:21 to 00:18:56 UTC and completed successfully. The cluster remained healthy with
+  continuous archiving and last-backup conditions True.
+- After both backups completed, the approved commands suspended main's `paperless` Flux Kustomization,
+  set `paperless-library-r2.spec.paused: true`, and removed its recurring schedule. Read-only checks
+  confirmed those settings and no remaining library mover Job or Pod. The shared database and broker
+  remain running.
+- Main `k8s-gateway` and Pi-hole no longer answered Paperless. UniFi resolvers `192.168.4.1` and
+  `192.168.20.1` still returned the old ingress through the wildcard behavior described in gate 1.
+  Apollo's UniFi DNS controller reported records up to date; Mealie's actual route hostname resolved
+  to Apollo through both resolvers. Paperless's new explicit answer remains a post-merge gate.
+
 - [x] Operator confirmed Authentik verification and approved the two-PR preparation, LAN/Tailscale
   access, retained scanner SFTP, and the staged Paperless upgrade.
 - [ ] Both PRs reviewed and CI passed; PR links and merged revisions recorded.
 - [ ] Operator verified source repository suffix, copied credentials, and configured the scanner firewall path.
-- [ ] Producers paused; consume and jobs drained; old workloads stopped and names released.
-- [ ] Final source VolSync snapshot and shared CNPG backup verified and recorded; old library writer paused.
+- [x] Old workloads stopped and ingress/proxy resources removed; post-shutdown consume and broker checks empty.
+- [x] Final source VolSync snapshot and shared CNPG backup verified and recorded; old library writer paused.
 - [ ] Apollo library restored from the final snapshot; logical import and application migrations verified.
 - [ ] Source/destination data compared; LAN and Tailscale OIDC, scanner upload, OCR, and export verified.
 - [ ] First Apollo library snapshot and database backup recorded; WAL archiving healthy.
