@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, Paperless with scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED. Remaining household apps run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, Paperless with scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED. Old-cluster resources remain under `kubernetes/main` for rollback and Wave 2 cleanup. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED |
+| Status       | retained for rollback and Wave 2 cleanup       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -43,7 +43,7 @@ Home Assistant retains LAN and Tailscale access, its config and recorder history
 
 Node-RED preserves LAN and Tailscale access with a fresh flow store and independent backups.
 Its [service notes](./docs/node-red.md) cover credentials and Home Assistant integration; the
-[cutover record](./plans/20261003-node-red-migration.md) tracks verification.
+[completed cutover record](./plans/done/20261003-node-red-migration.md) preserves editor and backup verification.
 
 ## Hardware
 

@@ -30,8 +30,8 @@ writable temporary storage at `/tmp`.
 
 ## Home Assistant
 
-Cutover waits for verified Apollo Home Assistant. The empty runtime has no hard dependency on Home
-Assistant readiness, so it can still start for editing or repair during an HA outage. The operator installs
+The runtime has no hard dependency on Home Assistant readiness, so it can still start for editing or
+repair during an HA outage. The operator installs
 `node-red-contrib-home-assistant-websocket` through the palette and configures
 its server node with Home Assistant's base URL and an operator-created long-lived access token.
 Use standalone-server settings, leaving the Home Assistant add-on option disabled. Keep the token
@@ -41,4 +41,4 @@ See the [integration's server setup](https://github.com/zachowj/node-red-contrib
 
 Verify palette installation, Projects, a harmless deployed flow, persistence after an approved restart,
 and an actual Home Assistant event/action before treating the integration as complete. The
-[cutover record](../plans/20261003-node-red-migration.md) tracks migration and backup verification.
+[cutover record](../plans/done/20261003-node-red-migration.md) tracks migration and backup verification.
