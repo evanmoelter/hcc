@@ -44,13 +44,18 @@ Create these items in `hcc-apollo`; agents must not inspect or copy their values
 |---|---|---|
 | `teslamate` | `ENCRYPTION_KEY` | Exact original value, so imported Tesla tokens remain readable |
 | `teslamate-postgres` | `password` | New destination application password, also consumed by Grafana |
-| `teslamate-postgres-migration` | `password` | Source `teslamate` role password, used only for logical import |
+| `teslamate-postgres-migration` | `password` | Original `DATABASE_PASS` for the source `teslamate` role, used only for logical import |
 | `cloudflare-r2`, `cnpg-r2` | Existing fields | Existing Apollo backup account and bucket-scoped credentials |
 
-Confirm the old app uses `ENCRYPTION_KEY`; do not replace it with a newly generated value. If the old
-app has additional explicit settings hidden in its Secret, report their names and non-secret intent
-so those settings can be represented in Helm values before cutover. Source database ownership was
-verified as `teslamate`; verify that role can dump all objects over `192.168.6.21:5432`.
+Inspection of the encrypted files' key names confirmed TeslaMate has `ENCRYPTION_KEY`, `DATABASE_USER`,
+`DATABASE_PASS`, `DATABASE_NAME`, `DATABASE_HOST`, and legacy `INIT_POSTGRES_*` fields. Grafana has only
+`TESLAMATE_DB_USER` and `TESLAMATE_DB_PASSWORD`. No values were decrypted. Apollo defines its database
+host, name, and username in Helm values and supplies a new shared destination password through ESO.
+The legacy initialization/restore fields are not needed by Apollo's CNPG import.
+
+Copy `ENCRYPTION_KEY` unchanged. Source database ownership was verified as `teslamate`; the operator
+must confirm the encrypted `DATABASE_USER` is that role before copying `DATABASE_PASS`, and verify
+that role can dump all objects over `192.168.6.21:5432`.
 
 The database-secrets Kustomization must become Ready before CNPG starts import. The destination
 basic-auth Secret has literal username `teslamate`. Grafana's namespace receives the same password
