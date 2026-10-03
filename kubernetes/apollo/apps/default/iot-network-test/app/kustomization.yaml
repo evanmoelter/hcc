@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./job-hcc5.yaml
+  - ./job-hcc6.yaml
+  - ./job-hcc7.yaml
+configMapGenerator:
+  - name: iot-network-test
+    files:
+      - probe.py

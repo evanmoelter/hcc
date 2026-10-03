@@ -15,3 +15,4 @@ resources:
   - ./paperless/ks-consume-monitor.yaml
   - ./teslamate/ks.yaml
   - ./teslamate/ks-database.yaml
+  - ./iot-network-test/ks.yaml
