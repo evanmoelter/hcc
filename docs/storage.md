@@ -9,7 +9,7 @@ Storage consumers should depend on `longhorn-config`, which waits for the config
 - `longhorn` is the default StorageClass: three replicas on distinct nodes. `longhorn-two-replicas` is an
   explicit per-app tradeoff. Both classes delete the volume when its PVC is deleted.
 - New volumes require enough capacity for every requested replica. Existing volumes can serve with fewer
-  replicas during an outage. With three nodes, maintain one at a time and wait for healthy replicas before continuing.
+  replicas during an outage. Maintain one node at a time and wait for healthy replicas before continuing.
 - Offline replica rebuilding restores redundancy for detached volumes, including idle apps and completed Jobs.
   This permits background disk and network activity even when no workload is using the volume.
 - NVMe user volumes are mounted at `/var/mnt/longhorn`; hcc7 also contributes its SATA SSD at
@@ -65,13 +65,13 @@ Follow the [single-node recovery runbook](../plans/20261003-main-single-node-rec
 On Apollo, change managed disk settings through git; Flux reverts UI edits. Node resources have pruning disabled,
 so removing their files does not remove them from Longhorn. Disable scheduling and evacuate replicas before disk removal.
 
-hcc8's disk manifest is prepared but unregistered because Longhorn removes Node resources without a matching
-Kubernetes node. When a switch port becomes available:
+The disk manifests register hcc5–hcc8. For future nodes, Longhorn removes Node resources without a matching
+Kubernetes node, so bring the node online before registering its disk:
 
-1. Add hcc8 to [`topf.yaml`](../kubernetes/apollo/bootstrap/talos/topf.yaml) as a worker with its address from
-   [networking.md](networking.md) and actual interface MAC. Render with `task talos:render CLUSTER=apollo node=hcc8`,
+1. Add the node to [`topf.yaml`](../kubernetes/apollo/bootstrap/talos/topf.yaml) as a worker with its address from
+   [networking.md](networking.md) and actual interface MAC. Render with `task talos:render CLUSTER=apollo node=<host>`,
    then apply with operator approval.
-2. Verify the node's Longhorn user volume and kubelet mount, then register `./hcc8.yaml` in
+2. Verify the node's Longhorn user volume and kubelet mount, then register its disk manifest in
    [`config/kustomization.yaml`](../kubernetes/apollo/apps/storage/longhorn/config/kustomization.yaml).
 
 Access the UI with `kubectl --context apollo -n storage port-forward service/longhorn-frontend 8080:80`.

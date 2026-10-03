@@ -14,8 +14,9 @@ Keys use TPM PCR 7 and signed PCR 11 policy, with no password or KMS fallback. T
 requires rebuilding the node and restoring from replicas or backups. Replacing STATE also makes its
 bound volumes unreadable. Firmware and Secure Boot key/database changes can prevent TPM unlocking.
 
-All three nodes passed an unattended reboot with USB removed. All ten encrypted volumes, three etcd
-members, and four Longhorn disks were healthy afterward.
+The original three control-plane nodes passed an unattended reboot with USB removed. All ten encrypted
+volumes, three etcd members, and four Longhorn disks were healthy afterward. hcc8 also passed a USB-free
+reboot on 2026-10-03: Secure Boot remained enabled and its three TPM-encrypted volumes unlocked unattended.
 
 ## Reprovisioning
 

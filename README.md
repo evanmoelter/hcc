@@ -53,9 +53,9 @@ Its [service notes](./docs/node-red.md) cover credentials and Home Assistant int
 
 ## Hardware
 
-> Placeholder. Filled in as nodes are provisioned.
-
-
+Apollo runs on four NUC11s: hcc5–hcc7 are control-plane nodes and hcc8 is a worker.
+Each contributes NVMe storage to Longhorn; hcc7 also contributes a SATA SSD. See
+[networking](./docs/networking.md) for addresses and [storage](./docs/storage.md) for disk management.
 
 ## What runs here
 

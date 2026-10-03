@@ -5,5 +5,6 @@ resources:
   - ./hcc5.yaml
   - ./hcc6.yaml
   - ./hcc7.yaml
+  - ./hcc8.yaml
   - ./networkpolicy.yaml
   - ./storageclass.yaml

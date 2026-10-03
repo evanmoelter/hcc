@@ -2,7 +2,7 @@
 
 # Overview
 
-The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, starting with three new NUC11 control-plane nodes, adding hcc8 when a switch port is available, and adding the wiped hcc3 and hcc4 in Wave 2; the unsupported Odroid HC2 nodes hcc and hcc2 retire, while hcc-tablet1 has already left the live cluster. Apps are rebuilt and cut over one at a time from verified backups, while `kubernetes/main` and hcc3 remain available through the recovery window.
+The cluster moves from ansible-managed k3s to Talos on `kubernetes/apollo`, with three NUC11 control-plane nodes and hcc8 as a worker, adding the wiped hcc3 and hcc4 in Wave 2; the unsupported Odroid HC2 nodes hcc and hcc2 retire, while hcc-tablet1 has already left the live cluster. Apps are rebuilt and cut over one at a time from verified backups, while `kubernetes/main` and hcc3 remain available through the recovery window.
 
 # Functionality
 
@@ -35,7 +35,7 @@ The old cluster stays at `kubernetes/main`. Renaming a live Flux root adds risk 
 | hcc2 | removed from k3s; powered off with k3s disabled | retired; disks retained pending release | 2 |
 | hcc-tablet1 | removed from Kubernetes, etcd, Longhorn, and Ansible inventory | wipe disk before disposal or repurposing | n/a |
 | hcc5, hcc6, hcc7 | new NUC11s | Talos control-plane | 1 |
-| hcc8 | new NUC11; awaiting a switch port | Talos worker | when a port is available |
+| hcc8 | Apollo worker | Talos worker | 1 |
 | hcc3 | retained k3s controller; old HA's required node | wiped after recovery window; Talos worker | 2 |
 | hcc4 | removed from k3s; powered off with k3s disabled | wiped; Talos worker | 2 |
 
@@ -75,16 +75,34 @@ Talos storage requirements:
 - Give hcc7 a second user volume at `/var/mnt/longhorn-sata`.
 - Add kubelet mounts with `rshared` propagation and the `iscsi-tools` and `util-linux-tools` extensions.
 
-Keep `defaultReplicaCount: 3`. Apollo initially uses hcc5 through hcc7 because no switch port is available for hcc8.
-App migrations can proceed on these three nodes; a node outage temporarily leaves two replicas until it returns.
-Add hcc8 when a port becomes available to gain reboot slack. Two replicas remain available per app through a
-separate StorageClass when offsite restore is acceptable. Upgrade or reset one node at a time and wait for
-Longhorn rebuilds. [docs/storage.md](../docs/storage.md) records Longhorn configuration and hcc8 registration.
+Keep `defaultReplicaCount: 3`. Apollo started on hcc5 through hcc7; hcc8 joined on 2026-10-03 after a switch
+port became available. Its disk registration gives Longhorn another node for replica placement and rebuilds.
+Two replicas remain available per app through a separate StorageClass when offsite restore is acceptable.
+Upgrade or reset one node at a time and wait for Longhorn rebuilds.
+[docs/storage.md](../docs/storage.md) records Longhorn configuration and node registration.
 
-The planned four-node fleet provides about 790Gi after the EPHEMERAL cap, above the 265Gi reservation.
-Until hcc8 joins, verify actual schedulable capacity on the three control-plane nodes before each app migration.
+The four-node fleet provides about 790Gi after the EPHEMERAL cap, above the 265Gi reservation.
+Verify actual schedulable capacity before each app migration.
 A three-replica volume needs a sufficiently large eligible disk on each of three distinct nodes; hcc7's two
 disks do not combine into one replica's capacity. After the fleet expands, hcc8 need not hold every volume.
+
+### hcc8 bring-up record — 2026-10-03
+
+The operator made the switch port available. Read-only checks found hcc8 in maintenance mode at its
+reserved address with Secure Boot enabled, a 2.5 Gb/s link, and the expected 256 GB NVMe. Its detected
+interface MAC was added to `topf.yaml`; the worker render passed Talos validation.
+
+After operator approval, `task talos:apply CLUSTER=apollo node=hcc8` installed the existing Apollo image
+and joined Kubernetes. The operator removed the USB installer and approved a second reboot. hcc8 returned
+Ready with Secure Boot enabled and STATE, EPHEMERAL, and `u-longhorn` unlocked through TPM. EPHEMERAL is
+capped at 60 GiB; the Longhorn XFS partition is 189,325,639,680 bytes (about 176 GiB), mounted at
+`/var/mnt/longhorn` with shared propagation in kubelet's mount namespace. All nine system pods on hcc8 were
+Ready afterward, and all 11 attached Longhorn volumes remained healthy.
+
+Longhorn reported the node Ready with its package, kernel-module, and mount-propagation checks passing.
+Its disk list was empty before Git registration. The prepared disk manifest is now included in the
+Longhorn config build; Flux must reconcile it before this node contributes replica capacity. Apollo schema
+validation, all 948 policy checks, 20 policy unit tests, and all 142 Flux render checks passed.
 
 ## Cluster structure and tooling
 
