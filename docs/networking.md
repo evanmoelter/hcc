@@ -160,45 +160,26 @@ may host IoT consumers. Add that capability label through each verified node's T
 local IPv6, Thread routing, and multicast must be verified separately before migrating Matter Server.
 Cilium policy on the primary interface does not establish isolation for the direct IoT attachment.
 
-### Concurrent IPv4 verification
+### IPv4 verification
 
-The temporary `iot-network-test` Flux Kustomization runs one finite Job on each current Apollo node.
-The operator confirmed these addresses are unused and outside the DHCP pool:
+On 2026-10-03, concurrent disposable probes passed all eight checks on hcc5, hcc6, and hcc7 through the
+shared `kube-system/iot` attachment: IPv4 address/prefix, primary default route, IoT gateway route and
+ICMP, Lutron TCP 8081 and mDNS at `192.168.4.35`, cluster DNS/API TCP, and outbound DNS/TLS.
+[The execution record](../plans/20261003-iot-verification.md) preserves the checks and results.
 
-| Node | Test address |
-|---|---|
-| hcc5 | `192.168.6.105/22` |
-| hcc6 | `192.168.6.106/22` |
-| hcc7 | `192.168.6.107/22` |
-
-Each pod uses the same `kube-system/iot` attachment as HA, binds discovery and the Lutron TCP probe to
-its `net1` address, and targets the operator-confirmed bridge at `192.168.4.35`. The probe checks IPv4
-addressing, IoT and default routes, gateway ICMP, Lutron TCP 8081, Lutron/HomeKit mDNS responses resolving
-to that bridge, cluster DNS/API TCP access, and outbound DNS/TLS. It uses the pinned HA image to exercise
-its installed network tools and Zeroconf library, with no HA data or credentials mounted. The pod-local
-`net.ipv4.ping_group_range` permits only GID 568 to open unprivileged ICMP sockets; ping binds its source
-address after the route check verifies `net1`. All capabilities remain dropped. This satisfies Apollo's
-baseline Pod Security policy, which rejects `NET_RAW`.
-
-Jobs retain their logs and completion state without a TTL or automatic retries. Failed checks prevent
-Flux readiness. Read each Job's final result; pod startup alone is not verification. Changes to the probe
-ConfigMap require new Job names because Job pod templates are immutable. Remove the test Kustomization
-and its registration through git after recording results; keep the test addresses reserved until all test
-pods have terminated. [The verification record](../plans/20261003-iot-verification.md) has commands and gates.
-
-This verifies only IPv4/mDNS. The operator deferred Matter/Thread until an Apple TV is available.
-Passing nodes may receive `network.home.arpa/iot-ipv4: "true"` through a separately approved Talos change;
-the test cannot assign labels. `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
-The future HA address `192.168.6.100` is not claimed by these tests; address-specific rules and actual
-HA/Lutron authentication and device control remain cutover checks.
+These nodes qualify for `network.home.arpa/iot-ipv4: "true"`, managed through node-specific Talos
+configuration. Verify the labels live before the HA outage. Matter/Thread remains deferred until an
+Apple TV is available; `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
+The future HA address `192.168.6.100`, address-specific rules, HA/Lutron authentication, and actual
+device control remain separate cutover checks.
 
 ### Deployment verification
 
 Installation and IoT path verification are separate gates. On 2026-09-17, the operator confirmed all three
 candidate nodes use the UniFi profile with HCC (6) native and Home Automation (2) tagged and applied the Talos
 configuration. Read-only checks confirmed `bond0.2` up with VLAN ID 2 on hcc5, hcc6, and hcc7, all three nodes
-Ready, healthy etcd and kubelet services, and all Longhorn disks Ready and Schedulable. Live Multus installation
-and per-node IoT traffic verification remain pending.
+Ready, healthy etcd and kubelet services, and all Longhorn disks Ready and Schedulable. Multus installation
+and per-node IPv4 verification subsequently passed on 2026-10-03; IPv6/Thread verification remains pending.
 
 1. Confirm each candidate node's UniFi port carries VLAN 6 untagged and VLAN 2 tagged. With operator
    approval, apply the committed Talos configuration one node at a time using
