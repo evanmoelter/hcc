@@ -36,7 +36,7 @@ The old cluster stays at `kubernetes/main`. Renaming a live Flux root adds risk 
 | hcc-tablet1 | removed from Kubernetes, etcd, Longhorn, and Ansible inventory | wipe disk before disposal or repurposing | n/a |
 | hcc5, hcc6, hcc7 | new NUC11s | Talos control-plane | 1 |
 | hcc8 | new NUC11; awaiting a switch port | Talos worker | when a port is available |
-| hcc3 | retained k3s controller; old HA's required node | wiped after rollback window; Talos worker | 2 |
+| hcc3 | retained k3s controller; old HA's required node | wiped after recovery window; Talos worker | 2 |
 | hcc4 | removed from k3s; powered off with k3s disabled | wiped; Talos worker | 2 |
 
 ```mermaid
@@ -590,7 +590,7 @@ Wave 2:
 
 # Rollback
 
-Rollback remains available through the agreed retention window because the old manifests, PVCs, and databases stay intact.
+Rollback remains available through the agreed recovery window because the old manifests, PVCs, and databases stay intact.
 
 For one app, first remove its Apollo route so the name is released, then revert the old disable commit. Restore the old database service reference for authentik, Paperless, or TeslaMate and delete the partial new per-app cluster. For Mealie or Home Assistant, delete the partial recovered cluster; the old per-app database was never modified. Any writes made on Apollo after cutover are lost, so verify each migration promptly.
 

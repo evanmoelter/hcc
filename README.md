@@ -8,11 +8,11 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 ## Migration status
 
 
-|              | `kubernetes/main`              | `kubernetes/apollo` |
-| ------------ | ------------------------------ | ------------------- |
-| Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | preparing single-node recovery on hcc3       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED |
-| Fate         | deleted in Wave 2              | the cluster         |
+|              | `kubernetes/main`                     | `kubernetes/apollo` |
+| ------------ | ------------------------------------- | ------------------- |
+| Distribution | k3s on Debian, ansible-managed         | Talos               |
+| Status       | preparing single-node recovery on hcc3 | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, Home Assistant, and Node-RED |
+| Fate         | deleted in Wave 2                      | the cluster         |
 
 
 Apps cut over one at a time from verified backups. `kubernetes/main` stays intact through the recovery window. [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) holds the full design: node topology, storage, networking, and per-app data migration.

@@ -65,7 +65,7 @@ maintenance instead of broadly resuming the app Kustomization.
 
 Confirm household clients and infrastructure no longer depend on the old Pi-hole, DNS, or other main
 services before the eventual shutdown. Retain the old network addresses and recovery credentials until
-the retention window ends. Verify access directly to hcc3's API at `192.168.4.13:6443` and through the
+the recovery window ends. Verify access directly to hcc3's API at `192.168.4.13:6443` and through the
 main VIP at `192.168.6.5:6443`; use `--context main` for all Kubernetes commands.
 
 Take a named `k3s etcd-snapshot save` on hcc3. The operator preserves an off-node copy and the matching
@@ -88,7 +88,12 @@ kubectl --context main -n storage patch nodes.longhorn.io hcc2 --type=merge \
   -p '{"spec":{"evictionRequested":true}}'
 ```
 
-With both source nodes marked for eviction, reduce `spec.numberOfReplicas` to one on each audited
+**Gate before reducing replicas:** Wait until every remaining replica on hcc or hcc2 has
+`spec.evictionRequested: true`. Confirm the existing healthy copies on hcc3 remain healthy and no hcc3
+replica is marked for eviction. The [node controller propagates eviction requests asynchronously](https://github.com/longhorn/longhorn-manager/blob/v1.6.4/controller/node_controller.go#L1497);
+marking the nodes alone does not establish that replica cleanup will prioritize eviction over data locality.
+
+Once this gate passes, reduce `spec.numberOfReplicas` to one on each audited
 Longhorn Volume. These are controller-created runtime objects, not manifests reconciled from git.
 Apply the change to the reviewed volume names, not an uninspected cluster-wide list:
 
