@@ -21,9 +21,9 @@ and disposable cache and temporary directories.
 ## IoT access and deferred Matter
 
 HA retains the Multus `net1` attachment at `192.168.6.100/22` for existing integrations such as Lutron
-Caséta. It requires `network.home.arpa/iot-ipv4: "true"` and prefers hcc6. Grant that label through Talos
-configuration only after IPv4 connectivity and mDNS are verified on the node. Test hcc6 and at least one
-alternative before cutover. The separate `network.home.arpa/iot` label remains reserved for the future
+Caséta. It can schedule on any node labeled `network.home.arpa/iot-ipv4: "true"`, with no hostname
+restriction or preference. hcc5, hcc6, and hcc7 have the required Multus setup and passed IPv4/mDNS probes.
+Grant the label through Talos configuration when additional nodes have the same verified network setup. The separate `network.home.arpa/iot` label remains reserved for the future
 IPv6/Thread verification gate. Neither label is assigned merely because Multus is installed.
 
 Matter Server is omitted at the operator's request until a Thread-capable Apple TV is available.
@@ -40,5 +40,5 @@ pairings and device control. An optional future OTBR remains a separate workload
 Recreate prevents overlap during updates; it does not fence a failed node. Confirm the old instance has
 stopped or fence its node before starting a replacement with the same static IoT address.
 
-[The migration record](../plans/20261003-home-assistant-migration.md) tracks preparation, operator
-prerequisites, verified cutover, and remaining backup/cleanup and rescheduling checks.
+[The migration record](../plans/done/20261003-home-assistant-migration.md) tracks preparation, operator
+prerequisites, verified cutover and backups, cleanup, and the operator's decision to omit a forced-node test.

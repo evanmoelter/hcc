@@ -102,7 +102,7 @@ The old Matter controller reported zero paired nodes. IPv4/mDNS access remains r
 integrations, with `network.home.arpa/iot-ipv4: "true"` granted only after per-node verification.
 The `network.home.arpa/iot` label and IPv6/Thread checks below remain a separate gate for adding Matter.
 [Home Assistant](home-assistant.md) records the current scope; its
-[migration record](../plans/20261003-home-assistant-migration.md) tracks cutover verification.
+[migration record](../plans/done/20261003-home-assistant-migration.md) tracks cutover verification.
 
 Home Assistant and its Matter Server need local IPv6 connectivity and multicast discovery on the IoT network.
 The chosen Apollo design keeps their pod on VLAN 2 through a Multus macvlan attachment while its primary
@@ -111,12 +111,12 @@ the pod's path from the cluster network to VLAN 2. An mDNS reflector alone would
 [Home Assistant's Matter guidance](https://www.home-assistant.io/integrations/matter/#general-recommendations)
 recommends keeping the server and Thread border routers on the same LAN; IPv6 internet access is not required.
 
-The Apollo scheduling design requires a verified IoT attachment and prefers hcc6; USB hardware is optional.
-hcc5 and hcc7 are the initial additional candidates, with workers eligible after the same network verification.
+Apollo scheduling requires a verified IoT attachment and has no hostname preference. hcc5, hcc6, and hcc7
+are eligible; workers can join after the same network setup and verification. USB hardware is optional.
 Each eligible node needs VLAN 6 untagged and VLAN 2 tagged on its switch port, a Talos `bond0.2` link, and the
 Multus CNI prerequisites. The shared NetworkAttachmentDefinition uses `bond0.2` as its macvlan parent, so
 physical NIC names can differ between nodes. Only verified nodes receive the IoT capability label used by
-HA's required node affinity; hcc6 uses preferred affinity. Node-specific Talos VLAN patches cover hcc5,
+HA's required node affinity; no node-specific hardware is required. Node-specific Talos VLAN patches cover hcc5,
 hcc6, and hcc7. Applying those patches and verifying the switch trunks are deployment prerequisites;
 no node is marked eligible merely because its patch exists.
 

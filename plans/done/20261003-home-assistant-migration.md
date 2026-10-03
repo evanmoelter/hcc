@@ -23,7 +23,7 @@ maintenance window until all gates below pass.
 
 - [x] Review and pass CI on both PRs before disabling HA.
 - [x] Verify IPv4/mDNS and Lutron connectivity on hcc5, hcc6, and hcc7. All eight concurrent probe checks
-  passed using distinct test addresses; the [completed record](done/20261003-iot-verification.md) preserves
+  passed using distinct test addresses; the [completed record](20261003-iot-verification.md) preserves
   evidence. The HA-specific `192.168.6.100/22` binding remains a cutover check.
 - [x] Remove the probes and apply `network.home.arpa/iot-ipv4: "true"` through approved Talos configuration.
   All three nodes are Ready and labeled; the full IoT/Thread label remains absent.
@@ -94,8 +94,8 @@ maintenance window until all gates below pass.
    proxy-trust, and discovery errors without publishing credentials or device details. If a restored Matter integration remains configured, disable
    that integration in HA with operator approval; do not rewrite `.storage` files by hand.
 6. After data verification, enable Apollo config backups through git and verify a nonempty restic snapshot.
-   Verify a completed Apollo CNPG backup and WAL archiving. Schedule an approved move from hcc6 to a
-   verified alternative and confirm IPv4 address, config, and device control survive.
+   Verify a completed Apollo CNPG backup and WAL archiving. A forced move between nodes was originally
+   planned; the operator declined that test after cutover (see scheduling decision below).
 
 ## Cleanup and rollback
 
@@ -174,29 +174,21 @@ passed during preparation. Rendered Services and routes were inspected for backe
   their successful first snapshot and next scheduled run. The bound config PVC and rollback data remain intact.
 - After pruning, the operator confirmed retirement of the migration-only `home-assistant-migration` and
   `home-assistant-pg-migration` 1Password items and exclusively scoped R2 keys on 2026-10-03. Application,
-  Apollo backup, and old-cluster rollback credentials are retained. Rescheduling still requires explicit
-  operator approval. The old HA reconciliation suspension and writer pause remain in place for rollback.
+  Apollo backup, and old-cluster rollback credentials are retained. The old HA reconciliation suspension
+  and writer pause remain in place for rollback.
 
-## Rescheduling verification
+## Scheduling decision
 
-The temporary required hostname affinity targets hcc5, which passed the IPv4 probes and has the verified
-IoT label. Merge this change only when the operator is ready for a brief HA/editor outage. The existing
-single-replica Recreate strategy stops the hcc6 pod before starting its replacement; no pod deletion,
-node cordon, or live manifest patch is needed. Allow time for Longhorn to detach and reattach the config
-volume. The recorder database remains in place.
+On 2026-10-03, the operator declined the proposed forced-node rescheduling test and selected normal
+scheduling on any node with the required Multus setup. The existing IPv4 eligibility label covers hcc5,
+hcc6, and hcc7. No hostname restriction or preference is needed because HA has no node-specific hardware.
+The hcc5 test constraint was never deployed. Removing the original hcc6 preference changes the pod
+template and causes a normal Recreate rollout; verify that rollout without forcing a particular node.
 
-After the merge:
-
-1. Verify the old pod terminated and the new HA/editor pod is Ready on hcc5 with the same bound config PVC
-   and `192.168.6.100/22`. Inspect address/routes, Lutron TCP/mDNS, LAN/Tailscale HTTPS, and new recorder writes.
-2. Ask the operator to confirm configuration/history, login, and actual Lutron device control survived.
-3. Remove only the temporary required hostname expression through a follow-up PR, retaining required IPv4
-   eligibility and the normal hcc6 preference. This pod-template update causes another Recreate rollout;
-   verify its final node and the same checks after that merge before closing the test.
-
-If the move fails, revert the temporary hostname expression through git and verify recovery on an eligible
-node. Do not force-delete a stuck pod or its volume attachment; confirm the previous instance has stopped
-before any replacement may claim the shared IoT address. Any additional live intervention needs approval.
+Migration restore, functional checks, Apollo backups, restore cleanup, and credential retirement are
+complete. A cross-node HA functional test was not performed and is not a completion gate per the operator.
+Matter/Thread remains deferred until the Apple TV is available. Keep old-cluster rollback resources until
+Wave 2; confirm the previous instance is stopped before any replacement claims the shared IoT address.
 
 ## Reference patterns
 
