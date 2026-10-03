@@ -12,6 +12,12 @@ uploads; it has no backup. Dragonfly's in-memory replicas hold pending jobs, not
 Drain uploads and queued work before moving either staging storage or the broker. The
 [cutover record](../plans/20260930-paperless-migration.md) owns migration and backup activation gates.
 
+The bound library PVC retains its original `dataSourceRef` after the temporary restore resources are
+removed. Preserve that immutable field and the existing PVC/PV identity. A future library recovery
+needs a new restore lifecycle using Apollo's repository, following the
+[VolSync recovery procedure](../kubernetes/apollo/components/volsync/README.md). PostgreSQL's shared
+component supplies recovery from Paperless's own Apollo archive; it no longer imports from `main`.
+
 Paperless runs as UID/GID 1000, matching the upstream image and restored files. The upstream
 [user-mapping initialization](https://github.com/paperless-ngx/paperless-ngx/blob/v2.20.15/docker/rootfs/etc/s6-overlay/s6-rc.d/init-modify-user/run)
 requires privileges to change that identity. The container otherwise runs with a read-only root filesystem,
