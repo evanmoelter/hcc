@@ -1,7 +1,7 @@
 # Node-RED migration
 
-Preparation and execution record for the final household app in the
-[Talos migration](20260816-talos-migration.md). Home Assistant migration is handled separately.
+Completed fresh-deployment cutover record for the final household app in the
+[Talos migration](../20260816-talos-migration.md). Home Assistant migration is handled separately.
 
 ## Decisions and stack
 
@@ -58,7 +58,7 @@ changes, stop and revise the migration method before disabling it.
 2. Merge only the disable PR. Wait for Flux, zero Node-RED pods, removal of both old Ingresses, and release
    of its tailnet name. Main's k8s-gateway must no longer advertise an app-specific record. Check the
    actual client resolver as well as UniFi; its wildcard fallback may remain during the outage, as
-   documented in the [Paperless cutover](done/20260930-paperless-migration.md).
+   documented in the [Paperless cutover](20260930-paperless-migration.md).
 3. With explicit approval, trigger and verify a final old VolSync backup for rollback, then pause the
    old `node-red-data-r2` ReplicationSource. If the empty source produces no snapshot, record that result
    and obtain the operator's acceptance before proceeding. Apollo does not restore from this backup.
@@ -73,7 +73,7 @@ changes, stop and revise the migration method before disabling it.
    test flow. Verify palette installation, Projects initialization, and any intended Git/SSH workflow.
    After an operator-approved restart, confirm flows and saved credentials remain usable. Do not count
    HTTP readiness as application or integration verification.
-7. Configure and verify the Home Assistant integration as described in [Node-RED operations](../docs/node-red.md).
+7. Configure and verify the Home Assistant integration as described in [Node-RED operations](../../docs/node-red.md).
    Confirm an event arrives and a harmless action works against Apollo Home Assistant.
 8. Wait for the first scheduled Apollo backup or obtain approval for an on-demand sync. Confirm an actual
    restic snapshot exists, including initialized `/data` contents. A successful empty-directory sync
@@ -103,8 +103,8 @@ Resume the suspended `node-red-backup` Flux Kustomization and explicitly clear t
 pause when rolling back; do not assume Flux clears the runtime pause.
 
 Keep the old app directory, PVC, secrets, and backups until Wave 2. There is no temporary restore machinery
-to remove on Apollo. Once application checks and backups pass, update the parent migration's status and
-archive this complete record under `plans/done/`, fixing its links. This PR does not claim cutover completion.
+to remove on Apollo. The fresh runtime cutover and first backup are verified below. This complete record
+is archived under `plans/done/`; future flow/integration checks remain explicitly unverified.
 
 ## Research
 
@@ -130,16 +130,18 @@ Upstream references: [5.0 release requirements](https://github.com/node-red/node
   credential field name was inspected. No credential values were read or copied.
 - The upstream image digest and entrypoint were verified. No local Docker daemon is available, so image
   filesystem compatibility and palette/Projects behavior remain deployment checks.
-- [ ] Operator confirms the Apollo vault item and unused backup path.
+- [x] Operator confirms the Apollo vault item and unused backup path.
 - Local validation passed: both cluster schema checks, 20 Conftest policy tests and 903 resource checks,
   all 135 Apollo render checks, settings syntax and required-key behavior, and targeted old-chart
   rendering with zero replicas and no Ingresses. Flate required an identical standalone validation copy
   because its linked-worktree source discovery fails; no manifest workaround was introduced.
 - Independent review found no actionable defects. Runtime and cutover verification remain pending.
-- [ ] Home Assistant verified; stack refreshed and both PRs pass CI/review.
+- [x] Home Assistant verified; stack refreshed and both PRs pass CI/review.
 - [x] Main disabled, final rollback backup handled, old writer paused, and names released.
-- [ ] Apollo deployed; access, flows, credentials, Projects, and Home Assistant integration verified.
-- [ ] First actual Apollo snapshot verified; complete record archived.
+- [x] Apollo deployed; LAN/Tailscale HTTPS and operator editor verification complete.
+- [ ] Flow/credential persistence, palette installation, Projects/Git/SSH, and Home Assistant event/action checks
+  remain unperformed. These concern future configuration of the fresh instance, not recovered data.
+- [x] First actual Apollo snapshot verified; complete record archived.
 
 ### Review refresh, 2026-10-03
 
@@ -168,3 +170,25 @@ Upstream references: [5.0 release requirements](https://github.com/node-red/node
 - After backup verification, the approved `node-red-backup` Flux Kustomization suspension and
   `node-red-data-r2` ReplicationSource pause were applied and confirmed. No backup mover/pruner remains
   active. Keep both paused through cutover unless rollback is explicitly authorized.
+
+### Apollo verification and cleanup, 2026-10-03 UTC
+
+- Operator confirmed the Apollo vault item and unused destination backup path, then merged #330 as
+  `0fef57789f1ecae58979dd97477e6d231c911845` at `2026-10-03T15:58:19Z`.
+- All four Node-RED Kustomizations became Ready at that revision. The new 2 GiB PVC is Bound;
+  application and backup ExternalSecrets report SecretSynced. The pod runs Node-RED 5.0.7 on Node.js
+  24.20.0 with zero restarts, the committed settings file, persistent `/data`, and Projects enabled.
+  Startup reported no filesystem or application errors. Warnings about no active project and no saved
+  encrypted credentials are expected for this fresh instance.
+- The internal HTTPRoute reports Accepted and ResolvedRefs. Both UniFi resolvers and the workstation
+  resolve the app to `192.168.21.100`. LAN and Tailscale HTTPS return the Node-RED editor with valid TLS;
+  both login-discovery endpoints confirm the selected no-login behavior. The operator verified the editor.
+- The first automatic Apollo sync completed at `2026-10-03T16:02:21Z` with result Successful and snapshot
+  `bf07dfb1`, processing four files totaling 14.515 KiB. No manual trigger was set or run. Scheduled
+  backups remain enabled; this snapshot proves the new repository works but contains only initial state.
+- No restore preflight, ReplicationDestination, temporary restore PVC, or migration-only credentials were
+  introduced, so there are no Apollo restore resources or temporary access credentials to retire.
+- Main remains disabled with zero replicas. Its backup Kustomization remains suspended and its writer
+  paused. Keep the old PVC, manifests, secrets, and final snapshot for rollback through Wave 2.
+- Cleanup is documentation-only. Flow creation, Home Assistant setup, palette/Projects behavior, and
+  persistence across a restart were not verified by this cutover and remain future application checks.
