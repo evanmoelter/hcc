@@ -162,19 +162,41 @@ passed during preparation. Rendered Services and routes were inspected for backe
   15 failures during recovery ended at `2026-10-03T15:16:20Z`, followed by successful archiving and the
   completed backup. The failure count remained unchanged on follow-up.
 - The operator confirmed LAN/Tailscale login, existing integrations and automations, recorder history,
-  Lutron device control, and editor access on 2026-10-03. Config backup enablement is now prepared in git.
+  Lutron device control, and editor access on 2026-10-03. Apollo config backups are enabled and verified below.
 - PR #339 enabled Apollo config backups. The first sync completed at `2026-10-03T15:32:39Z` with mover
   result `Successful`: snapshot `2c55cfc2`, 3,567 files, and 50.362 MiB. The next scheduled sync is
   `2026-10-04T02:00:00Z`; no manual trigger was needed. The initial snapshot clone completed before
   attachment and the backup pod then ran successfully.
-- Cleanup removes the completed restore preflight, ReplicationDestination and capacity replacement,
-  temporary source ExternalSecrets/ObjectStore, and old-archive database patch. It preserves the bound
-  PVC's immutable dataSourceRef, claim/database protection, PostgreSQL tuning, runtime settings, and
-  recurring Apollo backups. Verify pruning and app health after its merge.
+- PR #340 merged as `532826d465bade3e6f9a38098e72367319bb391d`. Read-only checks verified the restore
+  preflight, ReplicationDestination, temporary restore PVC, and source ExternalSecrets/ObjectStore are gone.
+  The database now references Apollo's own archive for recovery. All five remaining HA Kustomizations are
+  Ready; HA serves HTTPS 200, PostgreSQL is healthy with successful archiving, and config backups retain
+  their successful first snapshot and next scheduled run. The bound config PVC and rollback data remain intact.
 - The operator must retire the migration-only `home-assistant-migration` and `home-assistant-pg-migration`
   1Password items and their scoped R2 keys after pruning. Keep application/backup credentials and old
   rollback resources. Rescheduling still requires explicit operator approval. Retain the old HA
   reconciliation suspension and writer pause for rollback.
+
+## Rescheduling verification
+
+The temporary required hostname affinity targets hcc5, which passed the IPv4 probes and has the verified
+IoT label. Merge this change only when the operator is ready for a brief HA/editor outage. The existing
+single-replica Recreate strategy stops the hcc6 pod before starting its replacement; no pod deletion,
+node cordon, or live manifest patch is needed. Allow time for Longhorn to detach and reattach the config
+volume. The recorder database remains in place.
+
+After the merge:
+
+1. Verify the old pod terminated and the new HA/editor pod is Ready on hcc5 with the same bound config PVC
+   and `192.168.6.100/22`. Inspect address/routes, Lutron TCP/mDNS, LAN/Tailscale HTTPS, and new recorder writes.
+2. Ask the operator to confirm configuration/history, login, and actual Lutron device control survived.
+3. Remove only the temporary required hostname expression through a follow-up PR, retaining required IPv4
+   eligibility and the normal hcc6 preference. This pod-template update causes another Recreate rollout;
+   verify its final node and the same checks after that merge before closing the test.
+
+If the move fails, revert the temporary hostname expression through git and verify recovery on an eligible
+node. Do not force-delete a stuck pod or its volume attachment; confirm the previous instance has stopped
+before any replacement may claim the shared IoT address. Any additional live intervention needs approval.
 
 ## Reference patterns
 

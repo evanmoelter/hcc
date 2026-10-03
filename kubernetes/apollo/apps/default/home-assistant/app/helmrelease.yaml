@@ -50,6 +50,10 @@ spec:
                         operator: In
                         values:
                           - "true"
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - hcc5
               preferredDuringSchedulingIgnoredDuringExecution:
                 - weight: 100
                   preference:
