@@ -4,6 +4,8 @@ kind: Kustomization
 resources:
   - ./namespace.yaml
   - ./gatus/ks.yaml
+  - ./grafana/ks.yaml
+  - ./grafana/ks-tailscale.yaml
   - ./kube-ops-view/ks.yaml
   - ./kube-ops-view/ks-tailscale.yaml
   - ./kube-prometheus-stack/ks.yaml

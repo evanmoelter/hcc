@@ -383,7 +383,10 @@ CNPG `bootstrap.initdb.import` with the microservice `pg_dump` method. Connect t
 internal DNS name, and stop the source app first. Physical Barman recovery cannot select one database
 from a shared instance. See `plans/11-cnpg-database-split.md` for the full database comparison.
 
-Logical import permits a PostgreSQL major-version change, but check each app's supported range immediately before cutover. Upgrade the old app first if required, and verify TeslaMate's `cube` and `earthdistance` extensions. A lagging app may remain on PostgreSQL 16. Update Grafana's TeslaMate datasource to `teslamate-pg` at the same time.
+Logical import permits a PostgreSQL major-version change, but check each app's supported range immediately
+before cutover. Upgrade the old app first if required, except for the operator-selected TeslaMate sequence
+below. Verify TeslaMate's `cube` and `earthdistance` extensions. A lagging app may remain on PostgreSQL 16.
+Update Grafana's TeslaMate datasource to `teslamate-pg` at the same time.
 
 ### App review and order
 
@@ -423,7 +426,10 @@ Migrate in this order:
 3. Paperless, after VolSync and Barman recovery have been exercised. The
    [cutover record](done/20260930-paperless-migration.md) records migration on 2.20.15, with LAN/Tailscale
    access and scanner SFTP; the separate 3.x upgrade follows verified migration.
-4. TeslaMate and Grafana together.
+4. TeslaMate and Grafana together. The [cutover record](20261002-teslamate-migration.md) prepares
+   historical-data migration on TeslaMate 1.33.0 into an updated PostgreSQL 16 cluster. The operator
+   selected migration before repair of its existing Owner API failure; a separate Apollo upgrade
+   follows verified historical data and backups. Grafana retains LAN/Tailscale anonymous access.
 5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
 
