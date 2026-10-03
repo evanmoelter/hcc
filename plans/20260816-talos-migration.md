@@ -421,7 +421,7 @@ Migrate in this order:
    import into PostgreSQL 18, and preserve WebFinger. The
    [cutover record](done/20260919-authentik-migration.md) records the two-PR stack and verification gates.
 3. Paperless, after VolSync and Barman recovery have been exercised. The
-   [cutover record](20260930-paperless-migration.md) prepares migration on 2.20.15, with LAN/Tailscale
+   [cutover record](done/20260930-paperless-migration.md) records migration on 2.20.15, with LAN/Tailscale
    access and scanner SFTP; the separate 3.x upgrade follows verified migration.
 4. TeslaMate and Grafana together.
 5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.

@@ -1,9 +1,11 @@
 # Paperless migration
 
 Preparation and cutover record for Paperless and scanner SFTP, following Authentik in the
-[Talos migration](20260816-talos-migration.md). The operator confirmed Authentik's data, login,
+[Talos migration](../20260816-talos-migration.md). The operator confirmed Authentik's data, login,
 Mealie OIDC, WebFinger/Tailscale, SMTP, and proxy-header checks passed on 2026-09-30.
-Paperless cutover and application-data verification remain outstanding.
+Paperless is running on Apollo; the operator confirmed data access and a successful scanned document.
+Archived with the cleanup PR at the operator's request. Unchecked items retain outstanding backup,
+cleanup, credential-retirement, or verification work; archival does not mark them complete.
 
 ## Decisions and prepared stack
 
@@ -32,7 +34,7 @@ approval. Read-only checks below do not perform a cutover.
 
 ## Before the maintenance window
 
-Both PRs must pass review and the applicable [repository validation](../AGENTS.md#validating-changes).
+Both PRs must pass review and the applicable [repository validation](../../AGENTS.md#validating-changes).
 Inspect the old-cluster rendered diff to ensure the disable retains data and the shared database and
 Dragonfly services. Keep the source app release available for rollback.
 
@@ -80,7 +82,7 @@ Longhorn needs it while cloning the snapshot. Recent successful source backups a
 observed during preparation do not replace the final cutover checks.
 
 Verify the temporary Apollo-to-`192.168.6.21:5432` firewall path in
-[networking.md](../docs/networking.md). Import uses TLS with `sslmode: require`; it does not verify the
+[networking.md](../../docs/networking.md). Import uses TLS with `sslmode: require`; it does not verify the
 IP endpoint's certificate identity. The destination app uses CNPG-generated credentials and verifies
 the Apollo database service certificate. Confirm the source role can read all Paperless objects and
 take a logical dump; do not substitute a superuser password merely to bypass an unexplained failure.
@@ -228,7 +230,8 @@ After data, login, scanner ingestion, and both Apollo backups pass, prepare a cl
   items. Keep the original restic password and source database password available for rollback.
 
 Retain `postgres-lb` and its temporary firewall path for TeslaMate's later import. Keep old Paperless
-manifests and data until Wave 2. Archive this complete plan under `plans/done/` once cleanup is verified.
+manifests and data until Wave 2. This complete plan is archived under `plans/done/` in the cleanup
+PR at the operator's request, with pending verification preserved below.
 
 The operator requested one PR for backup enablement and cleanup: [PR #321](https://github.com/evanmoelter/hcc/pull/321)
 removes the backup suspension as well as temporary migration resources. **Do not merge until the
@@ -240,8 +243,8 @@ restore the suspension before merge; the PR makes backup enablement permanent. T
 one-time exception to enabling backups through git, not authorization to perform it.
 
 The PR removes no source-cluster resources and does not revoke credentials. After merge, verify
-pruning and permanent resource identities before retiring the two migration items and archiving
-this record.
+pruning and permanent resource identities before retiring the two migration items. The archived
+record preserves those outstanding checks.
 
 ## Rollback
 
@@ -352,4 +355,6 @@ storage and database components take precedence over their cluster-specific conv
 - [ ] Source/destination data compared; LAN and Tailscale OIDC, scanner upload, OCR, and export verified.
 - [ ] First Apollo library snapshot and database backup recorded; WAL archiving healthy.
 - [ ] Temporary restore/import resources removed; permanent identities and replicas verified.
-- [ ] Migration credentials revoked or archived; plan moved to `plans/done/`.
+- [ ] Migration credentials revoked or archived.
+- [x] Full plan and execution record moved to `plans/done/` in PR #321 at the operator's request;
+  outstanding checks above remain explicit.

@@ -10,7 +10,7 @@ The library holds application data, media, and exports. Its VolSync repository a
 are separate from the old cluster's backups. The shared consume claim is a staging directory for scanner
 uploads; it has no backup. Dragonfly's in-memory replicas hold pending jobs, not durable document state.
 Drain uploads and queued work before moving either staging storage or the broker. The
-[cutover record](../plans/20260930-paperless-migration.md) owns migration and backup activation gates.
+[cutover record](../plans/done/20260930-paperless-migration.md) owns migration and backup activation gates.
 
 The bound library PVC retains its original `dataSourceRef` after the temporary restore resources are
 removed. Preserve that immutable field and the existing PVC/PV identity. A future library recovery
