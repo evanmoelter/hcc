@@ -39,7 +39,7 @@ repairing the pre-existing vehicle-recording outage on Apollo.
 
 Home Assistant retains LAN and Tailscale access, its config and recorder history, and IPv4 IoT discovery.
 [Service notes](./docs/home-assistant.md) describe scheduling and deferred Matter/Thread; the
-[cutover record](./plans/20261003-home-assistant-migration.md) tracks recovery and verification.
+[cutover record](./plans/done/20261003-home-assistant-migration.md) tracks recovery and verification.
 
 ## Hardware
 

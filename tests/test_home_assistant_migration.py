@@ -138,9 +138,11 @@ class HomeAssistantMigrationTest(unittest.TestCase):
         for term in affinity["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]:
             self.assertIn({"key": "network.home.arpa/iot-ipv4", "operator": "In", "values": ["true"]},
                           term["matchExpressions"])
-        preferences = affinity["preferredDuringSchedulingIgnoredDuringExecution"]
-        self.assertTrue(any({"key": "kubernetes.io/hostname", "operator": "In", "values": ["hcc6"]}
-                            in item["preference"]["matchExpressions"] for item in preferences))
+        self.assertNotIn("preferredDuringSchedulingIgnoredDuringExecution", affinity)
+        for term in affinity["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]:
+            self.assertEqual(term["matchExpressions"], [
+                {"key": "network.home.arpa/iot-ipv4", "operator": "In", "values": ["true"]},
+            ])
         self.assertNotIn("nodeSelector", controller["pod"])
 
     def test_private_routes_and_lifecycle_dependency_order(self):

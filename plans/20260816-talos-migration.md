@@ -390,7 +390,7 @@ a shared instance. See `plans/11-cnpg-database-split.md` for the full database c
 
 | App | Required review |
 |---|---|
-| Home Assistant | Migrate without Matter/Thread until Apple TV is available; require verified IPv4/mDNS on hcc6 and an alternative; prefer hcc6 without USB; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
+| Home Assistant | Migrate without Matter/Thread until Apple TV is available; require verified IPv4/mDNS on hcc6 and an alternative; allow any eligible node without USB; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
 | Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 50Gi for the library PVC |
 | Mealie | Completed: LAN/public Gateway routes and database recovery. Separate Tailscale access was removed at the operator’s request. |
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
@@ -403,12 +403,13 @@ Home Assistant moves in Wave 1 after IPv4/mDNS is verified on hcc6 and at least 
 The operator deferred Matter/Thread until an Apple TV is purchased; a read-only check found zero paired
 Matter nodes and no Matter entities in HA. Apollo initially runs HA and its editor without Matter or a
 Matter PVC, using the separate `network.home.arpa/iot-ipv4` eligibility label. Preserve the old Matter PVC.
-The [per-app migration record](20261003-home-assistant-migration.md) tracks the revised cutover.
+The [per-app migration record](done/20261003-home-assistant-migration.md) records the verified cutover, backups,
+cleanup, and credential retirement. The operator declined a forced-node HA test and removed the hcc6
+preference; HA can use any node carrying the IPv4 Multus eligibility label.
 The following combined HA/Matter design applies when Matter is added after IPv6/Thread verification.
-Use required node affinity for a verified IoT capability label and `preferredDuringSchedulingIgnoredDuringExecution`
-for hcc6. Keep HA and Matter Server together as one replica with a `Recreate` deployment strategy and persistent
-config and Matter state, so their IoT address and Matter identity survive a move. A preference does not move an
-already-running pod back to hcc6. Rescheduling includes downtime for pod startup and Longhorn volume attachment;
+Use required node affinity for a verified IoT capability label, without a hostname preference. Keep HA and Matter Server together as one replica with a `Recreate` deployment strategy and persistent
+config and Matter state, so their IoT address and Matter identity survive a move. Rescheduling includes downtime
+for pod startup and Longhorn volume attachment;
 do not start a replacement until the old instance is confirmed stopped or its node fenced.
 
 Start with the Apple TV border router and no USB dependency. If USB/OTBR is added later, give it a separate
@@ -540,12 +541,13 @@ Per app:
 - [ ] For apps without their own chart, prefer a digest-pinned `home-operations/containers` image where compatible and retire the corresponding personal image.
 - [ ] Merge the stack in cutover order, including a verified final backup and suspension of the old `ReplicationSource` between the two PRs.
 - [x] Recover Mealie from a fresh on-demand Barman backup and verify restored data and Apollo backups.
-- [ ] Use Barman recovery for Home Assistant with a fresh on-demand backup; verify recorder history after restore.
+- [x] Use Barman recovery for Home Assistant with a fresh on-demand backup; verify recorder history after restore.
 - [x] Prove on Mealie, before any other database moves, that the plugin recovers from an archive the old cluster wrote with the in-tree integration. Recovery-job completion, source data comparisons, and app checks passed; direct selection of the final backup ID could not be verified after the bootstrap pod was removed.
 - [ ] Put every CNPG cluster and its `ObjectStore` in the app namespace, and check the supported PostgreSQL major and required extensions before import.
 - [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
 - [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.
-- [ ] Verify HA/Matter Server rescheduling from hcc6 to another eligible node without USB or OTBR: preserve the IoT address, both PVCs, existing Matter pairings, and device control. Schedule the disruptive test with operator approval.
+- [x] Set HA scheduling to any IPv4 Multus-eligible node without a hostname preference. The operator declined
+  a forced-node test; future Matter/Thread verification remains separate.
 - [x] Verify external OIDC login to Mealie after Authentik moves.
 
 Wave 2:

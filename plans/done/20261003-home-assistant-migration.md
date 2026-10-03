@@ -23,7 +23,7 @@ maintenance window until all gates below pass.
 
 - [x] Review and pass CI on both PRs before disabling HA.
 - [x] Verify IPv4/mDNS and Lutron connectivity on hcc5, hcc6, and hcc7. All eight concurrent probe checks
-  passed using distinct test addresses; the [completed record](done/20261003-iot-verification.md) preserves
+  passed using distinct test addresses; the [completed record](20261003-iot-verification.md) preserves
   evidence. The HA-specific `192.168.6.100/22` binding remains a cutover check.
 - [x] Remove the probes and apply `network.home.arpa/iot-ipv4: "true"` through approved Talos configuration.
   All three nodes are Ready and labeled; the full IoT/Thread label remains absent.
@@ -94,8 +94,8 @@ maintenance window until all gates below pass.
    proxy-trust, and discovery errors without publishing credentials or device details. If a restored Matter integration remains configured, disable
    that integration in HA with operator approval; do not rewrite `.storage` files by hand.
 6. After data verification, enable Apollo config backups through git and verify a nonempty restic snapshot.
-   Verify a completed Apollo CNPG backup and WAL archiving. Schedule an approved move from hcc6 to a
-   verified alternative and confirm IPv4 address, config, and device control survive.
+   Verify a completed Apollo CNPG backup and WAL archiving. A forced move between nodes was originally
+   planned; the operator declined that test after cutover (see scheduling decision below).
 
 ## Cleanup and rollback
 
@@ -162,19 +162,33 @@ passed during preparation. Rendered Services and routes were inspected for backe
   15 failures during recovery ended at `2026-10-03T15:16:20Z`, followed by successful archiving and the
   completed backup. The failure count remained unchanged on follow-up.
 - The operator confirmed LAN/Tailscale login, existing integrations and automations, recorder history,
-  Lutron device control, and editor access on 2026-10-03. Config backup enablement is now prepared in git.
+  Lutron device control, and editor access on 2026-10-03. Apollo config backups are enabled and verified below.
 - PR #339 enabled Apollo config backups. The first sync completed at `2026-10-03T15:32:39Z` with mover
   result `Successful`: snapshot `2c55cfc2`, 3,567 files, and 50.362 MiB. The next scheduled sync is
   `2026-10-04T02:00:00Z`; no manual trigger was needed. The initial snapshot clone completed before
   attachment and the backup pod then ran successfully.
-- Cleanup removes the completed restore preflight, ReplicationDestination and capacity replacement,
-  temporary source ExternalSecrets/ObjectStore, and old-archive database patch. It preserves the bound
-  PVC's immutable dataSourceRef, claim/database protection, PostgreSQL tuning, runtime settings, and
-  recurring Apollo backups. Verify pruning and app health after its merge.
-- The operator must retire the migration-only `home-assistant-migration` and `home-assistant-pg-migration`
-  1Password items and their scoped R2 keys after pruning. Keep application/backup credentials and old
-  rollback resources. Rescheduling still requires explicit operator approval. Retain the old HA
-  reconciliation suspension and writer pause for rollback.
+- PR #340 merged as `532826d465bade3e6f9a38098e72367319bb391d`. Read-only checks verified the restore
+  preflight, ReplicationDestination, temporary restore PVC, and source ExternalSecrets/ObjectStore are gone.
+  The database now references Apollo's own archive for recovery. All five remaining HA Kustomizations are
+  Ready; HA serves HTTPS 200, PostgreSQL is healthy with successful archiving, and config backups retain
+  their successful first snapshot and next scheduled run. The bound config PVC and rollback data remain intact.
+- After pruning, the operator confirmed retirement of the migration-only `home-assistant-migration` and
+  `home-assistant-pg-migration` 1Password items and exclusively scoped R2 keys on 2026-10-03. Application,
+  Apollo backup, and old-cluster rollback credentials are retained. The old HA reconciliation suspension
+  and writer pause remain in place for rollback.
+
+## Scheduling decision
+
+On 2026-10-03, the operator declined the proposed forced-node rescheduling test and selected normal
+scheduling on any node with the required Multus setup. The existing IPv4 eligibility label covers hcc5,
+hcc6, and hcc7. No hostname restriction or preference is needed because HA has no node-specific hardware.
+The hcc5 test constraint was never deployed. Removing the original hcc6 preference changes the pod
+template and causes a normal Recreate rollout; verify that rollout without forcing a particular node.
+
+Migration restore, functional checks, Apollo backups, restore cleanup, and credential retirement are
+complete. A cross-node HA functional test was not performed and is not a completion gate per the operator.
+Matter/Thread remains deferred until the Apple TV is available. Keep old-cluster rollback resources until
+Wave 2; confirm the previous instance is stopped before any replacement claims the shared IoT address.
 
 ## Reference patterns
 
