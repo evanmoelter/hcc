@@ -22,9 +22,9 @@ Inspect results without changing the cluster:
 ```sh
 kubectl --context apollo -n flux-system get kustomization iot-network-test
 kubectl --context apollo -n default get jobs,pods -l app.kubernetes.io/name=iot-network-test -o wide
-kubectl --context apollo -n default logs job/iot-network-test-hcc5-v2
-kubectl --context apollo -n default logs job/iot-network-test-hcc6-v2
-kubectl --context apollo -n default logs job/iot-network-test-hcc7-v2
+kubectl --context apollo -n default logs job/iot-network-test-hcc5-v3
+kubectl --context apollo -n default logs job/iot-network-test-hcc6-v3
+kubectl --context apollo -n default logs job/iot-network-test-hcc7-v3
 ```
 
 Every Job must complete successfully with eight PASS results and a final PASS. A TCP-only success does
@@ -42,7 +42,7 @@ are printed. Each Job has a five-minute deadline, zero retries, and retains its 
 If a Job fails, inspect its named check failures and pod events. Review VLAN 2 trunks, `bond0.2`, Multus,
 and Cilium VLAN bypass if IoT routing fails. Review multicast delivery if TCP passes but mDNS fails.
 Do not label a node based on partial success. Retry through a new git revision with a new Job name
-(e.g. `v3`), waiting for the previous pod on that node to terminate before its replacement uses the same
+(e.g. `v4`), waiting for the previous pod on that node to terminate before its replacement uses the same
 address. Changing scripts changes the generated ConfigMap reference and also requires new Job names.
 Do not add a Job TTL: Flux would recreate the deleted Job and repeat the probe.
 
@@ -55,7 +55,16 @@ for unprivileged ICMP. Ping binds its source address, with `net1` routing checke
 The existing hardened HA container successfully ran a source-bound loopback ping without capabilities;
 this verifies image support, not Apollo's IoT path. Fresh names avoid immutable Job-template updates.
 All three corrected Pod templates passed server-side dry-run admission on Apollo; no pods were created
-by that validation. Five unit/render tests and policy lint passed. Live v2 results remain pending.
+by that validation. Five unit/render tests and policy lint passed before deployment.
+
+The v2 Jobs started successfully on all three nodes. Each passed source-bound gateway ICMP and Lutron
+mDNS discovery, but the six other checks stopped at address/route inspection: the image provides BusyBox
+`ip`, which rejects the `-j` option. Those failures do not establish that TCP or outbound connectivity is
+broken; the connections were not attempted after route inspection failed. The v3 probe parses supported
+BusyBox text output and preserves the same interface/source/prefix assertions. Full verification remains
+pending; no eligibility label has been assigned. The corrected parser was exercised in the pinned HA
+image against real address, default-route, and destination-route output. Cluster DNS/API TCP and outbound
+DNS/TLS checks also passed there; this runtime check validates image compatibility, not Apollo eligibility.
 
 ## Cleanup and eligibility
 
