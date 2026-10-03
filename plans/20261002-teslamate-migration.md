@@ -247,9 +247,11 @@ Target [TeslaMate 4.3.0](https://github.com/teslamate-org/teslamate/releases/tag
 stable release checked on this date, with dashboards pinned to its commit
 `33d200b2fba9d5138803916a788cef5eae31b1aa`. Grafana moves from 12.3.1 to 13.2.2, matching the
 release's upstream Grafana image and the dashboards' built-in panel versions. Include its new
-Temperatures dashboard. Grafana remains disposable with no custom plugins or manual dashboards;
-the Git Sync and external-plugin upgrade concerns in the
-[Grafana 13 guide](https://grafana.com/docs/grafana/latest/upgrade-guide/upgrade-v13.0/) do not apply.
+Temperatures dashboard. Disable Git Sync (`provisioning`), the splash screen, and new dashboard
+layouts through the same feature toggles as the
+[upstream image](https://github.com/teslamate-org/teslamate/blob/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/Dockerfile).
+Grafana remains disposable with no custom plugins or manual dashboards. File provisioning continues
+to manage its dashboards; Git Sync and dashboard schema v2 stay disabled.
 
 Reviewed release notes from 2.0.0 through 4.3.0 and all eleven pending database migrations. The
 changes add drive elevation aggregates, move encrypted tokens into a private schema, rebuild
@@ -275,18 +277,22 @@ the failure before taking any recovery action; do not re-enable main's writer.
 Before merging the upgrade:
 
 - Confirm the completed Apollo base backup `20261003T051855` and uninterrupted WAL retention.
-- With explicit approval, create the named restore point `teslamate-pre-4-3-0-20261003`, record its UTC
-  time and WAL segment, and switch WAL. Wait for that segment to archive before deployment. This
-  gives the idle database an exact recovery boundary without depending on a later transaction.
 - Keep the pre-upgrade TeslaMate 1.33.0 image and dashboard commit recorded above for recovery;
   restore a new Cluster with `recoveryTarget.backupID: "20261003T051855"` and
-  `recoveryTarget.targetName: teslamate-pre-4-3-0-20261003`, never the component's latest-WAL default.
-  These targets are usable only after the restore point and its archival are confirmed.
+  `recoveryTarget.targetTime` set to PR #328's UTC merge timestamp, never the component's latest-WAL
+  default. The operator chose the merge timestamp in place of a manual named restore point.
+
+After merging, record GitHub's `mergedAt` timestamp and verify it precedes the first database migration.
+Confirm archived WAL includes a transaction after that timestamp on the same timeline: PostgreSQL
+needs it to establish the timestamp stopping point. The recovery target is verified only after this
+archive check passes. No manual restore-point creation or WAL switch is planned.
 
 After merging, verify migration completion, a non-superuser application role, database TLS, and
 absence of filesystem, decryption, or database errors. Confirm token refresh, fresh telemetry,
 address lookups, and a new drive or charge. Check Grafana's datasource and historical/new panels
-over LAN and Tailscale, including Temperatures, then verify backups and WAL archiving again.
+over LAN and Tailscale, including Temperatures, then verify backups and WAL archiving again. Check
+Grafana for OOM kills or restarts under its existing 256 MiB limit, and verify startup and provisioning
+with chart 10.4.3's image override to Grafana 13 before accepting the rollout.
 Readiness alone does not complete the repair.
 
 Local validation passed: Apollo schema validation, 20 Conftest policy tests and 870 resource checks,

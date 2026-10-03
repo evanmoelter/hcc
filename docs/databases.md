@@ -70,10 +70,10 @@ matching application version. Use `targetTime` for a recorded UTC timestamp. For
 an operator-approved `pg_create_restore_point()` followed by `pg_switch_wal()` provides a named boundary;
 wait for its WAL segment to archive, then use `targetName` together with the preceding `backupID`.
 A timestamp target needs a later transaction in the archive to establish where replay should stop.
-Default recovery replays the latest archived WAL, including unwanted schema
-changes. CNPG recovery bootstraps a new Cluster; changing the bootstrap stanza of a running Cluster does
-not rewind its database. Plan recovery through git, preserve the failed database and source archive, and
-obtain operator approval before changing the live cluster. Agree on any writes lost after the target.
+Default recovery replays the latest archived WAL, including unwanted schema changes. CNPG recovery
+bootstraps a new Cluster; changing the bootstrap stanza of a running Cluster does not rewind its database.
+Plan recovery through git, preserve the failed database and source archive, and obtain operator approval
+before changing the live cluster. Agree on any writes lost after the target.
 
 ## SQL workloads
 

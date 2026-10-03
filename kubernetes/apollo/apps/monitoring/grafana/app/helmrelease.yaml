@@ -61,6 +61,9 @@ spec:
       TZ: ${TIMEZONE}
       GF_DATE_FORMATS_USE_BROWSER_LOCALE: true
       GF_EXPLORE_ENABLED: true
+      GF_FEATURE_TOGGLES_provisioning: "false"
+      GF_FEATURE_TOGGLES_splashScreen: "false"
+      GF_FEATURE_TOGGLES_dashboardNewLayouts: "false"
     envFromSecrets:
       - name: grafana-secret
     grafana.ini:
