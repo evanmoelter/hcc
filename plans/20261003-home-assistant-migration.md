@@ -172,10 +172,10 @@ passed during preparation. Rendered Services and routes were inspected for backe
   The database now references Apollo's own archive for recovery. All five remaining HA Kustomizations are
   Ready; HA serves HTTPS 200, PostgreSQL is healthy with successful archiving, and config backups retain
   their successful first snapshot and next scheduled run. The bound config PVC and rollback data remain intact.
-- The operator must retire the migration-only `home-assistant-migration` and `home-assistant-pg-migration`
-  1Password items and their scoped R2 keys after pruning. Keep application/backup credentials and old
-  rollback resources. Rescheduling still requires explicit operator approval. Retain the old HA
-  reconciliation suspension and writer pause for rollback.
+- After pruning, the operator confirmed retirement of the migration-only `home-assistant-migration` and
+  `home-assistant-pg-migration` 1Password items and exclusively scoped R2 keys on 2026-10-03. Application,
+  Apollo backup, and old-cluster rollback credentials are retained. Rescheduling still requires explicit
+  operator approval. The old HA reconciliation suspension and writer pause remain in place for rollback.
 
 ## Rescheduling verification
 
