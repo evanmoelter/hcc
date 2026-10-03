@@ -30,7 +30,6 @@ metadata:
   name: paperless-library-backup
   namespace: flux-system
 spec:
-  suspend: true
   dependsOn:
     - name: paperless
     - name: volsync

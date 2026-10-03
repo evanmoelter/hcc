@@ -146,6 +146,7 @@ class PaperlessMigrationTest(unittest.TestCase):
                          "paperless-library-bootstrap-migration-20260930")
 
     def test_backup_uses_apollo_credentials_and_repository(self):
+        self.assertFalse(self.owners["paperless-library-backup"]["spec"].get("suspend", False))
         source = self.resource("paperless-library-backup", "ReplicationSource")
         secret = self.resource("paperless-library-backup", "ExternalSecret",
                                source["spec"]["restic"]["repository"])

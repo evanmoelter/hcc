@@ -230,12 +230,18 @@ After data, login, scanner ingestion, and both Apollo backups pass, prepare a cl
 Retain `postgres-lb` and its temporary firewall path for TeslaMate's later import. Keep old Paperless
 manifests and data until Wave 2. Archive this complete plan under `plans/done/` once cleanup is verified.
 
-The operator requested the cleanup draft while scanner verification was in progress. **Do not merge
-that draft until library backups have been enabled in a preceding change and their first actual
-snapshot is recorded.** The cleanup draft leaves the backup suspension setting unchanged; preserve
-the enabled state when integrating the preceding change. It removes no source-cluster resources and
-does not revoke credentials. After merge, verify pruning and permanent resource identities before
-retiring the two migration items and archiving this record.
+The operator requested one PR for backup enablement and cleanup: [PR #321](https://github.com/evanmoelter/hcc/pull/321)
+removes the backup suspension as well as temporary migration resources. **Do not merge until the
+first actual Apollo library snapshot is recorded.** To verify that prerequisite before this combined
+PR merges, obtain explicit approval to resume the existing live backup Kustomization temporarily,
+wait for its ReplicationSource and credentials, and trigger a manual backup. Verify the snapshot ID,
+then clear the manual trigger so the configured schedule can run. Parent Flux reconciliation may
+restore the suspension before merge; the PR makes backup enablement permanent. This is a proposed
+one-time exception to enabling backups through git, not authorization to perform it.
+
+The PR removes no source-cluster resources and does not revoke credentials. After merge, verify
+pruning and permanent resource identities before retiring the two migration items and archiving
+this record.
 
 ## Rollback
 
@@ -324,7 +330,8 @@ storage and database components take precedence over their cluster-specific conv
   is healthy. The first Apollo library snapshot remains outstanding.
 - The operator reported that data looked good through internal and Tailscale access and that scanner
   connectivity was updated and tested. After they scanned a document, logs showed one successful
-  consume task and no errors. OCR/search, receipt/barcode behavior, thumbnail, download/export,
+  consume task and no errors, and the operator confirmed the scanned document looked good.
+  OCR/search, receipt/barcode behavior, thumbnail, download/export,
   fresh login/logout, and unauthorized-network denial still need explicit verification where not
   covered by those operator checks.
 - Preserve these identities when cleanup reconciles:
