@@ -299,8 +299,33 @@ Local validation passed: Apollo schema validation, 20 Conftest policy tests and 
 and full Flux/Helm rendering (129 passed). All 23 configured dashboard sources exist at the pinned
 release commit and have unique UIDs. Deployment and live recording verification remain pending.
 
+### Upgrade rollout, 2026-10-03 UTC
+
+- PR #328 merged as `bbf94a8201e101d0e1d6ca6b581432baae22c1ef` at `2026-10-03T14:05:11Z`.
+  Use that timestamp as `recoveryTarget.targetTime` with base backup `20261003T051855` for a
+  pre-upgrade recovery. The first migration began at 14:06:07 UTC, after the target. All eleven
+  completed by 14:06:19 UTC, bringing the database to 105 migration records.
+- Post-migration WAL segment `000000010000000000000056` archived at 14:07:38 UTC with zero archive
+  failures. This covers committed migrations after the target on timeline 1; the earlier completed
+  base backup and healthy continuous archiving remain available. This verifies archive coverage,
+  not a restore rehearsal. No named restore point or manual WAL switch was used.
+- TeslaMate 4.3.0 runs as a single Ready pod with zero restarts. Token refresh succeeded, no API 403,
+  database, TLS, decryption, or filesystem errors were observed, and a fresh position was recorded.
+  The application role remains non-superuser and all ten application database sessions use TLS.
+  A new drive/charge and successful address lookup still need verification.
+- Grafana 13.2.2 is Ready with zero restarts, approximately 176 MiB memory, and all 23 dashboards
+  provisioned. LAN endpoints and Grafana's Tailscale endpoint return HTTP 200 with valid TLS.
+  However, datasource health and queries fail with `plugin.notRegistered`: the background installer
+  unregisters bundled plugins while attempting to replace them on the read-only root filesystem.
+  Prepare a follow-up setting `GF_PLUGINS_PREINSTALL_DISABLED=true`, matching the upstream TeslaMate
+  image, then verify datasource health, queries, panels, and absence of installer errors after rollout.
+- All four TeslaMate/Grafana Flux Kustomizations became Ready on the subsequent repository revision
+  `1bb49cd81b9b30421c9daa0061b3699447caa4b3`, which includes the upgrade.
+
 Remaining work:
 
 - [x] Merge cleanup and verify Flux convergence and removal of the source Kubernetes Secret.
 - [ ] Operator removes the temporary `hcc-apollo/teslamate-postgres-migration` vault item after cleanup.
-- [ ] Prepare the separate application/dashboard upgrade and verify fresh collection before archiving this plan.
+- [x] Upgrade the application and dashboards; verify migrations, token refresh, fresh telemetry, and PITR coverage.
+- [ ] Deploy the Grafana plugin fix and verify datasource queries and dashboard panels.
+- [ ] Verify a new drive or charge and successful address lookups before archiving this plan.

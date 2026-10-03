@@ -61,6 +61,7 @@ spec:
       TZ: ${TIMEZONE}
       GF_DATE_FORMATS_USE_BROWSER_LOCALE: true
       GF_EXPLORE_ENABLED: true
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
       GF_FEATURE_TOGGLES_provisioning: "false"
       GF_FEATURE_TOGGLES_splashScreen: "false"
       GF_FEATURE_TOGGLES_dashboardNewLayouts: "false"

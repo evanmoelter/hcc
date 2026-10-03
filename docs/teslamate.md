@@ -22,6 +22,9 @@ and Grafana continue to agree on credentials.
 Grafana remains disposable, with its datasource and dashboards provisioned through Helm values.
 Dashboards are pinned to the TeslaMate release and should move with its application schema. UI edits
 are not durable. Anonymous Editor access on LAN/Tailscale is retained by operator decision during migration.
+Plugin preinstallation is disabled, following the upstream TeslaMate image. Grafana uses the plugins
+bundled with its pinned image; its background updater otherwise attempts to replace them on the
+read-only filesystem and can leave the PostgreSQL datasource plugin unregistered.
 The [Grafana management decision](monitoring.md#grafana-management-decision) defers operator adoption until
 Grafana expands into shared cluster monitoring.
 
