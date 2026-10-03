@@ -383,11 +383,6 @@ These imports use CNPG `bootstrap.initdb.import` with the microservice `pg_dump`
 `192.168.6.21` after stopping the source app. Physical Barman recovery cannot select one database from
 a shared instance. See `plans/11-cnpg-database-split.md` for the full database comparison.
 
-Logical import permits a PostgreSQL major-version change, but check each app's supported range immediately
-before cutover. Upgrade the old app first if required, except for the operator-selected TeslaMate sequence
-below. Verify TeslaMate's `cube` and `earthdistance` extensions. A lagging app may remain on PostgreSQL 16.
-Update Grafana's TeslaMate datasource to `teslamate-pg` at the same time.
-
 ### App review and order
 
 | App | Required review |
@@ -413,7 +408,8 @@ workload and Flux lifecycle, hard affinity to the radio's node, its own IoT addr
 Thread network. HA must not mount the radio, require OTBR readiness, or depend on OTBR's Flux Kustomization.
 The radio's location is at most a placement preference for HA; network eligibility remains mandatory.
 
-Keep `postgres-lb` until every logical import finishes; then decide whether external database access remains useful.
+All logical imports are complete. Decide whether `postgres-lb` and its firewall path are still needed
+for external database access or rollback before retiring them; retain both until that decision is made.
 
 Migrate in this order:
 

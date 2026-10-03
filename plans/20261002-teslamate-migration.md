@@ -229,7 +229,7 @@ Archive this full record under `plans/done/` only after migration, repair, backu
 - Both UniFi resolvers and the workstation resolve the app names to `192.168.21.100`. Both LAN sites
   return HTTP 200 with valid TLS; Grafana's Tailscale hostname also passes HTTPS. Grafana exposes all
   22 provisioned dashboards, its datasource health check succeeds, and a historical drive/charge query
-  returns successfully. Visual dashboard review remains an operator check.
+  returns successfully. The operator confirmed visual dashboard verification is complete.
 - Apollo Backup `default/teslamate-pg-20261003051623` completed with ID `20261003T051855`, running from
   05:18:55 to 05:22:26 UTC. It spans WAL `000000010000000000000026` through
   `000000010000000000000053`. Last-backup success and continuous archiving conditions are True,
@@ -242,5 +242,4 @@ Remaining work:
 
 - [ ] Merge cleanup and verify Flux convergence and removal of the source Kubernetes Secret.
 - [ ] Operator removes the temporary `hcc-apollo/teslamate-postgres-migration` vault item after cleanup.
-- [ ] Review representative dashboard panels visually.
 - [ ] Prepare the separate application/dashboard upgrade and verify fresh collection before archiving this plan.
