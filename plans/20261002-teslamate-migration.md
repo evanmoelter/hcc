@@ -322,10 +322,23 @@ release commit and have unique UIDs. Deployment and live recording verification 
 - All four TeslaMate/Grafana Flux Kustomizations became Ready on the subsequent repository revision
   `1bb49cd81b9b30421c9daa0061b3699447caa4b3`, which includes the upgrade.
 
+### Grafana plugin fix rollout, 2026-10-03 UTC
+
+- PR #333 merged as `ebcac5176451527d1caf5672eab1f2a7a07ed4e3` at 14:40:39 UTC. All four Flux
+  Kustomizations applied it. Grafana's PostgreSQL datasource health succeeds over LAN and Tailscale,
+  and a query against historical drives/charges and recent positions returns successfully. All 23
+  dashboards, including Temperatures, are provisioned; plugin installation errors are absent.
+- TeslaMate continues recording fresh positions without observed API or TLS errors. No new drive or
+  charge has been recorded since the upgrade. PostgreSQL remains healthy, with zero archive failures.
+- Grafana reached 254 MiB under its 256 MiB limit and was OOMKilled at 14:42:46 UTC. Increase its
+  request to 256 MiB and limit to 512 MiB, then repeat datasource/panel checks and monitor memory and
+  restarts. Nodes were using 33–41% of memory at inspection. Visual panel verification remains pending.
+
 Remaining work:
 
 - [x] Merge cleanup and verify Flux convergence and removal of the source Kubernetes Secret.
 - [ ] Operator removes the temporary `hcc-apollo/teslamate-postgres-migration` vault item after cleanup.
 - [x] Upgrade the application and dashboards; verify migrations, token refresh, fresh telemetry, and PITR coverage.
-- [ ] Deploy the Grafana plugin fix and verify datasource queries and dashboard panels.
+- [x] Deploy the Grafana plugin fix and verify datasource health and queries.
+- [ ] Deploy the Grafana memory adjustment and verify stable dashboard operation.
 - [ ] Verify a new drive or charge and successful address lookups before archiving this plan.
