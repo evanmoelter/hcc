@@ -94,6 +94,12 @@ old-cluster disable. Pause Apollo backup writing. The old app/PVC/database/Matte
 to them loses writes made on Apollo, which requires an explicit operator decision. Do not delete the new
 PVC or recovered database until the failure has been investigated and the operator approves cleanup.
 
+## Validation
+
+Both cluster kubeconform checks, Apollo policy lint, seven migration tests, and the full Apollo Flux render
+passed during preparation. Flate was run in a clean temporary checkout because source resolution in the
+linked worktree used the wrong tree. Rendered Services and routes were inspected for backend consistency.
+
 ## Evidence and remaining gates
 
 - Matter API: zero paired nodes; entity-registry summary: no Matter integration entities.

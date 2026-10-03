@@ -154,6 +154,7 @@ spec:
         strategy: Recreate
     service:
       app:
+        forceRename: *app
         controller: home-assistant
         ports:
           http:

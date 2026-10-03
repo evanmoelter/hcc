@@ -176,7 +176,8 @@ class HomeAssistantMigrationTest(unittest.TestCase):
         ingress = self.resource("home-assistant-tailscale", "Ingress")
         self.assertEqual(ingress["spec"]["ingressClassName"], "tailscale")
         self.assertEqual(ingress["spec"]["tls"][0]["hosts"], ["ha"])
-        self.assertEqual(ingress["spec"]["defaultBackend"]["service"]["name"], "home-assistant")
+        self.assertEqual(ingress["spec"]["defaultBackend"]["service"]["name"],
+                         values["service"]["app"]["forceRename"])
         required = {
             "home-assistant-storage": {"home-assistant-restore-preflight", "longhorn-config", "volsync"},
             "home-assistant-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
