@@ -377,11 +377,11 @@ Backup jobs remain separate from app readiness.
 
 `mealie-pg` and `home-assistant-pg` already hold one app each on PostgreSQL 18.1. The `postgres` component defaults to `bootstrap.recovery`, so neither needs the switch that copied manifests used to need; what each needs is a source `ObjectStore` naming the old cluster's `mealie-pg-v1` or `home-assistant-pg-v1` server name, referenced from `externalClusters[].plugin`. Both back up weekly, so take an on-demand backup after disabling the app. Confirm Home Assistant recorder history after restore.
 
-Paperless and TeslaMate still use shared `cnpg-cluster` on PostgreSQL 16.2; Authentik now uses its own
-PostgreSQL 18 cluster on Apollo. Create one cluster per remaining app in that app's namespace and use
-CNPG `bootstrap.initdb.import` with the microservice `pg_dump` method. Connect to `192.168.6.21`, not its
-internal DNS name, and stop the source app first. Physical Barman recovery cannot select one database
-from a shared instance. See `plans/11-cnpg-database-split.md` for the full database comparison.
+Paperless, TeslaMate, and Authentik have imported their databases from shared `cnpg-cluster` into
+dedicated Apollo clusters. TeslaMate retains PostgreSQL 16; Paperless and Authentik use PostgreSQL 18.
+These imports use CNPG `bootstrap.initdb.import` with the microservice `pg_dump` method, connecting to
+`192.168.6.21` after stopping the source app. Physical Barman recovery cannot select one database from
+a shared instance. See `plans/11-cnpg-database-split.md` for the full database comparison.
 
 Logical import permits a PostgreSQL major-version change, but check each app's supported range immediately
 before cutover. Upgrade the old app first if required, except for the operator-selected TeslaMate sequence
@@ -399,7 +399,7 @@ Update Grafana's TeslaMate datasource to `teslamate-pg` at the same time.
 | External apps | Replace the old tunnel target with `external-apollo.${SECRET_DOMAIN}` |
 | All apps | Convert internal and external Ingresses to `HTTPRoute`; retain Tailscale Ingresses |
 | App-template and raw-manifest workloads | Check `home-operations/containers` for a compatible replacement, especially for images currently built under `ghcr.io/evanmoelter`; verify user IDs, paths, arguments, and security context before switching |
-| TeslaMate | Confirm `teslamate_db_2024-03-18.sql` in `teslamate-backup-pvc` is no longer needed |
+| TeslaMate | Operator confirmed the old SQL dump is obsolete; retain old manifests through Wave 2 |
 
 Home Assistant moves in Wave 1 after the IoT path is verified on hcc6 and at least one alternative node.
 Use required node affinity for a verified IoT capability label and `preferredDuringSchedulingIgnoredDuringExecution`
@@ -426,10 +426,11 @@ Migrate in this order:
 3. Paperless, after VolSync and Barman recovery have been exercised. The
    [cutover record](done/20260930-paperless-migration.md) records migration on 2.20.15, with LAN/Tailscale
    access and scanner SFTP; the separate 3.x upgrade follows verified migration.
-4. TeslaMate and Grafana together. The [cutover record](20261002-teslamate-migration.md) prepares
-   historical-data migration on TeslaMate 1.33.0 into an updated PostgreSQL 16 cluster. The operator
-   selected migration before repair of its existing Owner API failure; a separate Apollo upgrade
-   follows verified historical data and backups. Grafana retains LAN/Tailscale anonymous access.
+4. TeslaMate and Grafana together. The [cutover record](20261002-teslamate-migration.md) records
+   verified historical-data migration on TeslaMate 1.33.0 into an updated PostgreSQL 16 cluster,
+   working Grafana access, and a completed Apollo backup. Temporary import configuration is retired;
+   a separate Apollo upgrade still needs to repair the existing Owner API failure and verify live recording.
+   Grafana retains LAN/Tailscale anonymous access.
 5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
 

@@ -208,3 +208,39 @@ Archive this full record under `plans/done/` only after migration, repair, backu
   05:00:43 UTC, spanning WAL `000000010000028D00000026` through `000000010000028D00000027`.
   The next WAL, `000000010000028D00000028`, was archived at 05:00:46 UTC. Cluster readiness,
   continuous archiving, and last-backup success conditions were all True afterward.
+
+### Apollo rollout and import cleanup, 2026-10-03 UTC
+
+- Operator confirmed all three vault items were prepared, the source role was `teslamate`, and the
+  destination archive path and server name were unused. All PR #323 checks passed. Three-node storage
+  headroom and Apollo-to-source PostgreSQL connectivity were verified. A read-only dump under the
+  source `teslamate` role completed successfully; its output was discarded.
+- Operator merged PR #323 as `da774a5cb7521d01b1679c78d60988da1a8bfd87`. The import completed, and
+  `teslamate-database`, `teslamate`, `grafana`, and `grafana-tailscale` became Ready at that revision.
+- The private post-shutdown baseline matched all 13 table counts, 10 historical timestamp checks,
+  and 94 schema migration versions immediately after import. Content hashes also matched for drives,
+  charging processes, geofences, and settings. No tokens, locations, or vehicle details were published.
+- The imported database and all public tables belong to `teslamate`; the role is not a superuser.
+  `cube` remains 1.5, while `earthdistance` restored as 1.2 rather than the source's 1.1. Both extensions
+  belong to `teslamate`. Account for the restored version when reviewing the later application upgrade.
+- TeslaMate and Grafana are Ready without restarts. TeslaMate runs as UID/GID 568, database sessions use
+  TLS 1.3, and startup logs showed no database connection, decryption, or filesystem permission errors.
+  Owner API 403 responses persist as expected on 1.33.0; live recording is not repaired.
+- Both UniFi resolvers and the workstation resolve the app names to `192.168.21.100`. Both LAN sites
+  return HTTP 200 with valid TLS; Grafana's Tailscale hostname also passes HTTPS. Grafana exposes all
+  22 provisioned dashboards, its datasource health check succeeds, and a historical drive/charge query
+  returns successfully. Visual dashboard review remains an operator check.
+- Apollo Backup `default/teslamate-pg-20261003051623` completed with ID `20261003T051855`, running from
+  05:18:55 to 05:22:26 UTC. It spans WAL `000000010000000000000026` through
+  `000000010000000000000053`. Last-backup success and continuous archiving conditions are True,
+  with zero archive failures observed.
+- Cleanup removes the source credential ExternalSecret and logical-import overrides. The shared
+  component resumes recovery from the Apollo archive, with `teslamate-postgres` explicitly retained
+  as the recovery credential so Grafana and PostgreSQL continue sharing the destination password.
+
+Remaining work:
+
+- [ ] Merge cleanup and verify Flux convergence and removal of the source Kubernetes Secret.
+- [ ] Operator removes the temporary `hcc-apollo/teslamate-postgres-migration` vault item after cleanup.
+- [ ] Review representative dashboard panels visually.
+- [ ] Prepare the separate application/dashboard upgrade and verify fresh collection before archiving this plan.
