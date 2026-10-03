@@ -99,6 +99,8 @@ Disable Apollo's workload and both routes through git before reverting the old d
 Apollo pods and its Tailscale proxy are stopped and DNS/tailnet names released. Preserve the Apollo PVC
 and its backup repository; Apollo-only flows and credentials do not exist on the old copy. Resume the old
 backup writer only after the old instance is serving again, with approval for any live mutation.
+Resume the suspended `node-red-backup` Flux Kustomization and explicitly clear the ReplicationSource
+pause when rolling back; do not assume Flux clears the runtime pause.
 
 Keep the old app directory, PVC, secrets, and backups until Wave 2. There is no temporary restore machinery
 to remove on Apollo. Once application checks and backups pass, update the parent migration's status and
@@ -135,7 +137,7 @@ Upstream references: [5.0 release requirements](https://github.com/node-red/node
   because its linked-worktree source discovery fails; no manifest workaround was introduced.
 - Independent review found no actionable defects. Runtime and cutover verification remain pending.
 - [ ] Home Assistant verified; stack refreshed and both PRs pass CI/review.
-- [ ] Main disabled, final rollback backup handled, old writer paused, and names released.
+- [x] Main disabled, final rollback backup handled, old writer paused, and names released.
 - [ ] Apollo deployed; access, flows, credentials, Projects, and Home Assistant integration verified.
 - [ ] First actual Apollo snapshot verified; complete record archived.
 
@@ -150,3 +152,19 @@ Upstream references: [5.0 release requirements](https://github.com/node-red/node
   palette installation and possible memory pressure remain deployment checks.
 - Refreshed validation passed: both cluster schema checks, 20 policy tests and 957 resource checks,
   all 143 Apollo render checks in a standalone validation copy, and settings syntax verification.
+
+### Main shutdown and final backup, 2026-10-03 UTC
+
+- Operator merged #329 as `f85b670d10ec5c3a5f3dfe6228199af7537d17d9`. Both old Node-RED
+  Kustomizations applied that revision. The deployment has zero replicas and no pods; both Ingresses
+  and the Tailscale proxy are absent. The workload Service remains for rollback.
+- Main k8s-gateway returns NXDOMAIN. Both UniFi resolvers and the workstation return the same old
+  Gateway address for Node-RED and an unused control hostname, confirming wildcard fallback rather
+  than an app-specific record. No Node-RED peer is visible to the workstation's Tailscale client.
+  Verify Apollo's explicit record and tailnet endpoint after deployment.
+- With explicit operator approval, manual sync `node-red-final-20261003` completed successfully at
+  `2026-10-03T15:52:27Z`. Restic saved snapshot `f84bc25d`, processing 43 files totaling 64.632 KiB.
+  Apollo remains a fresh deployment; this snapshot is retained for rollback.
+- After backup verification, the approved `node-red-backup` Flux Kustomization suspension and
+  `node-red-data-r2` ReplicationSource pause were applied and confirmed. No backup mover/pruner remains
+  active. Keep both paused through cutover unless rollback is explicitly authorized.
