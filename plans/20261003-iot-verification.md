@@ -84,8 +84,20 @@ then moves to `plans/done/`.
 - [ ] Merge cleanup and verify the temporary resources are gone.
 - [ ] Apply the separately reviewed Talos eligibility labels and verify them live.
 
-Prepare a separate Talos configuration change granting `network.home.arpa/iot-ipv4: "true"` only to nodes
-that passed, and apply it with explicit operator approval. Verify the live labels before the HA outage.
+The separate Talos configuration change grants `network.home.arpa/iot-ipv4: "true"` to hcc5, hcc6, and
+hcc7. After its merge and cleanup verification, apply it one node at a time with explicit operator approval:
+
+```sh
+task talos:apply CLUSTER=apollo node=hcc5 mode=no-reboot
+task talos:apply CLUSTER=apollo node=hcc6 mode=no-reboot
+task talos:apply CLUSTER=apollo node=hcc7 mode=no-reboot
+kubectl --context apollo get nodes -L network.home.arpa/iot-ipv4,network.home.arpa/iot
+```
+
+Confirm each node stays Ready and its IPv4 label is `true` before applying the next. The full IoT label
+must remain absent. These tasks apply each node's rendered machine configuration; review any other
+pending Talos changes first. `no-reboot` prevents an unexpected reboot. Verify the live labels before
+the HA outage.
 HA requires hcc6 and at least one alternative; this test covers all three current nodes. No test labels a
 node automatically. IPv6/Thread and the full `network.home.arpa/iot` capability stay deferred until Apple TV
 and Matter are introduced. The HA address `.100`, callbacks, authentication, and actual device control

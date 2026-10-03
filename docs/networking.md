@@ -153,11 +153,12 @@ k8s.v1.cni.cncf.io/networks: >-
   [{"name":"iot","namespace":"kube-system","interface":"net1","ips":["192.168.6.100/22"]}]
 ```
 
-The HA rebuild must depend on `multus-config`, use a single pod with a recreate update strategy, and require
-`network.home.arpa/iot: "true"` through node affinity. Multus runs on every node, but only verified nodes
-may host IoT consumers. Add that capability label through each verified node's Talos
-`machine.nodeLabels`; leave it absent until the checks below pass. Static IPAM supplies IPv4 here;
-local IPv6, Thread routing, and multicast must be verified separately before migrating Matter Server.
+The IPv4-only HA rebuild must depend on `multus-config`, use a single pod with a recreate update strategy,
+and require `network.home.arpa/iot-ipv4: "true"` through node affinity. Multus runs on every node, but only
+verified nodes may host IoT consumers. Node-specific Talos `machine.nodeLabels` grant IPv4 eligibility to
+hcc5, hcc6, and hcc7; future nodes must pass verification before receiving the label. The broader
+`network.home.arpa/iot` capability remains unset until IPv6/Thread verification passes. Static IPAM supplies
+IPv4 here; local IPv6, Thread routing, and multicast must be verified separately before migrating Matter Server.
 Cilium policy on the primary interface does not establish isolation for the direct IoT attachment.
 
 ### IPv4 verification
@@ -167,9 +168,8 @@ shared `kube-system/iot` attachment: IPv4 address/prefix, primary default route,
 ICMP, Lutron TCP 8081 and mDNS at `192.168.4.35`, cluster DNS/API TCP, and outbound DNS/TLS.
 [The execution record](../plans/20261003-iot-verification.md) preserves the checks and results.
 
-These nodes qualify for `network.home.arpa/iot-ipv4: "true"`, managed through node-specific Talos
-configuration. Verify the labels live before the HA outage. Matter/Thread remains deferred until an
-Apple TV is available; `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
+These nodes use `network.home.arpa/iot-ipv4: "true"`, managed through node-specific Talos configuration.
+Verify the labels live before the HA outage. Matter/Thread remains deferred until an Apple TV is available; `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
 The future HA address `192.168.6.100`, address-specific rules, HA/Lutron authentication, and actual
 device control remain separate cutover checks.
 
