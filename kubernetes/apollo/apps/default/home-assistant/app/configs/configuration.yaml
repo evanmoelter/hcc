@@ -1,0 +1,19 @@
+default_config:
+
+frontend:
+  themes: !include_dir_merge_named themes
+
+homeassistant:
+  packages: !include_dir_named packages
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - !env_var HASS_HTTP_TRUSTED_PROXY_1
+
+recorder:
+  db_url: !env_var HASS_RECORDER_DB_URL

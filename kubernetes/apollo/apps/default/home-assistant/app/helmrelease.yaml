@@ -1,0 +1,231 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app home-assistant
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    strategy:
+      name: RemediateOnFailure
+    remediation:
+      retries: 3
+  upgrade:
+    strategy:
+      name: RemediateOnFailure
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+      strategy: rollback
+  rollback:
+    cleanupOnFail: true
+  values:
+    controllers:
+      home-assistant:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        pod:
+          annotations:
+            k8s.v1.cni.cncf.io/networks: '[{"name":"iot","namespace":"kube-system","interface":"net1","ips":["192.168.6.100/22"]}]'
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            runAsNonRoot: true
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+          automountServiceAccountToken: false
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: network.home.arpa/iot-ipv4
+                        operator: In
+                        values:
+                          - "true"
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  preference:
+                    matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - hcc6
+        initContainers:
+          init-config:
+            image:
+              repository: ghcr.io/home-operations/home-assistant
+              tag: 2025.12.5@sha256:6be0843b06ad82233639e56f261b2377f78df140e3d16d2d08b2c29c8889b697
+            command:
+              - python
+              - -c
+              - from pathlib import Path; [Path(p).mkdir(parents=True, exist_ok=True) for p in ['/config/packages/managed', '/config/packages/local', '/config/.vscode']]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 128Mi
+        containers:
+          app:
+            image:
+              repository: ghcr.io/home-operations/home-assistant
+              tag: 2025.12.5@sha256:6be0843b06ad82233639e56f261b2377f78df140e3d16d2d08b2c29c8889b697
+            env:
+              TZ: ${TIMEZONE}
+              HASS_HTTP_TRUSTED_PROXY_1: ${CLUSTER_CIDR}
+              HASS_RECORDER_DB_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: home-assistant-pg-app
+                    key: uri
+            envFrom:
+              - secretRef:
+                  name: home-assistant-secret
+            probes:
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+            resources:
+              requests:
+                cpu: 10m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+          code-server:
+            image:
+              repository: ghcr.io/coder/code-server
+              tag: 4.107.0@sha256:4b622c4cd1b0f559fec0df67fcf09042d63e9ce84c575102066afd9511695627
+            args:
+              - --auth
+              - none
+              - --disable-telemetry
+              - --disable-update-check
+              - --user-data-dir
+              - /config/.vscode
+              - --extensions-dir
+              - /config/.vscode/extensions
+              - --port
+              - "8080"
+              - /config
+            env:
+              TZ: ${TIMEZONE}
+              HASS_SERVER: http://localhost:8123
+              HOME: /config/.vscode
+              XDG_CACHE_HOME: /cache
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 1Gi
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop:
+                  - ALL
+        replicas: 1
+        strategy: Recreate
+    service:
+      app:
+        controller: home-assistant
+        ports:
+          http:
+            port: 8123
+      code-server:
+        controller: home-assistant
+        ports:
+          http:
+            port: 8080
+    persistence:
+      config:
+        enabled: true
+        existingClaim: home-assistant-config
+        advancedMounts:
+          home-assistant:
+            init-config:
+              - path: /config
+            app:
+              - path: /config
+            code-server:
+              - path: /config
+      tmp:
+        type: emptyDir
+        advancedMounts:
+          home-assistant:
+            app:
+              - path: /tmp
+                subPath: hass-tmp
+            code-server:
+              - path: /tmp
+                subPath: code-tmp
+      cache:
+        type: emptyDir
+        advancedMounts:
+          home-assistant:
+            code-server:
+              - path: /cache
+      managed-config:
+        type: configMap
+        name: home-assistant-config
+        advancedMounts:
+          home-assistant:
+            app:
+              - path: /config/configuration.yaml
+                subPath: configuration.yaml
+                readOnly: true
+            code-server:
+              - path: /config/configuration.yaml
+                subPath: configuration.yaml
+                readOnly: true
+    route:
+      internal:
+        enabled: true
+        hostnames:
+          - ha.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: http
+      code-server:
+        enabled: true
+        hostnames:
+          - ha-code.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: code-server
+                port: http

@@ -81,7 +81,7 @@ Distinct per cluster, so an address in a log names its cluster unambiguously whi
 | main | `10.69.0.0/16` | `10.96.0.0/16` |
 | Apollo | `10.42.0.0/16` | `10.43.0.0/16` |
 
-Home Assistant's `HASS_HTTP_TRUSTED_PROXY_2` currently names `10.96.0.0/12` and needs Apollo's value when it moves.
+Home Assistant takes its trusted proxy range from Apollo's `${CLUSTER_CIDR}`; service addresses are not proxy sources.
 
 ## Firewall
 
@@ -96,6 +96,14 @@ The HCC VLAN gets its own zone. Baseline: Default reaches HCC; HCC and Home Auto
 Home Assistant needs no rule. Its IoT interface is an attachment on VLAN 2 rather than traffic crossing the boundary, which is the point of doing it with multus.
 
 ## Home Assistant and the IoT VLAN
+
+Home Assistant initially migrates without Matter Server because the operator does not yet have the Apple TV.
+The old Matter controller reported zero paired nodes. IPv4/mDNS access remains required for existing
+integrations, with `network.home.arpa/iot-ipv4: "true"` granted only after per-node verification.
+The `network.home.arpa/iot` label and IPv6/Thread checks below remain a separate gate for adding Matter.
+[Home Assistant](home-assistant.md) records the current scope; its
+[migration record](../plans/20261003-home-assistant-migration.md) tracks cutover verification.
+
 
 Home Assistant and its Matter Server need local IPv6 connectivity and multicast discovery on the IoT network.
 The chosen Apollo design keeps their pod on VLAN 2 through a Multus macvlan attachment while its primary
@@ -212,7 +220,9 @@ and per-node IPv4 verification subsequently passed on 2026-10-03; IPv6/Thread ve
    and Matter discovery with the Apple TV on VLAN 2; an IPv4 ping alone does not satisfy this gate.
 4. Remove the test workload through git and confirm it has terminated before reusing its address.
    Record the verified nodes and add their capability labels through Talos configuration with approval.
-   HA migration requires hcc6 and at least one alternative node to pass.
+   HA migration requires hcc6 and at least one alternative node to pass IPv4/mDNS checks before receiving
+   `network.home.arpa/iot-ipv4`. Apple TV, IPv6/Thread checks, and the full `network.home.arpa/iot` label
+   are deferred until Matter is added.
 
 Do not remove Multus while consumers still request secondary networks. Retire consumers first, then
 remove the attachment and release through git; the chart cleans up its generated CNI configuration on exit.
