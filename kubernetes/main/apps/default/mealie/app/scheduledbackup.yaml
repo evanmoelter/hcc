@@ -5,6 +5,7 @@ kind: ScheduledBackup
 metadata:
   name: mealie-pg
 spec:
+  suspend: true
   schedule: "@weekly"
   immediate: true
   backupOwnerReference: self

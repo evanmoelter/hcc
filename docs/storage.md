@@ -60,7 +60,9 @@ Keep the old bucket resources through rollback: removing their blocks also remov
 
 ## Operations
 
-Change managed disk settings through git; Flux reverts UI edits. Node resources have pruning disabled,
+Follow the [single-node recovery runbook](../plans/20261003-main-single-node-recovery.md) for main's downsizing and recovery procedures.
+
+On Apollo, change managed disk settings through git; Flux reverts UI edits. Node resources have pruning disabled,
 so removing their files does not remove them from Longhorn. Disable scheduling and evacuate replicas before disk removal.
 
 hcc8's disk manifest is prepared but unregistered because Longhorn removes Node resources without a matching

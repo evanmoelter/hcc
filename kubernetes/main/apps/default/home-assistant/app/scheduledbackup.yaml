@@ -5,6 +5,7 @@ kind: ScheduledBackup
 metadata:
   name: home-assistant-pg
 spec:
+  suspend: true
   schedule: "@weekly"
   immediate: true
   backupOwnerReference: self

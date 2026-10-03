@@ -4,6 +4,7 @@ kind: ReplicationSource
 metadata:
   name: mealie-data-r2
 spec:
+  paused: true
   sourcePVC: mealie-data
   trigger:
     schedule: "0 2 * * *"

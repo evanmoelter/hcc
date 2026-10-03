@@ -4,6 +4,7 @@ kind: ReplicationSource
 metadata:
   name: node-red-data-r2
 spec:
+  paused: true
   sourcePVC: node-red-data
   trigger:
     schedule: "0 3 * * *"

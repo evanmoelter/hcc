@@ -4,6 +4,7 @@ kind: ReplicationSource
 metadata:
   name: home-assistant-config-r2
 spec:
+  paused: true
   sourcePVC: home-assistant-config
   trigger:
     schedule: "0 2 * * *"
