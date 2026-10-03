@@ -138,3 +138,15 @@ Upstream references: [5.0 release requirements](https://github.com/node-red/node
 - [ ] Main disabled, final rollback backup handled, old writer paused, and names released.
 - [ ] Apollo deployed; access, flows, credentials, Projects, and Home Assistant integration verified.
 - [ ] First actual Apollo snapshot verified; complete record archived.
+
+### Review refresh, 2026-10-03
+
+- Restacked both Node-RED branches onto main at `50ba4b3`, including the merged Home Assistant
+  deployment and backup enablement. Preserved both applications' README entries and namespace
+  registrations. The Home Assistant record contains operator verification of access, integrations,
+  automations, recorder history, and Lutron control; its remaining backup/cleanup work stays separate.
+- Removed duplicate Projects and default safe-mode environment variables, kept the UID exception in
+  app documentation, and rewrapped the joined prose. The 512 MiB memory limit remains unchanged;
+  palette installation and possible memory pressure remain deployment checks.
+- Refreshed validation passed: both cluster schema checks, 20 policy tests and 957 resource checks,
+  all 143 Apollo render checks in a standalone validation copy, and settings syntax verification.
