@@ -28,7 +28,8 @@ Authentik and WebFinger use the [identity integration](./docs/identity.md). Thei
 and cleanup gates, including unrecorded verification at archival. The [upgrade record](./plans/done/20260930-authentik-upgrades.md)
 records the completed release sequence and pre-upgrade recovery points.
 
-Paperless retains LAN and Tailscale access with scanner ingestion over SFTP. Its
+Paperless retains LAN and Tailscale access with scanner ingestion over SFTP, separate library and
+consume backups, and Pushover notifications for stalled uploads. Its
 [service notes](./docs/paperless.md) describe storage and runtime constraints; the
 [cutover record](./plans/done/20260930-paperless-migration.md) tracks restore, import, and verification.
 

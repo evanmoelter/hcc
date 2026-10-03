@@ -41,7 +41,7 @@ def render(library_capacity=None):
         owners = {
             resource["metadata"]["name"]: resource
             for filename in ["ks-storage.yaml", "ks-database.yaml", "ks.yaml", "ks-broker.yaml",
-                             "ks-sftp.yaml", "ks-tailscale.yaml"]
+                             "ks-sftp.yaml", "ks-tailscale.yaml", "ks-consume-monitor.yaml"]
             for resource in documents((root / PAPERLESS / filename).read_bytes())
         }
         for owner in owners.values():
@@ -161,11 +161,43 @@ class PaperlessMigrationTest(unittest.TestCase):
         self.assertEqual((security["runAsUser"], security["runAsGroup"], security["fsGroup"]),
                          (1000, 1000, 1000))
 
+    def test_consume_backup_is_separate_and_short_lived(self):
+        dependencies = {entry["name"] for entry in self.owners["paperless-consume-backup"]["spec"]["dependsOn"]}
+        self.assertEqual(dependencies, {"paperless-storage", "volsync", "onepassword-store"})
+        source = self.resource("paperless-consume-backup", "ReplicationSource")
+        library = self.resource("paperless-library-backup", "ReplicationSource")
+        self.assertEqual(source["spec"]["sourcePVC"], "paperless-consume")
+        self.assertEqual(source["spec"]["trigger"], {"schedule": "15 * * * *"})
+        mover = source["spec"]["restic"]
+        self.assertEqual(mover["retain"], {"within": "7d"})
+        self.assertEqual(mover["accessModes"], ["ReadWriteOnce"])
+        self.assertEqual(mover["copyMethod"], "Snapshot")
+        self.assertNotEqual(mover["repository"], library["spec"]["restic"]["repository"])
+        secret = self.resource("paperless-consume-backup", "ExternalSecret", mover["repository"])
+        self.assertTrue(secret["spec"]["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
+            "/tf-hcc-apollo-volsync/paperless-consume"))
+        password = next(entry for entry in secret["spec"]["data"] if entry["secretKey"] == "RESTIC_PASSWORD")
+        self.assertEqual(password["remoteRef"]["key"], "paperless-consume")
+        self.assertEqual(library["spec"]["restic"]["retain"], {"daily": 7, "weekly": 4, "monthly": 12})
+
+    def test_consume_monitor_can_observe_when_paperless_is_down(self):
+        owner = self.owners["paperless-consume-monitor"]["spec"]
+        self.assertNotIn("paperless", {dependency["name"] for dependency in owner["dependsOn"]})
+        values = self.resource("paperless-consume-monitor", "HelmRelease")["spec"]["values"]
+        self.assertEqual(set(values["persistence"]), {"config", "consume"})
+        mounts = values["persistence"]["consume"]["advancedMounts"]["monitor"]
+        self.assertTrue(mounts["app"][0]["readOnly"])
+        self.assertEqual(set(mounts), {"app"})
+        self.assertNotIn("initContainers", values["controllers"]["monitor"])
+        self.assertNotIn("envFrom", values["controllers"]["monitor"]["containers"]["app"])
+
     def test_dependencies_preserve_storage_database_and_backup_order(self):
         required = {
             "paperless-storage": {"longhorn-config"},
             "paperless-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "paperless-library-backup": {"paperless", "volsync", "onepassword-store"},
+            "paperless-consume-backup": {"paperless-storage", "volsync", "onepassword-store"},
+            "paperless-consume-monitor": {"paperless-storage"},
             "paperless": {"paperless-storage", "paperless-database", "paperless-broker", "authentik"},
             "paperless-sftp": {"paperless", "paperless-storage", "onepassword-store"},
             "paperless-tailscale": {"paperless", "tailscale-config"},

@@ -86,6 +86,10 @@ Open `http://localhost:8080` for results or `/metrics` for Prometheus output.
 Gatus depends on ESO and the monitoring stack, but not on the readiness of the tunnel or echo it monitors.
 An unhealthy target must not prevent the monitor from being deployed.
 
+Gatus also checks the internal Paperless consume monitor using cluster DNS and sends Pushover
+notifications for stalled uploads or unavailable monitoring. See [Paperless](paperless.md) for alert
+thresholds, backup behavior, and selective recovery details.
+
 ### Pushover setup
 
 Install the Pushover client and register the receiving device. Create an application named `Apollo` at

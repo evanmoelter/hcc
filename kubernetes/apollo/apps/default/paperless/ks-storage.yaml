@@ -51,3 +51,45 @@ spec:
       CLAIM: paperless-library
       VOLSYNC_UID: "1000"
       VOLSYNC_GID: "1000"
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: paperless-consume-backup
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: paperless-storage
+    - name: volsync
+    - name: onepassword-store
+  targetNamespace: default
+  path: ./kubernetes/apollo/components/volsync/backup
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  patches:
+    - target:
+        group: volsync.backube
+        kind: ReplicationSource
+      patch: |-
+        - op: replace
+          path: /spec/restic/retain
+          value:
+            within: 7d
+        - op: add
+          path: /spec/restic/accessModes
+          value: [ReadWriteOnce]
+  postBuild:
+    substitute:
+      APP: paperless-consume
+      CLAIM: paperless-consume
+      VOLSYNC_SCHEDULE: "15 * * * *"
+      VOLSYNC_UID: "1000"
+      VOLSYNC_GID: "1000"
