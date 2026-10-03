@@ -12,5 +12,6 @@ resources:
   - ./paperless/ks-broker.yaml
   - ./paperless/ks-sftp.yaml
   - ./paperless/ks-tailscale.yaml
+  - ./paperless/ks-consume-monitor.yaml
   - ./teslamate/ks.yaml
   - ./teslamate/ks-database.yaml

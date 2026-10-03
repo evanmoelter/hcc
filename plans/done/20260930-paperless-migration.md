@@ -357,8 +357,21 @@ storage and database components take precedence over their cluster-specific conv
 - [x] Final source VolSync snapshot and shared CNPG backup verified and recorded; old library writer paused.
 - [x] Apollo library restored from the final snapshot; logical import and application migrations verified.
 - [ ] Source/destination data compared; LAN and Tailscale OIDC, scanner upload, OCR, and export verified.
-- [ ] First Apollo library snapshot and database backup recorded; WAL archiving healthy.
-- [ ] Temporary restore/import resources removed; permanent identities and replicas verified.
+- [x] First Apollo library snapshot and database backup recorded; WAL archiving healthy.
+- [x] Temporary restore/import resources removed; permanent identities and replicas verified.
 - [ ] Migration credentials revoked or archived.
 - [x] Full plan and execution record moved to `plans/done/` in PR #321 at the operator's request;
   outstanding checks above remain explicit.
+
+### Cleanup and backup verification, 2026-10-03 UTC
+
+- PR #321 merged as `84be34494c7c3546686aa095fb61b694bf804074` at 04:34:27 UTC. All seven
+  remaining Paperless Flux Kustomizations applied the revision and became Ready.
+- The first Apollo library backup completed automatically at 04:38:00 UTC, saving restic snapshot
+  `a4901625` with 788 files. The ReplicationSource remained enabled with its recurring schedule.
+- The restore preflight, ReplicationDestination, temporary restore PVC/snapshot, and migration
+  ExternalSecrets were removed. Both permanent PVC/PV identities and the PostgreSQL Cluster UID
+  and system ID matched the recorded values. Both Longhorn volumes were healthy with three replicas.
+- Application, SFTP, database, and Dragonfly pods remained Ready with zero restarts. The database
+  backup remained completed and continuous WAL archiving healthy. Old-cluster library and consume
+  claims remained Bound. Migration credential retirement remains an operator task.

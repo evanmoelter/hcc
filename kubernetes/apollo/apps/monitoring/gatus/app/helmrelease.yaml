@@ -125,6 +125,21 @@ spec:
                     success-threshold: 2
                     send-on-resolved: true
                     minimum-reminder-interval: 1h
+              - name: Paperless consume
+                group: documents
+                url: "http://paperless-consume-monitor.default.svc.cluster.local:8080/status"
+                interval: 1m
+                client:
+                  timeout: 10s
+                conditions:
+                  - "[STATUS] == 200"
+                  - "[BODY].oldest_age_seconds < 3600"
+                alerts:
+                  - type: pushover
+                    failure-threshold: 10
+                    success-threshold: 2
+                    send-on-resolved: true
+                    minimum-reminder-interval: 1h
     service:
       app:
         controller: gatus
