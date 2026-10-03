@@ -31,8 +31,8 @@ The old cluster stays at `kubernetes/main`. Renaming a live Flux root adds risk 
 
 | Node | Today | After migration | Wave |
 |---|---|---|---|
-| hcc | k3s controller and Longhorn storage node | retired | 2 |
-| hcc2 | k3s controller and Longhorn storage node | retired | 2 |
+| hcc | removed from k3s; powered off with k3s disabled | retired; disks retained pending release | 2 |
+| hcc2 | removed from k3s; powered off with k3s disabled | retired; disks retained pending release | 2 |
 | hcc-tablet1 | removed from Kubernetes, etcd, Longhorn, and Ansible inventory | wipe disk before disposal or repurposing | n/a |
 | hcc5, hcc6, hcc7 | new NUC11s | Talos control-plane | 1 |
 | hcc8 | new NUC11; awaiting a switch port | Talos worker | when a port is available |
@@ -41,19 +41,16 @@ The old cluster stays at `kubernetes/main`. Renaming a live Flux root adds risk 
 
 ```mermaid
 flowchart LR
-    subgraph old["kubernetes/main: retained through Wave 1"]
-        hcc["hcc"]
-        hcc2["hcc2"]
+    subgraph old["kubernetes/main: single-node recovery"]
         hcc3o["hcc3"]
     end
+    retired["hcc, hcc2<br/>removed from k3s; powered off"]
     hcc4o["hcc4<br/>removed from k3s; powered off"]
     subgraph apollo["kubernetes/apollo"]
         cp["hcc5, hcc6, hcc7<br/>control-plane"]
         hcc8["hcc8 worker"]
         workers["hcc3, hcc4<br/>Wave 2 workers"]
     end
-    hcc -. retire .-> retired((retired))
-    hcc2 -. retire .-> retired
     hcc3o == wipe and rejoin ==> workers
     hcc4o == wipe and rejoin ==> workers
 ```
@@ -463,9 +460,10 @@ credential retirement remains outstanding in its archived cutover record.
 4. Rebuild stateful apps one at a time using the standard cutover and app order above.
 
 The operator approved removing hcc4 on 2026-10-03, then selected hcc3 as a single-node recovery environment.
-The remaining live members are hcc, hcc2, and hcc3 until the
-[downsizing runbook](20261003-main-single-node-recovery.md) is executed. Do not power off the Odroids until
-their replicas are evacuated and their etcd memberships removed in order. The old HA deployment requires hcc3.
+hcc and hcc2 were subsequently evacuated and removed from etcd, Kubernetes, and Longhorn in that order,
+leaving hcc3 as the sole member. Both Odroids are powered off with k3s disabled and their disks intact.
+The [downsizing execution record](20261003-main-single-node-recovery.md#execution-record) tracks the
+single-node checks and recovery window. The old HA deployment requires hcc3.
 
 Wave 1 ends with all migrated apps on Apollo and their disabled copies retained in main. Keep hcc3 and
 the Odroid disks intact until the independent single-node restart and data-access checks pass.
@@ -580,7 +578,7 @@ Per app:
 Wave 2:
 
 - [x] Evacuate and remove hcc4, leaving hcc, hcc2, and hcc3 as the rollback cluster.
-- [ ] Complete the single-node recovery runbook, including volume coverage, etcd contraction, and independent restart.
+- [x] Complete the single-node recovery runbook, including volume coverage, etcd contraction, and independent restart.
 - [ ] Retain hcc3 for approximately one week and obtain operator approval before wiping it.
 - [ ] Add hcc3 and hcc4, transplant the wiped SSDs, and wait for each Longhorn rebuild.
 - [ ] Remove the temporary database firewall rule and return external-dns to sync policy.
@@ -594,9 +592,9 @@ Rollback remains available through the agreed recovery window because the old ma
 
 For one app, first remove its Apollo route so the name is released, then revert the old disable commit. Restore the old database service reference for authentik, Paperless, or TeslaMate and delete the partial new per-app cluster. For Mealie or Home Assistant, delete the partial recovered cluster; the old per-app database was never modified. Any writes made on Apollo after cutover are lost, so verify each migration promptly.
 
-Until downsizing is verified, recovery uses hcc, hcc2, and hcc3. After the
-[single-node checks](20261003-main-single-node-recovery.md#6-prove-independent-recovery-then-retain-hcc3)
-pass, boot hcc3 alone for selective data recovery. It has no node or local-storage redundancy. Keep its
+Recovery now uses hcc3 alone; the Odroids are no longer etcd members. Follow the
+[single-node recovery procedure](20261003-main-single-node-recovery.md#recovery-and-release)
+for selective data recovery. It has no node or local-storage redundancy. Keep its
 disks, the main tree, and required credentials intact until the operator ends the recovery window.
 
 # Open questions
