@@ -17,7 +17,7 @@ their execution records.
 | TLS certificates | [Certificates](certificates.md): issuers, credentials, wildcard issuance, and checks. |
 | Tailnet access | [Tailscale](tailscale.md): operator identity, OAuth setup, Ingress security, and verification. |
 | Addressing, LoadBalancers, and IoT | [Networking](networking.md): VLANs, IP allocation, firewall rules, Multus, and node eligibility. |
-| Metrics, alerts, and dashboards | [Monitoring](monitoring.md): Prometheus, public-path checks, Pushover, and cluster/Flux dashboards. |
+| Metrics, alerts, and dashboards | [Monitoring](monitoring.md): Prometheus, Grafana management decision, public-path checks, Pushover, and cluster/Flux dashboards. |
 | Node boot and disk protection | [Talos security](talos-security.md): Secure Boot, TPM encryption, recovery, and node conversion. |
 | Manifest policies | [Linting](linting.md): policy definitions, exceptions, tests, and validation scope. |
 

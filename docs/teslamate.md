@@ -19,6 +19,8 @@ and Grafana continue to agree on credentials.
 Grafana remains disposable, with its datasource and dashboards provisioned through Helm values.
 Dashboards are pinned to the TeslaMate release and should move with its application schema. UI edits
 are not durable. Anonymous Editor access on LAN/Tailscale is retained by operator decision during migration.
+The [Grafana management decision](monitoring.md#grafana-management-decision) defers operator adoption until
+Grafana expands into shared cluster monitoring.
 
 Backups use the shared [Postgres component](../kubernetes/apollo/components/postgres/) with an
 Apollo-specific archive. The [cutover record](../plans/20261002-teslamate-migration.md) holds source

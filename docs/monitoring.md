@@ -7,7 +7,8 @@ Deployment and all 32 active scrape targets were verified healthy on 2026-09-09.
 
 Prometheus keeps up to two days or 3 GB of retained blocks in a 5 GiB disk-backed `emptyDir`, with room for the WAL
 and compaction. Alertmanager uses a 256 MiB `emptyDir`. Pod replacement loses metrics history and alert silences.
-This lets metrics start before Longhorn. Grafana is disabled, and Alertmanager has no notification receiver configured.
+This lets metrics start before Longhorn. The chart's bundled Grafana is disabled; a separate instance serves
+[TeslaMate](teslamate.md). Alertmanager has no notification receiver configured.
 Public-path notifications come directly from Gatus through Pushover; Kubernetes alerts remain visible only in Alertmanager.
 
 The chart discovers API server, kubelet/cAdvisor, CoreDNS, controller-manager, scheduler, and etcd metrics.
@@ -32,13 +33,34 @@ kubectl --context apollo -n monitoring port-forward svc/kube-prometheus-stack-al
 Open `http://localhost:9090/targets` to verify scraping and `http://localhost:9093` for alerts. Confirm all expected
 nodes appear and each enabled control-plane target is up before treating bootstrap metrics as operational.
 
-After Longhorn lands, move Prometheus and Alertmanager to PVCs and revisit retention. Add Grafana, authenticated
-Gateway routes, and notification credentials when storage, ingress, and ESO are ready.
+Moving Prometheus and Alertmanager to PVCs, revisiting retention, adding authenticated Gateway routes,
+and configuring notification credentials remain follow-up work.
 
 The Talos etcd discovery and cross-namespace monitor settings follow
 [onedr0p's stack](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/o11y/kube-prometheus-stack/app/helmrelease.yaml)
 and [joryirving's stack](https://github.com/joryirving/home-ops/blob/main/kubernetes/apps/base/observability/kube-prometheus-stack/helmrelease.yaml).
 Chart values and generated security settings were checked against kube-prometheus-stack 90.0.0 and Prometheus Operator v0.93.1.
+
+## Grafana management decision
+
+Use grafana-operator when expanding Grafana into shared Apollo monitoring. Keep dashboard resources beside
+their owning apps, selecting the shared instance across namespaces. Typed dashboard and datasource resources
+provide reconciliation status and drift correction, at the cost of another controller, CRD upgrades, and API
+credentials. The Helm chart's ConfigMap sidecar also supports app-owned dashboards, but lacks those resource statuses.
+
+The TeslaMate migration retains direct Helm provisioning. The later operator migration should preserve disposable
+storage, LAN/Tailscale access, ESO credentials, and dashboard sources pinned to the TeslaMate release. Persistence
+and authentication policy remain separate decisions. Manage CRD upgrades through Flux and make the instance depend
+on the operator; UI edits to managed dashboards must be exported to Git to survive reconciliation.
+
+The 2026-10-02 review found operator-managed instances in
+[onedr0p](https://github.com/onedr0p/home-ops/tree/main/kubernetes/apps/o11y/grafana-operator),
+[Billimek](https://github.com/billimek/k8s-gitops/tree/master/kubernetes/monitoring/grafana),
+[szinn](https://github.com/szinn/k8s-homelab/tree/main/kubernetes/main/apps/observability/grafana),
+[Mafyuh](https://github.com/Mafyuh/iac/tree/main/kubernetes/apps/monitoring/grafana), and
+[joryirving](https://github.com/joryirving/home-ops/tree/main/kubernetes/apps/base/observability/grafana).
+See upstream [reconciliation behavior](https://grafana.github.io/grafana-operator/docs/examples/common_options/)
+and [CRD lifecycle guidance](https://grafana.github.io/grafana-operator/docs/installation/helm/).
 
 ## Public-path monitoring
 
