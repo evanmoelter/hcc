@@ -19,3 +19,6 @@ resources:
   - ./home-assistant/ks-storage.yaml
   - ./home-assistant/ks-database.yaml
   - ./home-assistant/ks-tailscale.yaml
+  - ./node-red/ks.yaml
+  - ./node-red/ks-storage.yaml
+  - ./node-red/ks-tailscale.yaml

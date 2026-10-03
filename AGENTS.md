@@ -95,7 +95,7 @@ base and express the actual dependency order: preflight → storage → app → 
 
 ### Non-root with a hardened container context
 
-New workloads run as UID and GID 568, with `runAsNonRoot`, `fsGroup: 568`, and `fsGroupChangePolicy: OnRootMismatch` on the pod, and `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `capabilities.drop: ["ALL"]` on the container. Mealie, Home Assistant, and Node-RED are built this way. Some images will not tolerate it. Loosen the one setting that blocks the app rather than dropping the whole block.
+New workloads run as UID and GID 568, with `runAsNonRoot`, `fsGroup: 568`, and `fsGroupChangePolicy: OnRootMismatch` on the pod, and `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, and `capabilities.drop: ["ALL"]` on the container. Mealie and Home Assistant are built this way. Some images will not tolerate it. Loosen the one setting that blocks the app rather than dropping the whole block.
 
 ### CPU requests, memory limits
 

@@ -439,6 +439,8 @@ Migrate in this order:
 5. Home Assistant, after IPv4/mDNS is verified on hcc6 and at least one alternative node. Matter/Thread
    is deferred until the Apple TV is available; it does not block this migration.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
+   The [preparation record](20261003-node-red-migration.md) covers the approved fresh rebuild, preserved
+   LAN/Tailscale access, credential setup, and two-PR cutover. Merge after Home Assistant verification.
 
 The operator selected Mealie first on 2026-09-18 because it is not currently used.
 [Mealie's completed cutover record](./done/20260918-mealie-migration.md) preserves preparation, recovery,
