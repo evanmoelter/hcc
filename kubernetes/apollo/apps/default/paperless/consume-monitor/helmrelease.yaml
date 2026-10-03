@@ -35,30 +35,23 @@ spec:
             fsGroupChangePolicy: OnRootMismatch
             seccompProfile:
               type: RuntimeDefault
-        initContainers:
-          seed-backup:
-            image: &image
+        containers:
+          app:
+            image:
               repository: ghcr.io/paperless-ngx/paperless-ngx
               tag: 2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
-            command: [python3, -c]
-            args: ["from pathlib import Path; Path('/consume/._volsync').touch(exist_ok=True)"]
-            securityContext: &security
+            command: [python3, -B, /config/monitor.py]
+            securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: true
               capabilities:
                 drop: [ALL]
-            resources: &resources
+            resources:
               requests:
                 cpu: 10m
                 memory: 32Mi
               limits:
                 memory: 128Mi
-        containers:
-          app:
-            image: *image
-            command: [python3, -B, /config/monitor.py]
-            securityContext: *security
-            resources: *resources
             probes:
               liveness: &probes
                 enabled: true
@@ -89,8 +82,6 @@ spec:
         existingClaim: paperless-consume
         advancedMounts:
           monitor:
-            seed-backup:
-              - path: /consume
             app:
               - path: /consume
                 readOnly: true

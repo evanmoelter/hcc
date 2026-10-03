@@ -60,7 +60,7 @@ metadata:
   namespace: flux-system
 spec:
   dependsOn:
-    - name: paperless-consume-monitor
+    - name: paperless-storage
     - name: volsync
     - name: onepassword-store
   targetNamespace: default

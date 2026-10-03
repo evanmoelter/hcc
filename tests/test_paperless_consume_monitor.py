@@ -26,6 +26,27 @@ class ConsumeMonitorTest(unittest.TestCase):
             self.assertEqual(monitor.consume_status(root, now=10000),
                              {'files': 0, 'oldest_age_seconds': 0})
 
+    def test_paperless_metadata_is_ignored_at_every_depth(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for parent in [root, root / 'receipt/nested']:
+                parent.mkdir(parents=True, exist_ok=True)
+                for name in ['.DS_Store', '.DS_STORE', '._scan.pdf', 'Thumbs.db', 'desktop.ini']:
+                    file = parent / name
+                    file.touch()
+                    os.utime(file, (1000, 1000))
+                for name in ['.stfolder', '.stversions', '.localized', '@eaDir', 'lost+found']:
+                    folder = parent / name
+                    folder.mkdir()
+                    (folder / 'ignored.pdf').touch()
+            self.assertEqual(monitor.consume_status(root, now=10000),
+                             {'files': 0, 'oldest_age_seconds': 0})
+            pending = root / 'receipt/nested/.pending.pdf'
+            pending.touch()
+            os.utime(pending, (5000, 5000))
+            self.assertEqual(monitor.consume_status(root, now=10000),
+                             {'files': 1, 'oldest_age_seconds': 5000})
+
     def test_recursive_oldest_file_and_recovery_after_consumption(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

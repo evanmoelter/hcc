@@ -1,9 +1,16 @@
+from fnmatch import fnmatchcase
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
 from pathlib import Path
 import stat
 import time
+
+
+IGNORE_PATTERNS = (
+    '.DS_Store', '.DS_STORE', '._*', '.stfolder/*', '.stversions/*',
+    '.localized/*', 'desktop.ini', '@eaDir/*', 'Thumbs.db', 'lost+found/*',
+)
 
 
 def consume_status(root=Path('/consume'), now=None):
@@ -14,13 +21,15 @@ def consume_status(root=Path('/consume'), now=None):
     while directories:
         with os.scandir(directories.pop()) as entries:
             for entry in entries:
-                if entry.name in {'lost+found', '._volsync'}:
-                    continue
                 try:
                     info = entry.stat(follow_symlinks=False)
                 except FileNotFoundError:
                     continue
-                if stat.S_ISDIR(info.st_mode):
+                is_directory = stat.S_ISDIR(info.st_mode)
+                name = entry.name + '/' if is_directory else entry.name
+                if any(fnmatchcase(name, pattern) for pattern in IGNORE_PATTERNS):
+                    continue
+                if is_directory:
                     directories.append(Path(entry.path))
                 elif stat.S_ISREG(info.st_mode):
                     count += 1

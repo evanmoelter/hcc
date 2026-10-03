@@ -162,6 +162,8 @@ class PaperlessMigrationTest(unittest.TestCase):
                          (1000, 1000, 1000))
 
     def test_consume_backup_is_separate_and_short_lived(self):
+        dependencies = {entry["name"] for entry in self.owners["paperless-consume-backup"]["spec"]["dependsOn"]}
+        self.assertEqual(dependencies, {"paperless-storage", "volsync", "onepassword-store"})
         source = self.resource("paperless-consume-backup", "ReplicationSource")
         library = self.resource("paperless-library-backup", "ReplicationSource")
         self.assertEqual(source["spec"]["sourcePVC"], "paperless-consume")
@@ -185,7 +187,8 @@ class PaperlessMigrationTest(unittest.TestCase):
         self.assertEqual(set(values["persistence"]), {"config", "consume"})
         mounts = values["persistence"]["consume"]["advancedMounts"]["monitor"]
         self.assertTrue(mounts["app"][0]["readOnly"])
-        self.assertFalse(mounts["seed-backup"][0].get("readOnly", False))
+        self.assertEqual(set(mounts), {"app"})
+        self.assertNotIn("initContainers", values["controllers"]["monitor"])
         self.assertNotIn("envFrom", values["controllers"]["monitor"]["containers"]["app"])
 
     def test_dependencies_preserve_storage_database_and_backup_order(self):
@@ -193,7 +196,7 @@ class PaperlessMigrationTest(unittest.TestCase):
             "paperless-storage": {"longhorn-config"},
             "paperless-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "paperless-library-backup": {"paperless", "volsync", "onepassword-store"},
-            "paperless-consume-backup": {"paperless-consume-monitor", "volsync", "onepassword-store"},
+            "paperless-consume-backup": {"paperless-storage", "volsync", "onepassword-store"},
             "paperless-consume-monitor": {"paperless-storage"},
             "paperless": {"paperless-storage", "paperless-database", "paperless-broker", "authentik"},
             "paperless-sftp": {"paperless", "paperless-storage", "onepassword-store"},
