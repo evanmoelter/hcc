@@ -30,6 +30,7 @@ spec:
   values:
     controllers:
       teslamate:
+        replicas: 0
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
@@ -55,7 +56,7 @@ spec:
 
     ingress:
       main:
-        enabled: true
+        enabled: false
         className: internal
         hosts:
           - host: &host "{{ .Release.Name }}.${SECRET_DOMAIN}"
