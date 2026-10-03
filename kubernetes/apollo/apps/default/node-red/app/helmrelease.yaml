@@ -50,8 +50,6 @@ spec:
             env:
               TZ: ${TIMEZONE}
               HOME: /data
-              NODE_RED_ENABLE_PROJECTS: "true"
-              NODE_RED_ENABLE_SAFE_MODE: "false"
               NODE_RED_CREDENTIAL_SECRET:
                 valueFrom:
                   secretKeyRef:

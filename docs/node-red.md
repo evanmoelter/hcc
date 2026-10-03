@@ -31,7 +31,8 @@ writable temporary storage at `/tmp`.
 ## Home Assistant
 
 Cutover waits for verified Apollo Home Assistant. The empty runtime has no hard dependency on Home
-Assistant readiness, so it can still start for editing or repair during an HA outage. The operator installs `node-red-contrib-home-assistant-websocket` through the palette and configures
+Assistant readiness, so it can still start for editing or repair during an HA outage. The operator installs
+`node-red-contrib-home-assistant-websocket` through the palette and configures
 its server node with Home Assistant's base URL and an operator-created long-lived access token.
 Use standalone-server settings, leaving the Home Assistant add-on option disabled. Keep the token
 in Node-RED's credential fields, never in committed flows or documentation. Node-RED uses the normal
