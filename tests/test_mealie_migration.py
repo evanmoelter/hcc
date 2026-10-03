@@ -35,7 +35,7 @@ def render():
         owners = {
             resource["metadata"]["name"]: resource
             for resource in build(root, parent, APOLLO / "apps/default")
-            if resource["kind"] == "Kustomization"
+            if resource["kind"] == "Kustomization" and resource["metadata"]["name"].startswith("mealie")
         }
         resources = {}
         for name, owner in owners.items():

@@ -209,8 +209,10 @@ data. Retain a failed Apollo database for diagnosis until an explicit cleanup de
   returned HTTP 200; both WebFinger paths returned the expected Tailscale issuer. Old workloads remained stopped.
 - The worker reported an imported Kubernetes service connection without a token. Confirm no outpost
   uses it before removing the connection; this warning is separate from the resolved startup failure.
-- [ ] Source/destination application data compared.
-- [ ] LAN/public login, Mealie OIDC, WebFinger/Tailscale, SMTP, and proxy-header checks passed.
+- [x] Source/destination application data compared.
+- [x] LAN/public login, Mealie OIDC, WebFinger/Tailscale, SMTP, and proxy-header checks passed.
+  The operator confirmed all of these verification checks passed on 2026-09-30, clearing the
+  Authentik verification prerequisite for Paperless preparation and cutover.
 - [x] First Apollo base backup and continuous WAL archiving verified.
   `authentik-pg-20260930063525` completed at 2026-09-30 06:36:41 UTC; CNPG reported
   `ContinuousArchiving=True`.

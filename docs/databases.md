@@ -91,12 +91,12 @@ Its ServiceMonitor scrapes the operator's internal HTTP metrics endpoint with th
 matching Apollo's other controller metrics. Any pod that can reach the endpoint can scrape it without credentials.
 Operator readiness and its Prometheus target still need deployment verification.
 
-Dragonfly instances belong to their consuming apps and are added during app migration. Paperless gets a
-fresh memory-only instance with a password supplied through ESO from `hcc-apollo`; define its ExternalSecret
-and 1Password field alongside that migration. The operator alone requires no application credentials.
+Dragonfly instances belong to their consuming apps. Paperless uses a memory-only instance with a password
+supplied through ESO from `hcc-apollo/paperless-dragonfly`, field `password`. Its application secret renders
+the authenticated Redis URL from that same field. The operator alone requires no application credentials.
 Authentik no longer needs Redis as of [2025.10](https://docs.goauthentik.io/releases/2025.10/#redis-removal),
 so its old Redis configuration and Flux dependency are not carried forward. The old shared Dragonfly stays
-running while Paperless still uses it.
+running for rollback until the old cluster retires.
 
 Each instance needs its own Flux Kustomization, depending on `dragonfly-operator` and `onepassword-store`,
 with a health expression waiting for `status.phase == 'Ready'`. Apply the pod and container security contexts
