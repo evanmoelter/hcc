@@ -127,13 +127,12 @@ spec:
                     minimum-reminder-interval: 1h
               - name: Paperless consume
                 group: documents
-                url: "http://paperless-consume-monitor.default.svc.cluster.local:8080/status"
+                url: "http://paperless-consume-monitor.default.svc.cluster.local:8080/"
                 interval: 1m
                 client:
                   timeout: 10s
                 conditions:
                   - "[STATUS] == 200"
-                  - "[BODY].oldest_age_seconds < 3600"
                 alerts:
                   - type: pushover
                     failure-threshold: 10

@@ -32,15 +32,16 @@ Recover consume into a separate temporary PVC using the [VolSync recovery proced
 Inspect the restored files and copy only complete, missing scans into the live consume directory.
 Replaying an entire old inbox can resubmit documents that were already processed.
 
-An independent monitor reads consume without modifying uploads and reports only file count and the
-oldest file's age, based on modification time. It excludes filesystem metadata and matches Paperless's
-[default ignored files and directories](https://github.com/paperless-ngx/paperless-ngx/blob/v2.20.15/src/paperless/settings.py#L924)
-at each level, while still monitoring other dotfiles. Keep those exclusions aligned when changing
-Paperless's ignore configuration. Gatus checks it each minute and sends a Pushover alert
-after ten consecutive failures if a file is at least one hour old, the directory cannot be read, or the
-monitor is unreachable. Two healthy checks resolve the alert; ongoing failures send hourly reminders.
-The monitor uses Paperless's existing Python image without starting the app or mounting its credentials
-or library. Its service is internal only. Gatus's in-memory state resets on restart, as described in
+An independent Telegraf monitor mounts consume read-only and uses its native `filecount` input to count
+non-hidden PDFs under `/consume/receipt` whose modification time is over one hour old. Its `health`
+output returns HTTP 503 when that count is nonzero or no fresh count has arrived for two minutes.
+Gatus checks that internal endpoint each minute and sends a Pushover alert after ten consecutive
+failures. Two healthy checks resolve the alert; ongoing failures send hourly reminders. Pod probes
+check the TCP listener so a stuck scan does not restart the monitor.
+
+This is a best-effort scanner alert: it does not cover other formats, hidden files, uploads elsewhere,
+or every partially unreadable directory. The consume backup still covers the whole claim. The monitor
+has no library or credential mounts. Gatus's in-memory state resets on restart, as described in
 [monitoring](monitoring.md).
 
 Paperless runs as UID/GID 1000, matching the upstream image and restored files. The upstream
