@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app teslamate
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    strategy:
+      name: RemediateOnFailure
+    remediation:
+      retries: 3
+  upgrade:
+    strategy:
+      name: RemediateOnFailure
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+      strategy: rollback
+  rollback:
+    cleanupOnFail: true
+  values:
+    controllers:
+      teslamate:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        replicas: 1
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            runAsNonRoot: true
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          app:
+            image:
+              repository: docker.io/teslamate/teslamate
+              tag: 1.33.0@sha256:0767c590f53d36c18786153f290514f06b52f274656d25f61f1ddea4530653fb
+            env:
+              TZ: ${TIMEZONE}
+              HOME: /tmp
+              SRTM_CACHE: /tmp/srtm
+              DISABLE_MQTT: "true"
+              VIRTUAL_HOST: teslamate.${SECRET_DOMAIN}
+              CHECK_ORIGIN: "true"
+              DATABASE_HOST: teslamate-pg-rw.default.svc.cluster.local
+              DATABASE_PORT: "5432"
+              DATABASE_NAME: teslamate
+              DATABASE_USER: teslamate
+              DATABASE_SSL: "true"
+              DATABASE_SSL_CA_CERT_FILE: /etc/postgres/ca.crt
+              DATABASE_PASS:
+                valueFrom:
+                  secretKeyRef:
+                    name: teslamate-postgres
+                    key: password
+              ENCRYPTION_KEY:
+                valueFrom:
+                  secretKeyRef:
+                    name: teslamate-secret
+                    key: ENCRYPTION_KEY
+            probes:
+              liveness:
+                enabled: true
+                type: HTTP
+                path: /
+              readiness:
+                enabled: true
+                type: HTTP
+                path: /
+              startup:
+                enabled: true
+                type: HTTP
+                path: /
+                spec:
+                  failureThreshold: 180
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+    service:
+      app:
+        controller: teslamate
+        ports:
+          http:
+            port: 4000
+    route:
+      internal:
+        enabled: true
+        hostnames:
+          - teslamate.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: http
+    externalSecrets:
+      app:
+        forceRename: teslamate-secret
+        refreshInterval: 1h
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword
+        target:
+          creationPolicy: Owner
+        data:
+          - secretKey: ENCRYPTION_KEY
+            remoteRef:
+              key: *app
+              property: ENCRYPTION_KEY
+    persistence:
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp
+      postgres-ca:
+        type: secret
+        name: teslamate-pg-ca
+        items:
+          - key: ca.crt
+            path: ca.crt
+        globalMounts:
+          - path: /etc/postgres
+            readOnly: true

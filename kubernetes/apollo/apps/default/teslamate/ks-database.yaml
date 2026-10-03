@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: teslamate-database
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: plugin-barman-cloud
+    - name: longhorn-config
+    - name: onepassword-store
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/teslamate/database
+  components:
+    - ../../../../components/postgres
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  healthCheckExprs:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      current: >-
+        has(status.conditions) &&
+        status.conditions.exists(e, e.type == 'Ready' && e.status == 'True')
+  interval: 30m
+  retryInterval: 1m
+  timeout: 30m
+  postBuild:
+    substitute:
+      APP: teslamate
+      POSTGRES_IMAGE: ghcr.io/cloudnative-pg/postgresql:16.15-system-trixie@sha256:e5e43e200764743408f7a38d66205e25af2ccc36294b5953111527d9804fff85
+      POSTGRES_CAPACITY: 20Gi

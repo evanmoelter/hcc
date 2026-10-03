@@ -8,6 +8,7 @@ their execution records.
 |---|---|
 | Credentials and configuration reloads | [Secrets](secrets.md): ESO, 1Password setup, application integration, and Reloader. |
 | SSO and login discovery | [Identity](identity.md): Authentik, proxy trust, database credentials, and Tailscale WebFinger. |
+| Vehicle telemetry | [TeslaMate](teslamate.md): database credentials, Grafana dashboards, collection checks, and cutover record. |
 | Document management and scanner ingestion | [Paperless](paperless.md): access, persistent data, queue lifecycle, and runtime constraints. |
 | Persistent files and backups | [Storage](storage.md): Longhorn, capacity, snapshots, R2 backup separation, and node registration. [VolSync lifecycle usage](../kubernetes/apollo/components/volsync/README.md) covers PVC creation, restore, backup, and cleanup. |
 | PostgreSQL and Redis-compatible services | [Databases](databases.md): Postgres components, initialization and recovery, credentials, backups, upgrade recovery points, and Dragonfly integration. |
@@ -16,7 +17,7 @@ their execution records.
 | TLS certificates | [Certificates](certificates.md): issuers, credentials, wildcard issuance, and checks. |
 | Tailnet access | [Tailscale](tailscale.md): operator identity, OAuth setup, Ingress security, and verification. |
 | Addressing, LoadBalancers, and IoT | [Networking](networking.md): VLANs, IP allocation, firewall rules, Multus, and node eligibility. |
-| Metrics, alerts, and dashboards | [Monitoring](monitoring.md): Prometheus, public-path checks, Pushover, and cluster/Flux dashboards. |
+| Metrics, alerts, and dashboards | [Monitoring](monitoring.md): Prometheus, Grafana management decision, public-path checks, Pushover, and cluster/Flux dashboards. |
 | Node boot and disk protection | [Talos security](talos-security.md): Secure Boot, TPM encryption, recovery, and node conversion. |
 | Manifest policies | [Linting](linting.md): policy definitions, exceptions, tests, and validation scope. |
 
