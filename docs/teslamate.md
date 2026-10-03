@@ -16,11 +16,9 @@ remain readable in git. ESO renders a basic-auth Secret for CNPG and a separate 
 Grafana's namespace. Recovery must reference the same destination basic-auth Secret so the database
 and Grafana continue to agree on credentials.
 
-Grafana remains disposable, with its datasource and dashboards provisioned from git.
-Basic authentication stays enabled for the provisioning sidecars to reload configuration using the
-chart-generated admin credential; the login form stays disabled and anonymous access remains Editor. Dashboards are
-pinned to the TeslaMate release and should move with its application schema. UI edits are not durable.
-Anonymous Editor access on LAN/Tailscale is retained by operator decision during migration.
+Grafana remains disposable, with its datasource and dashboards provisioned through Helm values.
+Dashboards are pinned to the TeslaMate release and should move with its application schema. UI edits
+are not durable. Anonymous Editor access on LAN/Tailscale is retained by operator decision during migration.
 
 Backups use the shared [Postgres component](../kubernetes/apollo/components/postgres/) with an
 Apollo-specific archive. The [cutover record](../plans/20261002-teslamate-migration.md) holds source
@@ -32,5 +30,3 @@ The workload hardening and startup grace draw from
 [Billimek's TeslaMate deployment](https://github.com/billimek/k8s-gitops/blob/master/kubernetes/default/teslamate/teslamate.yaml).
 The secret-backed TLS datasource follows its
 [Grafana integration](https://github.com/billimek/k8s-gitops/blob/master/kubernetes/monitoring/grafana/instance/datasource-teslamate.yaml).
-The five requested community repositories use Grafana Operator; this migration retains the existing
-Grafana chart because adopting the operator is not necessary to preserve the dashboards.

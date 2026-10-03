@@ -150,7 +150,7 @@ not recovered by copying the historical database.
 
 After historical data and Apollo backups are verified, remove the source ExternalSecret and import
 patches. Keep the destination basic-auth Secret and an app-local patch setting
-`spec.bootstrap.recovery.secret.name: teslamate-postgres`, plus the PostgreSQL parameters. The default
+`spec.bootstrap.recovery.secret.name: teslamate-postgres`. The default
 component recovery then uses the same password that Grafana consumes. Remove only the temporary
 source vault item after verification. Preserve the database, its Kustomization, and backups.
 

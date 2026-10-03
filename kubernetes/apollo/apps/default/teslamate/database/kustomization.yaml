@@ -35,9 +35,3 @@ patches:
             password:
               name: teslamate-postgres-migration
               key: password
-      - op: add
-        path: /spec/postgresql
-        value:
-          parameters:
-            max_connections: "100"
-            shared_buffers: 128MB

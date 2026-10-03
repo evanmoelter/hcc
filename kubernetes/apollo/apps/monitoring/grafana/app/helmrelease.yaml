@@ -26,6 +26,9 @@ spec:
     cleanupOnFail: true
   values:
     replicas: 1
+    rbac:
+      create: false
+    automountServiceAccountToken: false
     image:
       registry: docker.io
       repository: grafana/grafana
@@ -68,7 +71,7 @@ spec:
       auth:
         disable_login_form: true
       auth.basic:
-        enabled: true
+        enabled: false
       auth.anonymous:
         enabled: true
         org_name: Main Org.
@@ -177,36 +180,10 @@ spec:
         database-info:
           url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/database-info.json
     sidecar:
-      image:
-        registry: quay.io
-        repository: kiwigrid/k8s-sidecar
-        tag: 2.1.2
-        sha: 716b0b33ff2dc938a3f2bc64e5ea791d81fb09760bcd27cec1eb896968d6e134
-      securityContext:
-        allowPrivilegeEscalation: false
-        readOnlyRootFilesystem: true
-        capabilities:
-          drop:
-            - ALL
-      resources:
-        requests:
-          cpu: 10m
-          memory: 64Mi
-        limits:
-          memory: 128Mi
       dashboards:
-        enabled: true
-        searchNamespace: ALL
-        labelValue: ""
-        label: grafana_dashboard
-        folderAnnotation: grafana_folder
-        provider:
-          disableDelete: true
-          foldersFromFilesStructure: true
+        enabled: false
       datasources:
-        enabled: true
-        searchNamespace: ALL
-        labelValue: ""
+        enabled: false
     serviceMonitor:
       enabled: true
     persistence:
