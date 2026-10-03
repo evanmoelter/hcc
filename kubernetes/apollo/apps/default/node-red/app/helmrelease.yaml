@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app node-red
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    strategy:
+      name: RemediateOnFailure
+    remediation:
+      retries: 3
+  upgrade:
+    strategy:
+      name: RemediateOnFailure
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+      strategy: rollback
+  rollback:
+    cleanupOnFail: true
+  values:
+    controllers:
+      node-red:
+        annotations:
+          reloader.stakater.com/auto: "true"
+        replicas: 1
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            fsGroup: 1000
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          app:
+            image:
+              repository: docker.io/nodered/node-red
+              tag: 5.0.7-24@sha256:a649dd711d55490151a2c39a8e48ad0c44325488fbc0e66315f2d2e19e5e1ace
+            args: ["--settings", "/etc/node-red/settings.js"]
+            env:
+              TZ: ${TIMEZONE}
+              HOME: /data
+              NODE_RED_ENABLE_PROJECTS: "true"
+              NODE_RED_ENABLE_SAFE_MODE: "false"
+              NODE_RED_CREDENTIAL_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: node-red-secret
+                    key: NODE_RED_CREDENTIAL_SECRET
+            probes:
+              liveness:
+                enabled: true
+                type: HTTP
+                path: /
+              readiness:
+                enabled: true
+                type: HTTP
+                path: /
+              startup:
+                enabled: true
+                type: HTTP
+                path: /
+                spec:
+                  failureThreshold: 60
+                  periodSeconds: 5
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            resources:
+              requests:
+                cpu: 20m
+                memory: 256Mi
+              limits:
+                memory: 512Mi
+    service:
+      app:
+        controller: node-red
+        ports:
+          http:
+            port: 1880
+    route:
+      internal:
+        enabled: true
+        hostnames:
+          - node-red.${SECRET_DOMAIN}
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: http
+    externalSecrets:
+      credentials:
+        forceRename: node-red-secret
+        refreshInterval: 1h
+        secretStoreRef:
+          kind: ClusterSecretStore
+          name: onepassword
+        target:
+          creationPolicy: Owner
+          deletionPolicy: Retain
+        data:
+          - secretKey: NODE_RED_CREDENTIAL_SECRET
+            remoteRef:
+              key: *app
+              property: NODE_RED_CREDENTIAL_SECRET
+    persistence:
+      data:
+        existingClaim: node-red-data
+        globalMounts:
+          - path: /data
+      config:
+        type: configMap
+        name: node-red-config
+        globalMounts:
+          - path: /etc/node-red
+            readOnly: true
+      tmp:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp

@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: node-red-storage
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: longhorn-config
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/node-red/storage
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  healthCheckExprs:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      current: has(status.phase) && status.phase == 'Bound'
+  interval: 30m
+  retryInterval: 1m
+  timeout: 30m
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: node-red-backup
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: node-red
+    - name: volsync
+    - name: onepassword-store
+  targetNamespace: default
+  path: ./kubernetes/apollo/components/volsync/backup
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  postBuild:
+    substitute:
+      APP: node-red
+      CLAIM: node-red-data
+      VOLSYNC_UID: "1000"
+      VOLSYNC_GID: "1000"
