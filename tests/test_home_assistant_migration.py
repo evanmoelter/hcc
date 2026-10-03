@@ -20,16 +20,11 @@ def read(path):
     return documents(path.read_bytes())[0]
 
 
-def render(config_capacity=None):
+def render():
     with tempfile.TemporaryDirectory(prefix="home-assistant-migration-") as directory:
         root = Path(directory)
         for path in ["apps/default/home-assistant", "components/postgres", "components/volsync"]:
             shutil.copytree(ROOT / APOLLO / path, root / APOLLO / path)
-        if config_capacity:
-            pvc_file = root / APP / "storage/pvc.yaml"
-            claim = read(pvc_file)
-            claim["spec"]["resources"]["requests"]["storage"] = config_capacity
-            pvc_file.write_text(json.dumps(claim))
         owners = {
             resource["metadata"]["name"]: resource
             for filename in ["ks.yaml", "ks-storage.yaml", "ks-database.yaml", "ks-tailscale.yaml"]
@@ -75,59 +70,46 @@ class HomeAssistantMigrationTest(unittest.TestCase):
         namespace = read(ROOT / "kubernetes/main/apps/default/kustomization.yaml")
         self.assertIn(Path("home-assistant/ks.yaml"), {Path(resource) for resource in namespace["resources"]})
 
-    def test_physical_recovery_keeps_old_archive_separate_from_apollo_writer(self):
+    def test_database_recovery_and_writer_use_apollo_archive_after_cleanup(self):
         cluster = self.resource("home-assistant-database", "Cluster")
         spec = cluster["spec"]
-        self.assertEqual(set(spec["bootstrap"]), {"recovery"})
         recovery = spec["bootstrap"]["recovery"]
         self.assertEqual((recovery["database"], recovery["owner"]), ("home_assistant", "home_assistant"))
         source = next(source for source in spec["externalClusters"] if source["name"] == recovery["source"])
-        source_parameters = source["plugin"]["parameters"]
         writer = next(plugin for plugin in spec["plugins"] if plugin.get("isWALArchiver"))
-        self.assertEqual(source_parameters["serverName"], "home-assistant-pg-v1")
+        self.assertEqual(source["plugin"]["parameters"], writer["parameters"])
         self.assertEqual(writer["parameters"]["serverName"], "home-assistant-pg-apollo-v1")
-        source_store = self.resource("home-assistant-database", "ObjectStore", source_parameters["barmanObjectName"])
-        writer_store = self.resource("home-assistant-database", "ObjectStore", writer["parameters"]["barmanObjectName"])
-        self.assertNotIn("retentionPolicy", source_store["spec"])
-        for store, destination, credential in [
-            (source_store, "s3://tf-hcc-cloudnativepg/", "home-assistant-pg-migration"),
-            (writer_store, "s3://tf-hcc-apollo-cnpg/home-assistant/", "cnpg-r2"),
-        ]:
-            config = store["spec"]["configuration"]
-            self.assertEqual(config["destinationPath"], destination)
-            for reference in config["s3Credentials"].values():
-                secret = self.resource("home-assistant-database", "ExternalSecret", reference["name"])
-                field = next(field for field in secret["spec"]["data"] if field["secretKey"] == reference["key"])
-                self.assertEqual(field["remoteRef"]["key"], credential)
+        store = self.resource("home-assistant-database", "ObjectStore", writer["parameters"]["barmanObjectName"])
+        config = store["spec"]["configuration"]
+        self.assertEqual(config["destinationPath"], "s3://tf-hcc-apollo-cnpg/home-assistant/")
+        for reference in config["s3Credentials"].values():
+            secret = self.resource("home-assistant-database", "ExternalSecret", reference["name"])
+            field = next(field for field in secret["spec"]["data"] if field["secretKey"] == reference["key"])
+            self.assertEqual(field["remoteRef"]["key"], "cnpg-r2")
         self.assertEqual(cluster["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
         self.assertNotIn("cnpg.io/skipEmptyWalArchiveCheck", cluster["metadata"]["annotations"])
+        self.assertEqual(spec["postgresql"]["parameters"], {"max_connections": "100", "shared_buffers": "128MB"})
         self.assertTrue(spec["imageName"].startswith("ghcr.io/cloudnative-pg/postgresql:18.1-system-trixie@sha256:"))
 
-    def test_restore_claim_waits_for_matching_snapshot_and_preserves_source_volume(self):
+    def test_cleanup_preserves_bound_claim_without_temporary_restore_resources(self):
         claim = self.resource("home-assistant-storage", "PersistentVolumeClaim")
-        destination = self.resource("home-assistant-storage", "ReplicationDestination")
         self.assertEqual(claim["spec"]["dataSourceRef"], {
             "apiGroup": "volsync.backube", "kind": "ReplicationDestination",
-            "name": destination["metadata"]["name"],
+            "name": "home-assistant-config-bootstrap-migration-v1",
         })
+        self.assertEqual(claim["spec"]["resources"]["requests"]["storage"], "5Gi")
         self.assertEqual(claim["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
-        self.assertEqual(destination["spec"]["restic"]["capacity"], "5Gi")
-        self.assertFalse(destination["spec"]["restic"]["cleanupTempPVC"])
-        preflight = self.owners["home-assistant-restore-preflight"]["spec"]["postBuild"]["substitute"]
-        self.assertEqual(destination["spec"]["trigger"]["manual"], preflight["VOLSYNC_RESTORE_ID"])
+        self.assertNotIn("home-assistant-restore-preflight", self.owners)
+        for resources in self.resources.values():
+            self.assertFalse(any(resource["kind"] == "ReplicationDestination" for resource in resources))
+        rendered = json.dumps(self.resources)
+        for removed in ["tf-hcc-volsync/", "tf-hcc-cloudnativepg/", "home-assistant-migration",
+                        "home-assistant-pg-migration", "home-assistant-pg-source"]:
+            self.assertNotIn(removed, rendered)
         checks = self.owners["home-assistant-storage"]["spec"]["healthCheckExprs"]
-        self.assertTrue(any(check["kind"] == "PersistentVolumeClaim"
-                            and destination["metadata"]["name"] in check["current"]
-                            and "'Bound'" in check["current"] for check in checks))
-        self.assertTrue(any(check["kind"] == "ReplicationDestination"
-                            and "status.lastManualSync == spec.trigger.manual" in check["current"]
-                            and "status.latestImage.name" in check["current"] for check in checks))
-
-    def test_restore_capacity_tracks_claim_expansion(self):
-        _, resources = render(config_capacity="10Gi")
-        destination = next(resource for resource in resources["home-assistant-storage"]
-                           if resource["kind"] == "ReplicationDestination")
-        self.assertEqual(destination["spec"]["restic"]["capacity"], "10Gi")
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0]["kind"], "PersistentVolumeClaim")
+        self.assertIn("'Bound'", checks[0]["current"])
 
     def test_backup_is_enabled_and_uses_separate_apollo_repository(self):
         self.assertFalse(self.owners["home-assistant-backup"]["spec"].get("suspend", False))
@@ -140,13 +122,6 @@ class HomeAssistantMigrationTest(unittest.TestCase):
         self.assertEqual(fields["RESTIC_PASSWORD"], "home-assistant-config")
         for field in ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]:
             self.assertEqual(fields[field], "volsync-r2")
-        restore = self.resource("home-assistant-restore-preflight", "ExternalSecret")
-        self.assertTrue(restore["spec"]["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
-            "/tf-hcc-volsync/home-assistant-config"))
-        restore_fields = {field["secretKey"]: field["remoteRef"]["key"] for field in restore["spec"]["data"]}
-        for field in ["RESTIC_PASSWORD", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]:
-            self.assertEqual(restore_fields[field], "home-assistant-migration")
-
     def test_application_uses_restored_data_without_matter_thread_or_usb(self):
         values = self.resource("home-assistant", "HelmRelease")["spec"]["values"]
         controller = values["controllers"]["home-assistant"]
@@ -179,7 +154,7 @@ class HomeAssistantMigrationTest(unittest.TestCase):
         self.assertEqual(ingress["spec"]["defaultBackend"]["service"]["name"],
                          values["service"]["app"]["forceRename"])
         required = {
-            "home-assistant-storage": {"home-assistant-restore-preflight", "longhorn-config", "volsync"},
+            "home-assistant-storage": {"longhorn-config"},
             "home-assistant-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "home-assistant": {"home-assistant-storage", "home-assistant-database", "multus-config"},
             "home-assistant-backup": {"home-assistant", "volsync", "onepassword-store"},

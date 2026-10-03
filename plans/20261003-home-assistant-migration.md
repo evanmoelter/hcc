@@ -163,9 +163,18 @@ passed during preparation. Rendered Services and routes were inspected for backe
   completed backup. The failure count remained unchanged on follow-up.
 - The operator confirmed LAN/Tailscale login, existing integrations and automations, recorder history,
   Lutron device control, and editor access on 2026-10-03. Config backup enablement is now prepared in git.
-- Verify the first nonempty Apollo config snapshot after merging backup enablement, then remove temporary
-  restore resources and source credentials. Rescheduling still requires explicit operator approval.
-  Retain the old suspension and writer pause for rollback.
+- PR #339 enabled Apollo config backups. The first sync completed at `2026-10-03T15:32:39Z` with mover
+  result `Successful`: snapshot `2c55cfc2`, 3,567 files, and 50.362 MiB. The next scheduled sync is
+  `2026-10-04T02:00:00Z`; no manual trigger was needed. The initial snapshot clone completed before
+  attachment and the backup pod then ran successfully.
+- Cleanup removes the completed restore preflight, ReplicationDestination and capacity replacement,
+  temporary source ExternalSecrets/ObjectStore, and old-archive database patch. It preserves the bound
+  PVC's immutable dataSourceRef, claim/database protection, PostgreSQL tuning, runtime settings, and
+  recurring Apollo backups. Verify pruning and app health after its merge.
+- The operator must retire the migration-only `home-assistant-migration` and `home-assistant-pg-migration`
+  1Password items and their scoped R2 keys after pruning. Keep application/backup credentials and old
+  rollback resources. Rescheduling still requires explicit operator approval. Retain the old HA
+  reconciliation suspension and writer pause for rollback.
 
 ## Reference patterns
 

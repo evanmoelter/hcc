@@ -8,7 +8,9 @@ through `${CLUSTER_CIDR}` because Envoy and Tailscale proxy connections originat
 The config PVC contains integrations, automations, credentials, and local customizations. Git supplies
 `configuration.yaml`; edit that file in the repository. PostgreSQL holds recorder history and uses the
 [database recovery lifecycle](databases.md). Config backups use the separate Apollo restic repository
-`tf-hcc-apollo-volsync/home-assistant-config`.
+`tf-hcc-apollo-volsync/home-assistant-config`. Config and database backups were verified after cutover.
+The bound config PVC retains its immutable restore reference after temporary restore resources are removed.
+A replacement PVC requires an explicit new recovery setup; see the [VolSync lifecycle](../kubernetes/apollo/components/volsync/README.md#restore-lifecycle).
 
 HA's application environment comes from the `home-assistant-app` item in `hcc-apollo`. ESO selects
 fields whose labels are uppercase environment-variable names; keep only application credentials in
