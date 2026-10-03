@@ -22,22 +22,20 @@ maintenance window until all gates below pass.
 ## Prerequisites
 
 - [ ] Review and pass CI on both PRs before disabling HA.
-- [ ] Verify IPv4 on `net1`, the `192.168.6.100/22` address, an unchanged Cilium default route, gateway
-  reachability, mDNS, and connectivity to the existing Lutron bridge on hcc6 and one alternative node.
-  Follow the git-managed test workload procedure in [networking](../docs/networking.md#deployment-verification);
-  obtain approval before deploying tests. Do not print bridge credentials or device inventories.
-- [ ] Stop/remove the test workload before HA claims its address. Through approved Talos configuration,
-  label only passing nodes `network.home.arpa/iot-ipv4: "true"`. Leave the full IoT/Thread label absent.
-- [ ] Verify Longhorn capacity for the 5Gi restored config PVC, temporary 5Gi restore volume, restic cache,
+- [x] Verify IPv4/mDNS and Lutron connectivity on hcc5, hcc6, and hcc7. All eight concurrent probe checks
+  passed using distinct test addresses; the [completed record](done/20261003-iot-verification.md) preserves
+  evidence. The HA-specific `192.168.6.100/22` binding remains a cutover check.
+- [x] Remove the probes and apply `network.home.arpa/iot-ipv4: "true"` through approved Talos configuration.
+  All three nodes are Ready and labeled; the full IoT/Thread label remains absent.
+- [x] Verify Longhorn capacity for the 5Gi restored config PVC, temporary 5Gi restore volume, restic cache,
   and 5Gi database, each with its configured replica count on eligible disks.
-- [ ] Operator checks `RESTIC_REPOSITORY` in the old `home-assistant-config-volsync-r2` Secret and confirms
-  the bucket/path is `tf-hcc-volsync/home-assistant-config` before merging either PR. The bucket is documented;
-  the path remains provisional until confirmed. Update the restore substitutions if it differs; agents do
-  not read the Secret or ask the operator to share credential values.
-- [ ] Identify references to the old IoT address `192.168.4.100/24` in HA's internal URL, firewall/DHCP
+- [x] Operator checks `RESTIC_REPOSITORY` in the old `home-assistant-config-volsync-r2` Secret and confirms
+  the bucket/path is `tf-hcc-volsync/home-assistant-config` before merging either PR. The operator confirmed
+  this exact bucket/path on 2026-10-03; agents did not read the Secret.
+- [x] Identify references to the old IoT address `192.168.4.100/24` in HA's internal URL, firewall/DHCP
   configuration, and device callbacks. Prepare any required changes for `192.168.6.100/22`; prefer the
   canonical HA hostname for clients outside the IoT subnet.
-- [ ] Operator prepares the following `hcc-apollo` items and confirms ESO access. Do not paste values into
+- [x] Operator prepares the following `hcc-apollo` items and confirms ESO access. Do not paste values into
   chat, commits, or PRs. Shared `cloudflare-r2`, `volsync-r2`, and `cnpg-r2` items already serve Apollo.
 
 | Item | Fields and scope |
@@ -128,8 +126,15 @@ passed during preparation. Rendered Services and routes were inspected for backe
 
 - Matter API: zero paired nodes; entity-registry summary: no Matter integration entities.
 - Multus and its config Ready; Multus DaemonSet ready on all three Apollo nodes; Cilium VLAN 2 bypass enabled.
-- No Apollo IoT capability labels were present. IPv4/mDNS verification, operator credentials, final backups,
-  cutover, functional checks, rescheduling, and cleanup remain pending.
+- IPv4 probes passed on all three nodes, temporary resources were pruned, and approved Talos label applies
+  completed without rebooting. hcc5, hcc6, and hcc7 are Ready with the IPv4 capability label.
+- Longhorn capacity was rechecked on 2026-10-03: all disks Ready/Schedulable, 100% overprovisioning,
+  zero reserved bytes, and roughly 75Gi of unscheduled capacity on each of hcc5 and hcc6. The restore's
+  5Gi config claim, 5Gi temporary volume, 1Gi cache, and 5Gi database total 16Gi per node at three replicas;
+  hcc7 has more headroom. Available physical space also clears the configured 25% minimum.
+- The operator confirmed the source restic bucket/path, all four 1Password items with ESO access, and
+  completion of the old-address review on 2026-10-03. Credential values were not read or recorded.
+- Current-stack CI, final backups, cutover, functional checks, rescheduling, and cleanup remain pending.
 
 ## Reference patterns
 

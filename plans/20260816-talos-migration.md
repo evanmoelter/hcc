@@ -437,3 +437,136 @@ Migrate in this order:
    Grafana retains LAN/Tailscale anonymous access.
 5. Home Assistant, after IPv4/mDNS is verified on hcc6 and at least one alternative node. Matter/Thread
    is deferred until the Apple TV is available; it does not block this migration.
+6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
+
+The operator selected Mealie first on 2026-09-18 because it is not currently used.
+[Mealie's completed cutover record](./done/20260918-mealie-migration.md) preserves preparation, recovery,
+verification, cleanup, and migration-token revocation. LAN/public access is retained; the operator dropped
+separate Tailscale access after its login redirected to the canonical hostname. Apollo hosts Authentik
+and WebFinger, and the [sequential Authentik upgrades](done/20260930-authentik-upgrades.md) have deployed.
+The operator confirmed Authentik's migration data and access verification gates passed on 2026-09-30,
+so Paperless preparation and cutover can proceed. Authentik's import cleanup is verified; temporary
+credential retirement remains outstanding in its archived cutover record.
+
+## Execution waves
+
+### Wave 1
+
+1. Create the HCC VLAN and Apollo repo tree. Build hcc5 through hcc7 as control-plane; add hcc8 as worker when a switch port is available.
+2. Bootstrap Talos, etcd, Cilium, Talos-managed CoreDNS, and Flux.
+3. Reconcile Phase B in dependency order. Use echo-server to verify the dual-route Gateway pattern across the external, LAN, certificate, and tailnet paths.
+4. Rebuild stateful apps one at a time using the standard cutover and app order above.
+
+Do not remove a node from the old cluster during Wave 1. All four nodes are embedded-etcd controllers, so removing both Odroids without contracting membership loses quorum. Two remaining nodes also cannot satisfy Longhorn's three-replica policy. Keeping the cluster whole preserves the rollback environment when it matters.
+
+Wave 1 ends with all migrated apps on Apollo and their disabled copies intact on the four-node old cluster. No hardware has been freed. Confirm hcc-tablet1 is decommissioned; remove its stale entry during Wave 2 cleanup.
+
+### Wave 2
+
+1. Confirm every app is healthy on Apollo and no rollback is pending. This is the point of no return.
+2. Shut down the old cluster as a unit. Power off hcc and hcc2 for disposal.
+3. Wipe hcc3 and hcc4, install Talos, and join them as workers.
+4. Wipe the two 1TB SSDs from the Odroids and install them in hcc5 and hcc6 in place of the unused HDDs. Work one node at a time and wait for Longhorn rebuilds.
+5. Verify the Multus parent link, VLAN trunk, and IPv6 discovery on each worker intended to host Home Assistant before adding its IoT capability label. Confirm HA can move between eligible nodes without USB hardware.
+6. Return Apollo's Cloudflare external-dns to `policy: sync`.
+7. Delete `kubernetes/main`, `ansible/`, system-upgrade-controller, its k3s Plan, and taskfiles used only by ansible or k3s.
+8. Revoke the old Cloudflare tunnel credentials and Tailscale OAuth client. Wipe every retired or repurposed disk.
+9. Once the migration is complete, remove echo's external route and public DNS records, retaining LAN and
+   Tailscale access. Keep public echo available until then for further testing.
+
+# Security
+
+Apollo's Secure Boot and TPM encryption conversion is complete. Configuration, recovery policy,
+verification results, and the conversion runbook are in [docs/talos-security.md](../docs/talos-security.md).
+
+- Talos removes SSH. Node administration uses the mTLS-authenticated Talos API.
+- The HCC VLAN blocks direct access from IoT devices. Only Home Assistant receives a deliberate IoT interface, and Apollo receives only the management and temporary database access described above.
+- Exactly one cluster writes each restic repository, Barman server name, DNS ownership set, and database WAL stream.
+- The old cluster remains in scope for access control until Wave 2 because it still holds current app data and secrets.
+- Keep `age.key` in 1Password; it is required to decrypt existing secrets and seed Apollo.
+- Wipe hcc, hcc2, hcc-tablet1, hcc3, and hcc4 disks before disposal or repurposing. Revoke old tunnel and OAuth credentials after teardown.
+
+## Backup gate
+
+Longhorn has no cluster-level backup target, but the intact old cluster remains available if a restore fails. Before Wave 1, trust the backup status reported by the old cluster rather than testing every restore in advance:
+
+- [ ] Confirm the old cluster reports recent successful VolSync backups for Home Assistant, Mealie, and Paperless.
+- [ ] Confirm it reports recent successful backups for `cnpg-cluster`, `mealie-pg`, and `home-assistant-pg`.
+
+# Pre-migration checklist
+
+Network and hardware:
+
+- [ ] Create the HCC VLAN, addressing, and firewall rules described above.
+- [ ] Generate the UniFi API key, allow Apollo to reach the Integration API, and prove record creation. UniFi OS 5.1.19 and Network 10.5.67 already satisfy the webhook requirements.
+- [ ] Open the temporary path to `192.168.6.21:5432`.
+- [ ] Provision VLAN 2 trunks and the common Talos `bond0.2` link on hcc6, hcc5, and hcc7; deploy Multus and its NAD, then label only nodes with a verified IoT path.
+- [ ] Put the Thread-capable Apple TV on VLAN 2 and verify Matter Server's local IPv6 connectivity, Thread routes, and multicast discovery from each eligible node.
+
+Cluster bootstrap:
+
+- [x] Complete the follow-on TPM + Secure Boot encryption attempt and record the outcome before app migration.
+- [ ] Generate the Talos schematic with `iscsi-tools` and `util-linux-tools` against current releases.
+- [ ] Author `topf.yaml` and scoped patches; adapt the Talos Taskfile.
+- [ ] Keep KubePrism enabled and carry the required KubePrism, kube-proxy replacement, Multus, and Envoy settings into Cilium.
+- [ ] Make the root Kubernetes directory task variable cluster-specific and add Apollo to Flux diff and kubeconform validation.
+- [ ] Verify whether kubelet-csr-approver is required.
+- [ ] Cap EPHEMERAL, mount Longhorn user volumes with `rshared`, set the data path, and keep both HDDs out of Longhorn.
+
+Platform:
+
+- [ ] Verify production wildcard issuance; create the Cloudflare tunnel, alias, and credentials.
+- [ ] Configure Cloudflare external-dns with owner `apollo`, upsert-only policy, and external-Gateway scope. Give UniFi its own owner and internal-Gateway scope, retaining its annotated Service source.
+- [ ] Switch both external-dns instances to a Gateway API source such as `gateway-httproute`.
+- [ ] Prove UniFi record creation, both Gateways, the Flux webhook, and the distinct Tailscale identity.
+- [x] Record dual-route as the working choice, revisitable if significant pain points emerge.
+- [ ] Implement and verify dual routes on echo-server before the first app migration.
+- [ ] Complete `plans/04-envoy-gateway.md` for Apollo's IPs, VLAN, cloudflared integration, raw load-balancer services, and Tailscale Ingresses.
+- [ ] Deploy Phase B in dependency order, including ESO, metrics, Spegel, snapshot-controller, and `longhorn-snapclass`.
+- [x] Create the `volsync` and `postgres` components before the first app rebuild; keep Namespace configuration explicit.
+- [x] Declare reconciliation policies in Apollo resources and validate with Conftest, including explained exceptions for intentional deletion with disabled pruning.
+- [x] Install the Barman Cloud plugin in the CNPG operator's namespace, after cert-manager.
+- [x] Revisit the draft `plans/05a-spegel.md` against current Talos and Spegel releases, including Talos's `/etc/cri/conf.d/hosts` path.
+- [ ] Provision Apollo's separate VolSync and CNPG buckets, scope each backup credential to its bucket, and configure per-app paths before any new backup runs.
+- [ ] Confirm hcc-tablet1 is decommissioned.
+
+Per app:
+
+- [x] Before the first household-app cutover, add public-path monitoring and verify alert delivery for tunnel
+  outages. Recheck the Gateway policy's cloudflared and Prometheus selectors after chart upgrades or naming
+  changes, including changes to `cleanPrometheusOperatorObjectNames`.
+- [ ] Prepare and review the two-PR cutover stack: old-cluster disable on the bottom, Apollo rebuild on top.
+- [ ] Review the app and its `app-template` chart for compatible upgrades before finalizing the Apollo PR.
+- [ ] For apps without their own chart, prefer a digest-pinned `home-operations/containers` image where compatible and retire the corresponding personal image.
+- [ ] Merge the stack in cutover order, including a verified final backup and suspension of the old `ReplicationSource` between the two PRs.
+- [x] Recover Mealie from a fresh on-demand Barman backup and verify restored data and Apollo backups.
+- [ ] Use Barman recovery for Home Assistant with a fresh on-demand backup; verify recorder history after restore.
+- [x] Prove on Mealie, before any other database moves, that the plugin recovers from an archive the old cluster wrote with the in-tree integration. Recovery-job completion, source data comparisons, and app checks passed; direct selection of the final backup ID could not be verified after the bootstrap pod was removed.
+- [ ] Put every CNPG cluster and its `ObjectStore` in the app namespace, and check the supported PostgreSQL major and required extensions before import.
+- [ ] Remove the `postgres/init` component reference once a net-new database's first backup lands.
+- [ ] Apply the app review table, including Home Assistant network settings and Paperless sizing.
+- [ ] Verify HA/Matter Server rescheduling from hcc6 to another eligible node without USB or OTBR: preserve the IoT address, both PVCs, existing Matter pairings, and device control. Schedule the disruptive test with operator approval.
+- [x] Verify external OIDC login to Mealie after Authentik moves.
+
+Wave 2:
+
+- [ ] Confirm no rollback is pending, then shut down the old cluster as a unit.
+- [ ] Add hcc3 and hcc4, transplant the wiped SSDs, and wait for each Longhorn rebuild.
+- [ ] Remove the temporary database firewall rule and return external-dns to sync policy.
+- [ ] Confirm nothing uses old DNS or pihole, then delete the old repo tree and tooling.
+- [ ] Revoke old credentials and wipe old disks.
+- [ ] After the migration is complete, remove echo's public route and DNS records while retaining LAN and Tailscale access.
+
+# Rollback
+
+Rollback remains available until Wave 2 because the old manifests, PVCs, and databases stay intact.
+
+For one app, first remove its Apollo route so the name is released, then revert the old disable commit. Restore the old database service reference for authentik, Paperless, or TeslaMate and delete the partial new per-app cluster. For Mealie or Home Assistant, delete the partial recovered cluster; the old per-app database was never modified. Any writes made on Apollo after cutover are lost, so verify each migration promptly.
+
+Before Wave 2, cluster-wide rollback means leaving all four old nodes untouched. Once hcc3 and hcc4 are wiped, the retained data copies are gone and rollback is no longer available.
+
+# Open questions
+
+- Should ad blocking return through UniFi or a non-primary pihole?
+- Future work: consider a dedicated Longhorn replication VLAN after the migration stabilizes.
+- Future work: revisit `kopiur` as a VolSync replacement once Apollo is stable. Three of the four reference repos have already retired VolSync for it, but it is pre-1.0 and every Wave 1 restore depends on the backup path, so the migration stays on VolSync and restic.
