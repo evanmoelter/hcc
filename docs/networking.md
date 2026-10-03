@@ -160,6 +160,36 @@ may host IoT consumers. Add that capability label through each verified node's T
 local IPv6, Thread routing, and multicast must be verified separately before migrating Matter Server.
 Cilium policy on the primary interface does not establish isolation for the direct IoT attachment.
 
+### Concurrent IPv4 verification
+
+The temporary `iot-network-test` Flux Kustomization runs one finite Job on each current Apollo node.
+The operator confirmed these addresses are unused and outside the DHCP pool:
+
+| Node | Test address |
+|---|---|
+| hcc5 | `192.168.6.105/22` |
+| hcc6 | `192.168.6.106/22` |
+| hcc7 | `192.168.6.107/22` |
+
+Each pod uses the same `kube-system/iot` attachment as HA, binds discovery and the Lutron TCP probe to
+its `net1` address, and targets the operator-confirmed bridge at `192.168.4.35`. The probe checks IPv4
+addressing, IoT and default routes, gateway ICMP, Lutron TCP 8081, Lutron/HomeKit mDNS responses resolving
+to that bridge, cluster DNS/API TCP access, and outbound DNS/TLS. It uses the pinned HA image to exercise
+its installed network tools and Zeroconf library, with no HA data or credentials mounted. `NET_RAW`
+supports interface-bound ICMP; the workload remains non-root with a read-only filesystem.
+
+Jobs retain their logs and completion state without a TTL or automatic retries. Failed checks prevent
+Flux readiness. Read each Job's final result; pod startup alone is not verification. Changes to the probe
+ConfigMap require new Job names because Job pod templates are immutable. Remove the test Kustomization
+and its registration through git after recording results; keep the test addresses reserved until all test
+pods have terminated. [The verification record](../plans/20261003-iot-verification.md) has commands and gates.
+
+This verifies only IPv4/mDNS. The operator deferred Matter/Thread until an Apple TV is available.
+Passing nodes may receive `network.home.arpa/iot-ipv4: "true"` through a separately approved Talos change;
+the test cannot assign labels. `network.home.arpa/iot` still requires the full IPv6/Thread checks below.
+The future HA address `192.168.6.100` is not claimed by these tests; address-specific rules and actual
+HA/Lutron authentication and device control remain cutover checks.
+
 ### Deployment verification
 
 Installation and IoT path verification are separate gates. On 2026-09-17, the operator confirmed all three
@@ -190,8 +220,8 @@ and per-node IoT traffic verification remain pending.
    kubectl --context apollo -n kube-system get network-attachment-definition iot
    ```
 
-3. Before labeling a node, use an operator-approved, git-managed disposable pod pinned to it. Test one
-   node at a time with an unused static address; `192.168.6.100/22` is reserved for HA and can serve as
+3. Before labeling a node, use an operator-approved, git-managed disposable pod pinned to it. Concurrent
+   tests require a different unused static address per pod; `192.168.6.100/22` is reserved for HA and can serve as
    the test address only while no HA/Matter or other test pod owns it. Confirm the primary Cilium
    interface and default route still work, `net1` has the intended IPv4 and local IPv6 addresses,
    `192.168.4.1` is reachable through `net1`, and mDNS reaches the IoT network. Verify Thread routes

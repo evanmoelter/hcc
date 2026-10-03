@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/batch/job_v1.json
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iot-network-test-hcc6-v1
+  labels:
+    app.kubernetes.io/name: iot-network-test
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: iot-network-test
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[{"name":"iot","namespace":"kube-system","interface":"net1","ips":["192.168.6.106/22"]}]'
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: hcc6
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 568
+        runAsGroup: 568
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: probe
+          image: ghcr.io/home-operations/home-assistant:2025.12.5@sha256:6be0843b06ad82233639e56f261b2377f78df140e3d16d2d08b2c29c8889b697
+          command:
+            - python
+            - -B
+            - /scripts/probe.py
+          env:
+            - name: IOT_ADDRESS
+              value: 192.168.6.106
+            - name: LUTRON_ADDRESS
+              value: 192.168.4.35
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_RAW
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: iot-network-test
