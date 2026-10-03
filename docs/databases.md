@@ -65,11 +65,15 @@ segment. Confirm that segment is archived on the same timeline, and retain a bas
 the target plus all required WAL for the rollback window. An advancing archive status is useful evidence,
 but does not replace a restore rehearsal.
 
-Application rollback requires an explicit `spec.bootstrap.recovery.recoveryTarget.targetTime` and the
-matching application version. Default recovery replays the latest archived WAL, including unwanted schema
-changes. CNPG recovery bootstraps a new Cluster; changing the bootstrap stanza of a running Cluster does
-not rewind its database. Plan recovery through git, preserve the failed database and source archive, and
-obtain operator approval before changing the live cluster. Agree on any writes lost after the target.
+Application rollback requires an explicit `spec.bootstrap.recovery.recoveryTarget` and the
+matching application version. Use `targetTime` for a recorded UTC timestamp. For an idle database,
+an operator-approved `pg_create_restore_point()` followed by `pg_switch_wal()` provides a named boundary;
+wait for its WAL segment to archive, then use `targetName` together with the preceding `backupID`.
+A timestamp target needs a later transaction in the archive to establish where replay should stop.
+Default recovery replays the latest archived WAL, including unwanted schema changes. CNPG recovery
+bootstraps a new Cluster; changing the bootstrap stanza of a running Cluster does not rewind its database.
+Plan recovery through git, preserve the failed database and source archive, and obtain operator approval
+before changing the live cluster. Agree on any writes lost after the target.
 
 ## SQL workloads
 

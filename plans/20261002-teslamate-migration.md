@@ -17,8 +17,8 @@ Keep TeslaMate 1.33.0 and Grafana 12.3.1 for the import and historical-data veri
 an updated PostgreSQL 16 image, preserving the source major. TeslaMate 2.0 and later require at least
 [PostgreSQL 16.7 or 17.3](https://github.com/teslamate-org/teslamate/releases/tag/v2.0.0).
 The destination meets that prerequisite without combining a PostgreSQL major upgrade with this move.
-A separate Apollo change upgrades TeslaMate after the import passes verification. PostgreSQL 18 can
-follow after the application supports it; it is not required to repair the Owner API connection.
+A separate Apollo change upgrades TeslaMate after the import passes verification. PostgreSQL 18 is
+supported from TeslaMate 2.2, but a major database upgrade is not required to repair the Owner API connection.
 
 Preserve LAN-only TeslaMate access, LAN and Tailscale Grafana access, Grafana's anonymous Editor role,
 and disabled MQTT. The operator confirmed no manually created Grafana dashboards need preservation
@@ -237,9 +237,70 @@ Archive this full record under `plans/done/` only after migration, repair, backu
 - Cleanup removes the source credential ExternalSecret and logical-import overrides. The shared
   component resumes recovery from the Apollo archive, with `teslamate-postgres` explicitly retained
   as the recovery credential so Grafana and PostgreSQL continue sharing the destination password.
+- Operator merged cleanup PR #327 as `d20f7950f39965d264a32b5f183ffaf867b49092`. All four Flux
+  Kustomizations applied it; the temporary ExternalSecret and Kubernetes Secret are gone. Both apps
+  remain healthy with zero restarts, and backup success and continuous archiving remain True.
+
+### Recording repair preparation, 2026-10-03 UTC
+
+Target [TeslaMate 4.3.0](https://github.com/teslamate-org/teslamate/releases/tag/v4.3.0), the current
+stable release checked on this date, with dashboards pinned to its commit
+`33d200b2fba9d5138803916a788cef5eae31b1aa`. Grafana moves from 12.3.1 to 13.2.2, matching the
+release's upstream Grafana image and the dashboards' built-in panel versions. Include its new
+Temperatures dashboard. Disable Git Sync (`provisioning`), the splash screen, and new dashboard
+layouts through the same feature toggles as the
+[upstream image](https://github.com/teslamate-org/teslamate/blob/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/Dockerfile).
+Grafana remains disposable with no custom plugins or manual dashboards. File provisioning continues
+to manage its dashboards; Git Sync and dashboard schema v2 stay disabled.
+
+Reviewed release notes from 2.0.0 through 4.3.0 and all eleven pending database migrations. The
+changes add drive elevation aggregates, move encrypted tokens into a private schema, rebuild
+position indexes, add settings and import bookkeeping, widen cost fields, and recalculate historical
+charge energy. Charge costs are deliberately preserved; historical energy totals can change.
+The Owner API and refresh-token fixes arrived in 4.0.0 and 4.0.1. MQTT remains disabled, so the
+later Home Assistant discovery changes do not affect this deployment. No new credential is required
+by configuration; the operator may still need to reauthenticate if Tesla rejects the stored token.
+
+PostgreSQL remains 16.15. Read-only inspection confirms `earthdistance` is owned by `teslamate`,
+and its installed and default versions are both 1.2. The pending migration runs
+`ALTER EXTENSION earthdistance UPDATE`; PostgreSQL's
+[implementation](https://github.com/postgres/postgres/blob/REL_16_STABLE/src/backend/commands/extension.c)
+returns without executing an extension script when the versions already match. No superuser grant
+is planned. All 94 existing migration versions remain applied; successful upgrade should produce
+105 migration records, ending with `20260808090000`.
+
+TeslaMate keeps one replica, Recreate, the CA-verified database connection, and its 15-minute startup
+probe grace. Helm gets a 20-minute timeout and RetryOnFailure instead of automatic rollback, because
+the old image cannot safely resume against a partially upgraded schema. If migrations fail, inspect
+the failure before taking any recovery action; do not re-enable main's writer.
+
+Before merging the upgrade:
+
+- Confirm the completed Apollo base backup `20261003T051855` and uninterrupted WAL retention.
+- Keep the pre-upgrade TeslaMate 1.33.0 image and dashboard commit recorded above for recovery;
+  restore a new Cluster with `recoveryTarget.backupID: "20261003T051855"` and
+  `recoveryTarget.targetTime` set to PR #328's UTC merge timestamp, never the component's latest-WAL
+  default. The operator chose the merge timestamp in place of a manual named restore point.
+
+After merging, record GitHub's `mergedAt` timestamp and verify it precedes the first database migration.
+Confirm archived WAL includes a transaction after that timestamp on the same timeline: PostgreSQL
+needs it to establish the timestamp stopping point. The recovery target is verified only after this
+archive check passes. No manual restore-point creation or WAL switch is planned.
+
+After merging, verify migration completion, a non-superuser application role, database TLS, and
+absence of filesystem, decryption, or database errors. Confirm token refresh, fresh telemetry,
+address lookups, and a new drive or charge. Check Grafana's datasource and historical/new panels
+over LAN and Tailscale, including Temperatures, then verify backups and WAL archiving again. Check
+Grafana for OOM kills or restarts under its existing 256 MiB limit, and verify startup and provisioning
+with chart 10.4.3's image override to Grafana 13 before accepting the rollout.
+Readiness alone does not complete the repair.
+
+Local validation passed: Apollo schema validation, 20 Conftest policy tests and 870 resource checks,
+and full Flux/Helm rendering (129 passed). All 23 configured dashboard sources exist at the pinned
+release commit and have unique UIDs. Deployment and live recording verification remain pending.
 
 Remaining work:
 
-- [ ] Merge cleanup and verify Flux convergence and removal of the source Kubernetes Secret.
+- [x] Merge cleanup and verify Flux convergence and removal of the source Kubernetes Secret.
 - [ ] Operator removes the temporary `hcc-apollo/teslamate-postgres-migration` vault item after cleanup.
 - [ ] Prepare the separate application/dashboard upgrade and verify fresh collection before archiving this plan.

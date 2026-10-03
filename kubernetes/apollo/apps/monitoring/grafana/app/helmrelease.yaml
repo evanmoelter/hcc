@@ -32,8 +32,8 @@ spec:
     image:
       registry: docker.io
       repository: grafana/grafana
-      tag: 12.3.1
-      sha: 2175aaa91c96733d86d31cf270d5310b278654b03f5718c59de12a865380a31f
+      tag: 13.2.2
+      sha: ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0
     testFramework:
       enabled: false
     annotations:
@@ -61,6 +61,9 @@ spec:
       TZ: ${TIMEZONE}
       GF_DATE_FORMATS_USE_BROWSER_LOCALE: true
       GF_EXPLORE_ENABLED: true
+      GF_FEATURE_TOGGLES_provisioning: "false"
+      GF_FEATURE_TOGGLES_splashScreen: "false"
+      GF_FEATURE_TOGGLES_dashboardNewLayouts: "false"
     envFromSecrets:
       - name: grafana-secret
     grafana.ini:
@@ -136,49 +139,51 @@ spec:
     dashboards:
       teslamate:
         battery-health:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/battery-health.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/battery-health.json
         charge-level:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/charge-level.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/charge-level.json
         charges:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/charges.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/charges.json
         charging-stats:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/charging-stats.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/charging-stats.json
         drive-stats:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/drive-stats.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/drive-stats.json
         drives:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/drives.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/drives.json
         efficiency:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/efficiency.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/efficiency.json
         locations:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/locations.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/locations.json
         mileage:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/mileage.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/mileage.json
         overview:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/overview.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/overview.json
         projected-range:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/projected-range.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/projected-range.json
         states:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/states.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/states.json
         statistics:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/statistics.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/statistics.json
+        temperatures:
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/temperatures.json
         timeline:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/timeline.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/timeline.json
         trip:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/trip.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/trip.json
         updates:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/updates.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/updates.json
         vampire-drain:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/vampire-drain.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/vampire-drain.json
         visited:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/visited.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/visited.json
         charge-details:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/internal/charge-details.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/internal/charge-details.json
         drive-details:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/internal/drive-details.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/internal/drive-details.json
         home-assistant:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/internal/home.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/internal/home.json
         database-info:
-          url: https://raw.githubusercontent.com/teslamate-org/teslamate/999b48a448d4570f5851d0044d2390ac5de510b2/grafana/dashboards/database-info.json
+          url: https://raw.githubusercontent.com/teslamate-org/teslamate/33d200b2fba9d5138803916a788cef5eae31b1aa/grafana/dashboards/database-info.json
     sidecar:
       dashboards:
         enabled: false
