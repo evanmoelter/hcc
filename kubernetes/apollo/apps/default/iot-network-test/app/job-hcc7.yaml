@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: iot-network-test-hcc7-v2
+  name: iot-network-test-hcc7-v3
   labels:
     app.kubernetes.io/name: iot-network-test
 spec:

@@ -14,6 +14,23 @@ SPEC.loader.exec_module(PROBE)
 
 
 class ProbeTest(unittest.TestCase):
+    def test_busybox_address_and_route_output(self):
+        address = "3: net1@if7: <BROADCAST,MULTICAST,UP> mtu 1500\n    inet 192.168.6.105/22 scope global net1\n    inet6 fe80::1/64 scope link\n"
+        PROBE.check_address(PROBE.parse_ip_output(("address",), address), "192.168.6.105")
+        route = "192.168.4.35 dev net1 src 192.168.6.105\n    cache\n"
+        PROBE.check_route(PROBE.parse_ip_output(("route",), route), "net1", "192.168.6.105")
+        default = "default via 10.42.0.1 dev eth0 \n"
+        PROBE.check_route(PROBE.parse_ip_output(("route",), default), "eth0")
+        with self.assertRaises(RuntimeError):
+            PROBE.check_route(PROBE.parse_ip_output(("route",), default), "net1", "192.168.6.105")
+        with self.assertRaises(RuntimeError):
+            PROBE.check_route(PROBE.parse_ip_output(("route",), "unreachable 192.168.4.35"), "net1")
+
+    def test_ip_command_does_not_require_iproute2_json_support(self):
+        with patch.object(PROBE.subprocess, "check_output", return_value="default dev eth0") as command:
+            PROBE.check_route(PROBE.ip_state("route", "show", "default"), "eth0")
+        self.assertEqual(command.call_args.args[0], ["ip", "-4", "route", "show", "default"])
+
     def test_address_requires_correct_source_and_mask(self):
         good = [{"addr_info": [{"local": "192.168.6.105", "prefixlen": 22}]}]
         PROBE.check_address(good, "192.168.6.105")

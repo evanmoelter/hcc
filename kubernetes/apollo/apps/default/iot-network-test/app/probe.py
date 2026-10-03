@@ -1,6 +1,7 @@
 import ipaddress
 import json
 import os
+import re
 import socket
 import ssl
 import subprocess
@@ -12,8 +13,25 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
-def ip_json(*args):
-    return json.loads(subprocess.check_output(["ip", "-j", "-4", *args], text=True))
+def parse_ip_output(args, output):
+    if args[0] == "address":
+        return [{"addr_info": [{"local": address, "prefixlen": int(prefix)}
+                               for address, prefix in re.findall(r"\binet\s+([0-9.]+)/(\d+)", output)]}]
+    routes = []
+    for line in output.splitlines():
+        fields = line.split()
+        if "dev" not in fields:
+            continue
+        route = {"dev": fields[fields.index("dev") + 1]}
+        if "src" in fields:
+            route["src"] = fields[fields.index("src") + 1]
+        routes.append(route)
+    return routes
+
+
+def ip_state(*args):
+    output = subprocess.check_output(["ip", "-4", *args], text=True, stderr=subprocess.PIPE)
+    return parse_ip_output(args, output)
 
 
 def check_address(addresses, expected):
@@ -37,7 +55,7 @@ def check_gateway(address):
 
 
 def check_lutron_tcp(address, bridge):
-    check_route(ip_json("route", "get", bridge), "net1", address)
+    check_route(ip_state("route", "get", bridge), "net1", address)
     with socket.create_connection((bridge, 8081), timeout=5, source_address=(address, 0)) as connection:
         require(connection.getsockname()[0] == address, "Lutron connection used the wrong source")
 
@@ -47,7 +65,7 @@ def check_cluster():
                                  family=socket.AF_INET, type=socket.SOCK_STREAM)
     require(bool(targets), "cluster DNS did not return an IPv4 address")
     target = targets[0][4]
-    check_route(ip_json("route", "get", target[0]), "eth0")
+    check_route(ip_state("route", "get", target[0]), "eth0")
     with socket.create_connection(target, timeout=5):
         pass
 
@@ -55,7 +73,7 @@ def check_cluster():
 def check_outbound():
     target = socket.getaddrinfo("www.home-assistant.io", 443, family=socket.AF_INET,
                                type=socket.SOCK_STREAM)[0][4]
-    check_route(ip_json("route", "get", target[0]), "eth0")
+    check_route(ip_state("route", "get", target[0]), "eth0")
     with socket.create_connection(target, timeout=5) as connection:
         with ssl.create_default_context().wrap_socket(connection, server_hostname="www.home-assistant.io"):
             pass
@@ -89,9 +107,9 @@ def main():
     address = str(ipaddress.IPv4Address(os.environ["IOT_ADDRESS"]))
     bridge = str(ipaddress.IPv4Address(os.environ["LUTRON_ADDRESS"]))
     checks = {
-        "iot_address": lambda: check_address(ip_json("address", "show", "dev", "net1"), address),
-        "primary_default_route": lambda: check_route(ip_json("route", "show", "default"), "eth0"),
-        "iot_gateway_route": lambda: check_route(ip_json("route", "get", "192.168.4.1"), "net1", address),
+        "iot_address": lambda: check_address(ip_state("address", "show", "dev", "net1"), address),
+        "primary_default_route": lambda: check_route(ip_state("route", "show", "default"), "eth0"),
+        "iot_gateway_route": lambda: check_route(ip_state("route", "get", "192.168.4.1"), "net1", address),
         "iot_gateway_ping": lambda: check_gateway(address),
         "lutron_tcp": lambda: check_lutron_tcp(address, bridge),
         "cluster_dns_and_api_tcp": check_cluster,
