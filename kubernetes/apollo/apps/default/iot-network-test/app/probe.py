@@ -30,8 +30,8 @@ def check_route(routes, device, source=None):
                 "route must use the expected source address")
 
 
-def check_gateway():
-    result = subprocess.run(["ping", "-4", "-I", "net1", "-c", "3", "-W", "3", "192.168.4.1"],
+def check_gateway(address):
+    result = subprocess.run(["ping", "-4", "-I", address, "-c", "3", "-W", "3", "192.168.4.1"],
                             capture_output=True, timeout=15)
     require(result.returncode == 0, "IoT gateway did not answer ICMP through net1")
 
@@ -92,7 +92,7 @@ def main():
         "iot_address": lambda: check_address(ip_json("address", "show", "dev", "net1"), address),
         "primary_default_route": lambda: check_route(ip_json("route", "show", "default"), "eth0"),
         "iot_gateway_route": lambda: check_route(ip_json("route", "get", "192.168.4.1"), "net1", address),
-        "iot_gateway_ping": check_gateway,
+        "iot_gateway_ping": lambda: check_gateway(address),
         "lutron_tcp": lambda: check_lutron_tcp(address, bridge),
         "cluster_dns_and_api_tcp": check_cluster,
         "outbound_dns_and_tls": check_outbound,

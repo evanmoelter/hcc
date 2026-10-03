@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: iot-network-test-hcc5-v1
+  name: iot-network-test-hcc5-v2
   labels:
     app.kubernetes.io/name: iot-network-test
 spec:
@@ -23,6 +23,9 @@ spec:
         runAsUser: 568
         runAsGroup: 568
         runAsNonRoot: true
+        sysctls:
+          - name: net.ipv4.ping_group_range
+            value: "568 568"
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -47,8 +50,6 @@ spec:
             capabilities:
               drop:
                 - ALL
-              add:
-                - NET_RAW
           resources:
             requests:
               cpu: 10m

@@ -22,9 +22,9 @@ Inspect results without changing the cluster:
 ```sh
 kubectl --context apollo -n flux-system get kustomization iot-network-test
 kubectl --context apollo -n default get jobs,pods -l app.kubernetes.io/name=iot-network-test -o wide
-kubectl --context apollo -n default logs job/iot-network-test-hcc5-v1
-kubectl --context apollo -n default logs job/iot-network-test-hcc6-v1
-kubectl --context apollo -n default logs job/iot-network-test-hcc7-v1
+kubectl --context apollo -n default logs job/iot-network-test-hcc5-v2
+kubectl --context apollo -n default logs job/iot-network-test-hcc6-v2
+kubectl --context apollo -n default logs job/iot-network-test-hcc7-v2
 ```
 
 Every Job must complete successfully with eight PASS results and a final PASS. A TCP-only success does
@@ -42,9 +42,20 @@ are printed. Each Job has a five-minute deadline, zero retries, and retains its 
 If a Job fails, inspect its named check failures and pod events. Review VLAN 2 trunks, `bond0.2`, Multus,
 and Cilium VLAN bypass if IoT routing fails. Review multicast delivery if TCP passes but mDNS fails.
 Do not label a node based on partial success. Retry through a new git revision with a new Job name
-(e.g. `v2`), waiting for the previous pod on that node to terminate before its replacement uses the same
+(e.g. `v3`), waiting for the previous pod on that node to terminate before its replacement uses the same
 address. Changing scripts changes the generated ConfigMap reference and also requires new Job names.
 Do not add a Job TTL: Flux would recreate the deleted Job and repeat the probe.
+
+## Execution record
+
+The v1 Jobs from PR #331 reached Apollo on 2026-10-03 but Pod Security rejected every Pod because
+`NET_RAW` is forbidden by the cluster's baseline policy. No test pod ran and no network gate passed.
+The v2 Jobs drop all capabilities and use the allowed pod-local `net.ipv4.ping_group_range: "568 568"`
+for unprivileged ICMP. Ping binds its source address, with `net1` routing checked separately.
+The existing hardened HA container successfully ran a source-bound loopback ping without capabilities;
+this verifies image support, not Apollo's IoT path. Fresh names avoid immutable Job-template updates.
+All three corrected Pod templates passed server-side dry-run admission on Apollo; no pods were created
+by that validation. Five unit/render tests and policy lint passed. Live v2 results remain pending.
 
 ## Cleanup and eligibility
 
