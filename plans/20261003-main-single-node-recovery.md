@@ -7,9 +7,9 @@ Apollo cutovers. Start only the applications or databases needed to retrieve dat
 from the old cluster's cutovers; it does not include subsequent Apollo writes.
 
 The operator selected this approach on 2026-10-03. hcc4 is already evacuated, removed, and powered off;
-the tablet is absent from Kubernetes, etcd, and Longhorn. The remaining live members are hcc, hcc2, and
+the tablet is absent from Kubernetes, etcd, and Longhorn. The initial remaining members were hcc, hcc2, and
 hcc3. The [Talos migration record](20260816-talos-migration.md#execution-waves) preserves those removals.
-The downsizing below has not run. Live changes and the eventual disk wipes require approval under
+The execution record below tracks the authorized downsizing. Eventual disk wipes require approval under
 [AGENTS.md](../AGENTS.md#ground-rules).
 
 ## Capacity and preparation
@@ -206,11 +206,39 @@ network paths until the operator ends the recovery window.
 
 ## Execution record
 
-- [ ] Preparation PR merged and reconciled; migrations/backups verified.
-- [ ] All retained volume replicas consolidated onto hcc3.
-- [ ] Odroids drained; obsolete connectivity tests removed.
-- [ ] hcc removed from etcd, Kubernetes, Longhorn, and inventory.
-- [ ] hcc2 removed from etcd, Kubernetes, Longhorn, and inventory.
-- [ ] Single-node data access and cold restart verified; final etcd snapshot preserved.
-- [ ] hcc3 powered off; retention expiry agreed.
+- [x] Preparation PR merged and reconciled; migrations/backups verified.
+- [x] All retained volume replicas consolidated onto hcc3.
+- [x] Odroids drained; obsolete connectivity tests removed.
+- [x] hcc removed from etcd, Kubernetes, Longhorn, and inventory.
+- [x] hcc2 removed from etcd, Kubernetes, Longhorn, and inventory.
+- [x] Single-node data access and independent restart verified; final etcd snapshot preserved.
+- [x] hcc3 shutdown requested for the approximately one-week recovery window.
 - [ ] Operator releases retained hardware and credentials for final cleanup.
+
+Executed on 2026-10-03 with operator approval, keeping verification brief because Apollo hosts all workloads:
+
+- PR #343 reconciled. The suspended Home Assistant Kustomization required its runtime ScheduledBackup
+  to be suspended explicitly. All three ScheduledBackups and all four ReplicationSources are now paused.
+- Longhorn 1.6.4 accepted the CSI replica values but skipped updating existing deployments with matching
+  versions/images. Scaled the runtime CSI deployments to one. Temporarily used two attacher/provisioner
+  pods during drain to respect their disruption budgets, then returned them to one on hcc3.
+- Saved `pre-single-node-20261003-hcc3-1791046180` before membership changes. All fourteen audited PVCs
+  now have exactly one healthy replica on hcc3, including the four cache volumes previously on hcc2.
+- Drained both Odroids without bypassing disruption budgets. Removed the PVC-free `cilium-test`
+  fixtures. Suspended `longhorn-recovery-nodes` before retiring either Kubernetes node.
+- Verified actual etcd membership after each removal: hcc2/hcc3, then hcc3 alone. Both Odroids have k3s
+  disabled and are powered off. Longhorn removed their empty node records. Their disks were not wiped.
+- All three retained CNPG databases answered a read-only `SELECT 1`. A temporary pod mounted the ten
+  inactive PVCs read-only and verified directory metadata access without printing application contents.
+  Removed the pod and confirmed those volumes detached again; this was not a full application restore.
+- Saved `single-node-hcc3-20261003-hcc3-1791046783` after contraction. Both new snapshots remain on hcc3;
+  no new off-node snapshot/token export was made. Verified Apollo application/database backups remain
+  the independent recovery copies. The operator confirmed old Pi-hole/DNS is no longer needed.
+- Rebooted hcc3 with both Odroids off and verified a changed boot ID, sole voting etcd membership,
+  the API VIP, CoreDNS resolution, healthy attached volumes, and successful queries against all three
+  databases. All fourteen replicas remained on hcc3 with no failed replicas; no node pressure was reported.
+  The host took several minutes to return, followed by normal Longhorn/database startup.
+- Requested graceful poweroff after verification, leaving k3s enabled for the next boot. Review the
+  retained hardware around 2026-10-10; this date does not authorize wiping. The main tree and credentials
+  remain available. Removed the retired Odroids from inventory and the suspended temporary scheduling
+  Kustomization from git so the next reconcile cannot recreate their Longhorn Node records.
