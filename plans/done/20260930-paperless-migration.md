@@ -1,9 +1,11 @@
 # Paperless migration
 
 Preparation and cutover record for Paperless and scanner SFTP, following Authentik in the
-[Talos migration](20260816-talos-migration.md). The operator confirmed Authentik's data, login,
+[Talos migration](../20260816-talos-migration.md). The operator confirmed Authentik's data, login,
 Mealie OIDC, WebFinger/Tailscale, SMTP, and proxy-header checks passed on 2026-09-30.
-Paperless cutover and application-data verification remain outstanding.
+Paperless is running on Apollo; the operator confirmed data access and a successful scanned document.
+Archived with the cleanup PR at the operator's request. Unchecked items retain outstanding backup,
+cleanup, credential-retirement, or verification work; archival does not mark them complete.
 
 ## Decisions and prepared stack
 
@@ -32,7 +34,7 @@ approval. Read-only checks below do not perform a cutover.
 
 ## Before the maintenance window
 
-Both PRs must pass review and the applicable [repository validation](../AGENTS.md#validating-changes).
+Both PRs must pass review and the applicable [repository validation](../../AGENTS.md#validating-changes).
 Inspect the old-cluster rendered diff to ensure the disable retains data and the shared database and
 Dragonfly services. Keep the source app release available for rollback.
 
@@ -80,7 +82,7 @@ Longhorn needs it while cloning the snapshot. Recent successful source backups a
 observed during preparation do not replace the final cutover checks.
 
 Verify the temporary Apollo-to-`192.168.6.21:5432` firewall path in
-[networking.md](../docs/networking.md). Import uses TLS with `sslmode: require`; it does not verify the
+[networking.md](../../docs/networking.md). Import uses TLS with `sslmode: require`; it does not verify the
 IP endpoint's certificate identity. The destination app uses CNPG-generated credentials and verifies
 the Apollo database service certificate. Confirm the source role can read all Paperless objects and
 take a logical dump; do not substitute a superuser password merely to bypass an unexplained failure.
@@ -208,13 +210,15 @@ remain. Never start the old app against the upgraded Apollo database.
   unresolved ingestion failures must be diagnosed rather than treated as migration success.
 
 Remove `spec.suspend: true` from `paperless-library-backup` through git after data and application
-checks pass. Wait for an actual snapshot in Apollo's independent restic repository, not only a mover
-success. Verify the first Apollo CNPG backup and continuous WAL archiving. Record backup identifiers
-and completion times; keep source data and backups intact through Wave 1.
+checks pass, in the same PR as the cleanup below. After merge, wait for an actual snapshot in Apollo's
+independent restic repository, not only a mover success. Verify the first Apollo CNPG backup and
+continuous WAL archiving. Record backup identifiers and completion times; keep source data and
+backups intact through Wave 1.
 
 ### 4. Remove temporary migration resources
 
-After data, login, scanner ingestion, and both Apollo backups pass, prepare a cleanup PR:
+Prepare the combined backup enablement and cleanup PR after application verification and the Apollo
+database backup pass. Verify the first Apollo library snapshot after this PR merges:
 
 - Remove restore preflight, the storage restore component and capacity replacement, preflight/VolSync
   dependencies, and destination readiness check. Keep both protected PVCs, PVC readiness, the same
@@ -228,7 +232,23 @@ After data, login, scanner ingestion, and both Apollo backups pass, prepare a cl
   items. Keep the original restic password and source database password available for rollback.
 
 Retain `postgres-lb` and its temporary firewall path for TeslaMate's later import. Keep old Paperless
-manifests and data until Wave 2. Archive this complete plan under `plans/done/` once cleanup is verified.
+manifests and data until Wave 2. This complete plan is archived under `plans/done/` in the cleanup
+PR at the operator's request, with pending verification preserved below.
+
+The operator requested one PR for backup enablement and cleanup: [PR #321](https://github.com/evanmoelter/hcc/pull/321)
+removes the backup suspension as well as temporary migration resources. The operator accepted
+enabling backups and pruning the restore resources in the same merge, with the first actual Apollo
+library snapshot verified afterward. The active library PVC is independent of the temporary restore
+PVC and snapshot; cleanup preserves the active library and old-cluster copies. Until the first Apollo
+backup succeeds, documents added since migration exist only on Apollo's live storage.
+
+After merge, monitor backup reconciliation and record the first actual restic snapshot ID and
+completion time. A manual backup trigger, if needed, requires separate operator approval; clear it
+after verification so the configured schedule can run.
+
+The PR removes no source-cluster resources and does not revoke credentials. After merge, verify
+pruning, the first Apollo library snapshot, and permanent resource identities before retiring the
+two migration items. The archived record preserves those outstanding checks.
 
 ## Rollback
 
@@ -299,14 +319,46 @@ storage and database components take precedence over their cluster-specific conv
   Apollo's UniFi DNS controller reported records up to date; Mealie's actual route hostname resolved
   to Apollo through both resolvers. Paperless's new explicit answer remains a post-merge gate.
 
+### Apollo rollout and cleanup draft, 2026-10-03 UTC
+
+- PR #317 merged as `566f14e345382a73f792316eb849c9fa4389748a`. All seven active Paperless Flux
+  Kustomizations became Ready; the library-backup Kustomization remains intentionally suspended.
+  Application, SFTP, database, and both Dragonfly Pods became Ready with zero restarts.
+- VolSync restored final snapshot `0ff04d69`; library cloning completed with three healthy replicas.
+  Both claims are Bound. The temporary CNPG import Job was observed successful but removed by CNPG
+  before its logs could be captured. Read-only source/destination SQL compared 247 documents and
+  matching user, tag, correspondent, and document-type counts, plus the aggregate stored document
+  checksum digest. This comparison does not replace checking restored file contents.
+- Paperless completed its 2.20.15 database migration and connected to its authenticated broker.
+  LAN and Tailscale HTTPS returned 200 with valid certificates from the workstation. UniFi resolvers
+  `192.168.4.1` and `192.168.20.1` returned `192.168.21.100` for Paperless and `192.168.21.102` for
+  scanner SFTP. The SSH listener responded; consume, receipt, and export directories were writable.
+- Apollo CNPG Backup `paperless-pg-20261003031337` completed at 03:14:45 UTC; continuous WAL archiving
+  is healthy. The first Apollo library snapshot remains outstanding.
+- The operator reported that data looked good through internal and Tailscale access and that scanner
+  connectivity was updated and tested. After they scanned a document, logs showed one successful
+  consume task and no errors, and the operator confirmed the scanned document looked good.
+  OCR/search, receipt/barcode behavior, thumbnail, download/export,
+  fresh login/logout, and unauthorized-network denial still need explicit verification where not
+  covered by those operator checks.
+- Preserve these identities when cleanup reconciles:
+
+  | Resource | UID / backing identity |
+  |---|---|
+  | `default/paperless-library` | PVC UID `d391036d-32b1-49c8-8af3-dc660ed0e1f6`; PV `pvc-854728be-32c2-40a8-9531-513a94375806` |
+  | `default/paperless-consume` | PVC UID `61c3ed93-08d8-4cbc-a882-d6bbb32cf006`; PV `pvc-61c3ed93-08d8-4cbc-a882-d6bbb32cf006` |
+  | `default/paperless-pg` | Cluster UID `1ebbd944-2704-4477-8e84-83149edf1076`; PostgreSQL system ID `7692274548515123225` |
+
 - [x] Operator confirmed Authentik verification and approved the two-PR preparation, LAN/Tailscale
   access, retained scanner SFTP, and the staged Paperless upgrade.
 - [ ] Both PRs reviewed and CI passed; PR links and merged revisions recorded.
 - [ ] Operator verified source repository suffix, copied credentials, and configured the scanner firewall path.
 - [x] Old workloads stopped and ingress/proxy resources removed; post-shutdown consume and broker checks empty.
 - [x] Final source VolSync snapshot and shared CNPG backup verified and recorded; old library writer paused.
-- [ ] Apollo library restored from the final snapshot; logical import and application migrations verified.
+- [x] Apollo library restored from the final snapshot; logical import and application migrations verified.
 - [ ] Source/destination data compared; LAN and Tailscale OIDC, scanner upload, OCR, and export verified.
 - [ ] First Apollo library snapshot and database backup recorded; WAL archiving healthy.
 - [ ] Temporary restore/import resources removed; permanent identities and replicas verified.
-- [ ] Migration credentials revoked or archived; plan moved to `plans/done/`.
+- [ ] Migration credentials revoked or archived.
+- [x] Full plan and execution record moved to `plans/done/` in PR #321 at the operator's request;
+  outstanding checks above remain explicit.

@@ -63,34 +63,38 @@ class PaperlessMigrationTest(unittest.TestCase):
                     if resource["kind"] == kind
                     and (name is None or resource["metadata"]["name"] == name))
 
-    def test_import_selects_only_paperless_and_reassigns_owner(self):
+    def test_database_recovers_from_its_apollo_archive(self):
         cluster = self.resource("paperless-database", "Cluster")
         spec = cluster["spec"]
-        self.assertEqual(set(spec["bootstrap"]), {"initdb"})
-        init = spec["bootstrap"]["initdb"]
-        self.assertEqual((init["database"], init["owner"]), ("paperless", "paperless"))
-        self.assertEqual(init["import"]["type"], "microservice")
-        self.assertEqual(init["import"]["databases"], ["paperless"])
-        self.assertNotIn("roles", init["import"])
-        self.assertNotIn("secret", init)
+        self.assertEqual(set(spec["bootstrap"]), {"recovery"})
+        recovery = spec["bootstrap"]["recovery"]
+        self.assertEqual((recovery["database"], recovery["owner"]), ("paperless", "paperless"))
         self.assertEqual(len(spec["externalClusters"]), 1)
         source = spec["externalClusters"][0]
-        self.assertEqual(source["name"], init["import"]["source"]["externalCluster"])
-        self.assertEqual(source["connectionParameters"], {
-            "host": "192.168.6.21", "port": "5432", "user": "paperless-db",
-            "dbname": "paperless", "sslmode": "require",
-        })
-        secret = self.resource("paperless-database", "ExternalSecret", source["password"]["name"])
-        entry = next(entry for entry in secret["spec"]["data"]
-                     if entry["secretKey"] == source["password"]["key"])
-        self.assertEqual(entry["remoteRef"], {
-            "key": "paperless-postgres-migration", "property": "PAPERLESS_DBPASS",
-        })
+        self.assertEqual(source["name"], recovery["source"])
+        writer = next(plugin for plugin in spec["plugins"] if plugin.get("isWALArchiver"))
+        self.assertEqual(source["plugin"]["name"], writer["name"])
+        self.assertEqual(source["plugin"]["parameters"], writer["parameters"])
         self.assertFalse(spec["enableSuperuserAccess"])
         annotations = cluster["metadata"]["annotations"]
-        self.assertNotIn("cnpg.io/skipEmptyWalArchiveCheck", annotations)
+        self.assertEqual(annotations["cnpg.io/skipEmptyWalArchiveCheck"], "enabled")
         self.assertEqual(annotations["kustomize.toolkit.fluxcd.io/prune"], "disabled")
         self.assertEqual(spec["storage"]["size"], "5Gi")
+
+    def test_cleanup_removes_temporary_resources_and_source_credentials(self):
+        self.assertNotIn("paperless-restore-preflight", self.owners)
+        resources = [resource for group in self.resources.values() for resource in group]
+        self.assertFalse(any(resource["kind"] in {"ReplicationDestination", "Job"}
+                             for resource in resources))
+        rendered = json.dumps(resources)
+        for retired in ["paperless-postgres-migration", "paperless-main", "192.168.6.21",
+                        "paperless-library-migration", "tf-hcc-volsync",
+                        "paperless-library-volsync-restore-migration-20260930"]:
+            with self.subTest(retired=retired):
+                self.assertNotIn(retired, rendered)
+        storage = self.owners["paperless-storage"]["spec"]
+        self.assertNotIn("components", storage)
+        self.assertNotIn("VOLSYNC_RESTORE_ID", storage.get("postBuild", {}).get("substitute", {}))
 
     def test_database_archives_to_its_independent_apollo_store(self):
         cluster = self.resource("paperless-database", "Cluster")
@@ -107,71 +111,59 @@ class PaperlessMigrationTest(unittest.TestCase):
         self.assertEqual(backup["spec"]["cluster"]["name"], cluster["metadata"]["name"])
         self.assertEqual(backup["spec"]["pluginConfiguration"]["name"], writer["name"])
 
-    def test_library_hydration_preserves_identity_and_protects_both_claims(self):
+    def test_cleanup_preserves_bound_claims_and_storage_health_checks(self):
         library = self.resource("paperless-storage", "PersistentVolumeClaim", "paperless-library")
         consume = self.resource("paperless-storage", "PersistentVolumeClaim", "paperless-consume")
-        restore = self.resource("paperless-storage", "ReplicationDestination")
         self.assertEqual(library["spec"]["dataSourceRef"], {
             "apiGroup": "volsync.backube", "kind": "ReplicationDestination",
-            "name": restore["metadata"]["name"],
+            "name": "paperless-library-bootstrap-migration-20260930",
         })
         self.assertEqual(library["spec"]["resources"]["requests"]["storage"], "50Gi")
-        self.assertEqual(restore["spec"]["restic"]["capacity"], "50Gi")
         self.assertEqual(library["spec"]["accessModes"], ["ReadWriteOnce"])
         self.assertEqual(consume["spec"]["resources"]["requests"]["storage"], "1Gi")
         self.assertEqual(consume["spec"]["accessModes"], ["ReadWriteMany"])
         self.assertNotIn("dataSourceRef", consume["spec"])
         for claim in [library, consume]:
             self.assertEqual(claim["metadata"]["annotations"]["kustomize.toolkit.fluxcd.io/prune"], "disabled")
-        self.assertFalse(restore["spec"]["restic"]["cleanupTempPVC"])
-        self.assertEqual(restore["spec"]["trigger"], {"manual": "migration-20260930"})
-        backup = self.resource("paperless-library-backup", "ReplicationSource")
-        for mover in [restore, backup]:
-            security = mover["spec"]["restic"]["moverSecurityContext"]
-            self.assertEqual((security["runAsUser"], security["runAsGroup"], security["fsGroup"]),
-                             (1000, 1000, 1000))
-        checks = {check["kind"]: check["current"]
-                  for check in self.owners["paperless-storage"]["spec"]["healthCheckExprs"]}
-        self.assertIn("status.phase == 'Bound'", checks["PersistentVolumeClaim"])
-        self.assertIn(restore["metadata"]["name"], checks["PersistentVolumeClaim"])
-        self.assertIn("status.lastManualSync == spec.trigger.manual", checks["ReplicationDestination"])
-        self.assertIn("has(status.latestImage.name)", checks["ReplicationDestination"])
+        self.assertEqual({resource["kind"] for resource in self.resources["paperless-storage"]},
+                         {"PersistentVolumeClaim"})
+        storage = self.owners["paperless-storage"]["spec"]
+        self.assertEqual(storage["path"], "./kubernetes/apollo/apps/default/paperless/storage")
+        self.assertEqual(storage["targetNamespace"], "default")
+        self.assertEqual(storage["healthCheckExprs"], [{
+            "apiVersion": "v1", "kind": "PersistentVolumeClaim",
+            "current": "has(status.phase) && status.phase == 'Bound'",
+        }])
 
-    def test_restore_capacity_tracks_the_claim_when_expanded(self):
+    def test_expanding_library_does_not_reintroduce_restore_resources(self):
         _, resources = render(library_capacity="75Gi")
-        restore = next(resource for resource in resources["paperless-storage"]
-                       if resource["kind"] == "ReplicationDestination")
-        self.assertEqual(restore["spec"]["restic"]["capacity"], "75Gi")
+        storage = resources["paperless-storage"]
+        self.assertEqual(len(storage), 2)
+        self.assertTrue(all(resource["kind"] == "PersistentVolumeClaim" for resource in storage))
+        library = next(resource for resource in storage if resource["metadata"]["name"] == "paperless-library")
+        self.assertEqual(library["spec"]["resources"]["requests"]["storage"], "75Gi")
+        self.assertEqual(library["spec"]["dataSourceRef"]["name"],
+                         "paperless-library-bootstrap-migration-20260930")
 
-    def test_restore_and_backup_have_separate_credentials_and_repositories(self):
-        restore = self.resource("paperless-storage", "ReplicationDestination")
+    def test_backup_uses_apollo_credentials_and_repository(self):
+        self.assertFalse(self.owners["paperless-library-backup"]["spec"].get("suspend", False))
         source = self.resource("paperless-library-backup", "ReplicationSource")
-        restore_secret = self.resource("paperless-restore-preflight", "ExternalSecret",
-                                       restore["spec"]["restic"]["repository"])
-        backup_secret = self.resource("paperless-library-backup", "ExternalSecret",
-                                      source["spec"]["restic"]["repository"])
+        secret = self.resource("paperless-library-backup", "ExternalSecret",
+                               source["spec"]["restic"]["repository"])
         self.assertEqual(source["spec"]["sourcePVC"], "paperless-library")
-        self.assertTrue(restore_secret["spec"]["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
-            "/tf-hcc-volsync/paperless-library"))
-        self.assertTrue(backup_secret["spec"]["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
+        self.assertTrue(secret["spec"]["target"]["template"]["data"]["RESTIC_REPOSITORY"].endswith(
             "/tf-hcc-apollo-volsync/paperless-library"))
-        restore_fields = {entry["secretKey"]: entry["remoteRef"]["key"]
-                          for entry in restore_secret["spec"]["data"]}
-        backup_fields = {entry["secretKey"]: entry["remoteRef"]["key"]
-                         for entry in backup_secret["spec"]["data"]}
-        for field in ["RESTIC_PASSWORD", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]:
-            self.assertEqual(restore_fields[field], "paperless-library-migration")
-            self.assertNotEqual(restore_fields[field], backup_fields[field])
-        self.assertEqual(backup_fields["RESTIC_PASSWORD"], "paperless-library")
-        self.assertEqual(backup_fields["R2_ACCESS_KEY_ID"], "volsync-r2")
-        job = self.resource("paperless-restore-preflight", "Job")
-        credential = job["spec"]["template"]["spec"]["containers"][0]["envFrom"][0]["secretRef"]["name"]
-        self.assertEqual(credential, restore_secret["metadata"]["name"])
+        fields = {entry["secretKey"]: entry["remoteRef"]["key"] for entry in secret["spec"]["data"]}
+        self.assertEqual(fields["RESTIC_PASSWORD"], "paperless-library")
+        for field in ["R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]:
+            self.assertEqual(fields[field], "volsync-r2")
+        security = source["spec"]["restic"]["moverSecurityContext"]
+        self.assertEqual((security["runAsUser"], security["runAsGroup"], security["fsGroup"]),
+                         (1000, 1000, 1000))
 
-    def test_dependencies_keep_restore_ahead_of_storage_and_backups_gated(self):
+    def test_dependencies_preserve_storage_database_and_backup_order(self):
         required = {
-            "paperless-restore-preflight": {"onepassword-store"},
-            "paperless-storage": {"paperless-restore-preflight", "volsync", "longhorn-config"},
+            "paperless-storage": {"longhorn-config"},
             "paperless-database": {"plugin-barman-cloud", "longhorn-config", "onepassword-store"},
             "paperless-library-backup": {"paperless", "volsync", "onepassword-store"},
             "paperless": {"paperless-storage", "paperless-database", "paperless-broker", "authentik"},
@@ -189,7 +181,6 @@ class PaperlessMigrationTest(unittest.TestCase):
             ready = {name for name in pending if not graph[name] & pending}
             self.assertTrue(ready, f"Dependency cycle: {pending}")
             pending -= ready
-        self.assertTrue(self.owners["paperless-library-backup"]["spec"]["suspend"])
         database_checks = self.owners["paperless-database"]["spec"]["healthCheckExprs"]
         self.assertTrue(any(check["kind"] == "Cluster" and "e.status == 'True'" in check["current"]
                             for check in database_checks))
@@ -208,7 +199,7 @@ class PaperlessMigrationTest(unittest.TestCase):
             self.assertEqual(env[key]["valueFrom"]["secretKeyRef"]["name"], "paperless-pg-app")
         for identifier in ["library", "consume"]:
             self.assertEqual(values["persistence"][identifier]["existingClaim"], f"paperless-{identifier}")
-        mover = self.resource("paperless-storage", "ReplicationDestination")["spec"]["restic"]
+        mover = self.resource("paperless-library-backup", "ReplicationSource")["spec"]["restic"]
         self.assertEqual(controller["pod"]["securityContext"]["runAsUser"],
                          mover["moverSecurityContext"]["runAsUser"])
         self.assertEqual(set(values["route"]), {"internal"})

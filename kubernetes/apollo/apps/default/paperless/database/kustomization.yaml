@@ -1,37 +1,4 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - ./externalsecret.yaml
-patches:
-  - target:
-      group: postgresql.cnpg.io
-      kind: Cluster
-    patch: |-
-      - op: remove
-        path: /metadata/annotations/cnpg.io~1skipEmptyWalArchiveCheck
-      - op: replace
-        path: /spec/bootstrap
-        value:
-          initdb:
-            database: paperless
-            owner: paperless
-            import:
-              type: microservice
-              databases:
-                - paperless
-              source:
-                externalCluster: paperless-main
-      - op: replace
-        path: /spec/externalClusters
-        value:
-          - name: paperless-main
-            connectionParameters:
-              host: 192.168.6.21
-              port: "5432"
-              user: paperless-db
-              dbname: paperless
-              sslmode: require
-            password:
-              name: paperless-postgres-migration
-              key: password
+namespace: default

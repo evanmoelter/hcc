@@ -30,7 +30,7 @@ records the completed release sequence and pre-upgrade recovery points.
 
 Paperless retains LAN and Tailscale access with scanner ingestion over SFTP. Its
 [service notes](./docs/paperless.md) describe storage and runtime constraints; the
-[cutover record](./plans/20260930-paperless-migration.md) tracks restore, import, and verification.
+[cutover record](./plans/done/20260930-paperless-migration.md) tracks restore, import, and verification.
 
 ## Hardware
 
