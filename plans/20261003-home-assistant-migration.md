@@ -21,7 +21,7 @@ maintenance window until all gates below pass.
 
 ## Prerequisites
 
-- [ ] Review and pass CI on both PRs before disabling HA.
+- [x] Review and pass CI on both PRs before disabling HA.
 - [x] Verify IPv4/mDNS and Lutron connectivity on hcc5, hcc6, and hcc7. All eight concurrent probe checks
   passed using distinct test addresses; the [completed record](done/20261003-iot-verification.md) preserves
   evidence. The HA-specific `192.168.6.100/22` binding remains a cutover check.
@@ -134,7 +134,21 @@ passed during preparation. Rendered Services and routes were inspected for backe
   hcc7 has more headroom. Available physical space also clears the configured 25% minimum.
 - The operator confirmed the source restic bucket/path, all four 1Password items with ESO access, and
   completion of the old-address review on 2026-10-03. Credential values were not read or recorded.
-- Current-stack CI, final backups, cutover, functional checks, rescheduling, and cleanup remain pending.
+- Both refreshed PRs passed CI before #325 merged as `776757a54cb5769777b24376372003c55f5125d2` on
+  2026-10-03. Flux applied that revision; HA/editor/Matter stopped, all three old Ingresses disappeared,
+  and no HA Tailscale proxy resources remained. The recorder database stayed healthy.
+- With operator approval, the final VolSync trigger `ha-cutover-v1` completed at `2026-10-03T15:09:06Z`
+  with mover result `Successful`, snapshot `2c2c2042`, and 3,561 files totaling 50.355 MiB. The source
+  reports `lastManualSync: ha-cutover-v1` and `Synchronizing: False`.
+- CNPG Backup `home-assistant-migration-final` completed with ID `20261003T150812`, from
+  `2026-10-03T15:08:12Z` to `2026-10-03T15:08:15Z`. Its begin/end WAL was
+  `000000010000012C00000085`; `pg_stat_archiver` reported the matching backup-history file archived
+  at `2026-10-03T15:08:17Z` with zero failures.
+- After both backups succeeded, the approved old `home-assistant` Flux Kustomization suspension and
+  `home-assistant-config-r2` ReplicationSource pause were applied. Read-only checks confirmed both flags
+  `true`, no remaining HA source mover/pruner Jobs or Pods, and the old deployment still at zero replicas.
+- Apollo restore, functional checks, backup enablement, rescheduling, and cleanup remain pending.
+  The next cutover action is merging #326; retain the old suspension and writer pause for rollback.
 
 ## Reference patterns
 
