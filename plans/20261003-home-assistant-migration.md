@@ -13,8 +13,11 @@ Matter filesystem. Retain its old PVC and omit Matter from Apollo. Existing Lutr
 preserving HA's IPv4 IoT access. Apple TV, IPv6/Thread tests, Matter runtime selection, and Matter backups
 are deferred; IPv4/mDNS verification remains a cutover prerequisite.
 
-The isolated worktree is `/private/tmp/hcc1-home-assistant`. Preparation does not authorize merging the
-disable PR or changing live cluster state. Do not start the maintenance window until all gates below pass.
+The operator confirmed Node-RED has no data or configured flows, so no Node-RED connection changes
+are needed for this cutover. It remains scheduled for a fresh deployment after HA.
+
+Preparation does not authorize merging the disable PR or changing live cluster state. Do not start the
+maintenance window until all gates below pass.
 
 ## Prerequisites
 
@@ -27,8 +30,13 @@ disable PR or changing live cluster state. Do not start the maintenance window u
   label only passing nodes `network.home.arpa/iot-ipv4: "true"`. Leave the full IoT/Thread label absent.
 - [ ] Verify Longhorn capacity for the 5Gi restored config PVC, temporary 5Gi restore volume, restic cache,
   and 5Gi database, each with its configured replica count on eligible disks.
-- [ ] Operator confirms the old restic repository is `tf-hcc-volsync/home-assistant-config`. The bucket is
-  documented; the path is provisional because agents do not read backup Secrets.
+- [ ] Operator checks `RESTIC_REPOSITORY` in the old `home-assistant-config-volsync-r2` Secret and confirms
+  the bucket/path is `tf-hcc-volsync/home-assistant-config` before merging either PR. The bucket is documented;
+  the path remains provisional until confirmed. Update the restore substitutions if it differs; agents do
+  not read the Secret or ask the operator to share credential values.
+- [ ] Identify references to the old IoT address `192.168.4.100/24` in HA's internal URL, firewall/DHCP
+  configuration, and device callbacks. Prepare any required changes for `192.168.6.100/22`; prefer the
+  canonical HA hostname for clients outside the IoT subnet.
 - [ ] Operator prepares the following `hcc-apollo` items and confirms ESO access. Do not paste values into
   chat, commits, or PRs. Shared `cloudflare-r2`, `volsync-r2`, and `cnpg-r2` items already serve Apollo.
 
@@ -65,17 +73,27 @@ disable PR or changing live cluster state. Do not start the maintenance window u
 
    Require `status.lastManualSync == ha-cutover-v1` and a successful sync, and CNPG Backup phase
    `completed`. Confirm archived WAL is current; never rely solely on a scheduled-backup timestamp.
-3. With approval, suspend the old VolSync writer using
-   `kubectl --context main -n default patch replicationsource home-assistant-config-r2 --type merge -p '{"spec":{"paused":true}}'`.
-   Commit the same paused field through git so Flux preserves it. Verify there is no active mover or prune
-   job. Keep the old database/archive available for rollback; Apollo writes to a separate server and bucket.
+3. After both final backups succeed, with operator approval suspend the old app's Flux Kustomization,
+   then pause its VolSync writer. This follows the Paperless cutover: suspension holds the already-disabled
+   app configuration while the runtime writer pause is in place.
+
+   ```sh
+   flux suspend kustomization home-assistant --context main --namespace flux-system
+   kubectl --context main -n default patch replicationsource home-assistant-config-r2 \
+     --type merge -p '{"spec":{"paused":true}}'
+   ```
+
+   Verify the Kustomization is suspended, the ReplicationSource is paused, and no source mover/pruner
+   remains active. Keep the old database/archive available for rollback; Apollo writes to a separate server
+   and bucket. Leave this Kustomization suspended until rollback or old-cluster retirement.
 4. With approval, merge the Apollo PR. VolSync preflight requires a real source snapshot; the config PVC
    references `home-assistant-config-bootstrap-migration-v1`. Database recovery reads
    `tf-hcc-cloudnativepg/home-assistant-pg-v1`, restores `home_assistant`, and writes only to
    `tf-hcc-apollo-cnpg/home-assistant-pg-apollo-v1`. The backup Kustomization remains suspended.
 5. Check restored integrations, automations, local credentials, recorder history, Lutron control, LAN TLS,
-   Tailscale login, and editor access. Check logs for database, proxy-trust, and discovery errors without
-   publishing credentials or device details. If a restored Matter integration remains configured, disable
+   Tailscale login, and editor access. Verify the internal URL, address-specific firewall/DHCP settings,
+   and device callbacks identified in preflight work with the new IoT address. Check logs for database,
+   proxy-trust, and discovery errors without publishing credentials or device details. If a restored Matter integration remains configured, disable
    that integration in HA with operator approval; do not rewrite `.storage` files by hand.
 6. After data verification, enable Apollo config backups through git and verify a nonempty restic snapshot.
    Verify a completed Apollo CNPG backup and WAL archiving. Schedule an approved move from hcc6 to a
@@ -94,11 +112,17 @@ old-cluster disable. Pause Apollo backup writing. The old app/PVC/database/Matte
 to them loses writes made on Apollo, which requires an explicit operator decision. Do not delete the new
 PVC or recovered database until the failure has been investigated and the operator approves cleanup.
 
+After the disable revert is merged and Apollo is stopped, resume the old `home-assistant` Flux
+Kustomization with operator approval using
+`flux resume kustomization home-assistant --context main --namespace flux-system`. Wait for the reverted
+workload and routes to reconcile and verify HA. Then, with approval, resume its backup writer using
+`kubectl --context main -n default patch replicationsource home-assistant-config-r2 --type merge -p '{"spec":{"paused":false}}'`.
+Confirm the writer is unpaused and its scheduled backups resume; do not assume Flux clears the runtime pause.
+
 ## Validation
 
 Both cluster kubeconform checks, Apollo policy lint, seven migration tests, and the full Apollo Flux render
-passed during preparation. Flate was run in a clean temporary checkout because source resolution in the
-linked worktree used the wrong tree. Rendered Services and routes were inspected for backend consistency.
+passed during preparation. Rendered Services and routes were inspected for backend consistency.
 
 ## Evidence and remaining gates
 

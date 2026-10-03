@@ -104,7 +104,6 @@ The `network.home.arpa/iot` label and IPv6/Thread checks below remain a separate
 [Home Assistant](home-assistant.md) records the current scope; its
 [migration record](../plans/20261003-home-assistant-migration.md) tracks cutover verification.
 
-
 Home Assistant and its Matter Server need local IPv6 connectivity and multicast discovery on the IoT network.
 The chosen Apollo design keeps their pod on VLAN 2 through a Multus macvlan attachment while its primary
 interface remains on the cluster network. An Apple TV routes between Thread and VLAN 2; it does not provide
