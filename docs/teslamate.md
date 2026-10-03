@@ -8,6 +8,9 @@ The app stores its durable state in PostgreSQL. Its filesystem cache is disposab
 and the elevation cache redirected to `/tmp` so the container can run as UID 568 with a read-only
 root filesystem. Use a single replica and Recreate strategy: startup applies database migrations,
 and two concurrent collectors must not write for the same vehicles.
+Helm retries a failed upgrade without rolling back the application image: startup may already have
+changed the schema. Recovery requires a new database restored to the recorded pre-upgrade point and
+matching application/dashboard versions, following [database recovery guidance](databases.md#recovery-points-before-application-upgrades).
 
 The original encryption key comes from `hcc-apollo/teslamate`, field `ENCRYPTION_KEY`. Preserve it
 when restoring the database or the stored Tesla tokens cannot be decrypted. The destination database
