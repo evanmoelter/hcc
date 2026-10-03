@@ -220,9 +220,11 @@ The Flux Operator UI is exposed read-only on the LAN and Tailscale;
 Multus and the shared IoT attachment are defined for Apollo, with Talos VLAN patches for hcc5, hcc6,
 and hcc7. [docs/networking.md](../docs/networking.md#multus) records consumer integration and deployment
 verification. The operator confirmed all three UniFi trunks and applied the Talos configuration on
-2026-09-17; read-only checks verified VLAN 2 links up and healthy nodes and services. Cilium's VLAN 2
-bypass rollout, live Multus checks, and per-node IPv6/Thread testing remain pending; no IoT capability
-labels are assigned before those checks pass.
+2026-09-17; read-only checks verified VLAN 2 links up and healthy nodes and services. Concurrent IPv4
+probes passed all eight checks on hcc5, hcc6, and hcc7 on 2026-10-03, confirming the deployed Multus path,
+Lutron TCP/mDNS, and primary-network connectivity. [The execution record](./20261003-iot-verification.md)
+preserves results. Apply the separate `network.home.arpa/iot-ipv4` labels before the HA migration;
+Matter/Thread and the full `network.home.arpa/iot` label remain gated on future IPv6/Thread testing.
 
 The CNPG operator, Barman Cloud plugin, and reusable Postgres component are implemented;
 [docs/databases.md](../docs/databases.md) records integration, verification, and consumer setup.

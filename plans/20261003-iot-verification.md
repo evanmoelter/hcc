@@ -14,8 +14,8 @@ only the TCP connection, with no ServiceAccount token; outbound access checks a 
 ## Deployment and verification
 
 - [x] Operator confirmed the three test addresses are unused and supplied the bridge address.
-- [ ] Review and pass CI on the independent test PR.
-- [ ] With operator approval, merge the test PR and let Flux deploy the Jobs. Do not merge #325 yet.
+- [x] Review and pass CI on the independent test PR.
+- [x] With operator approval, merge the test PR and let Flux deploy the Jobs. Do not merge #325 yet.
 
 Inspect results without changing the cluster:
 
@@ -35,9 +35,9 @@ are printed. Each Job has a five-minute deadline, zero retries, and retains its 
 
 | Node | Address | IPv4/routes/gateway | Lutron TCP/mDNS | Cluster/outbound | Result |
 |---|---|---|---|---|---|
-| hcc5 | `192.168.6.105/22` | pending | pending | pending | pending |
-| hcc6 | `192.168.6.106/22` | pending | pending | pending | pending |
-| hcc7 | `192.168.6.107/22` | pending | pending | pending | pending |
+| hcc5 | `192.168.6.105/22` | PASS | PASS | PASS | PASS |
+| hcc6 | `192.168.6.106/22` | PASS | PASS | PASS | PASS |
+| hcc7 | `192.168.6.107/22` | PASS | PASS | PASS | PASS |
 
 If a Job fails, inspect its named check failures and pod events. Review VLAN 2 trunks, `bond0.2`, Multus,
 and Cilium VLAN bypass if IoT routing fails. Review multicast delivery if TCP passes but mDNS fails.
@@ -61,16 +61,28 @@ The v2 Jobs started successfully on all three nodes. Each passed source-bound ga
 mDNS discovery, but the six other checks stopped at address/route inspection: the image provides BusyBox
 `ip`, which rejects the `-j` option. Those failures do not establish that TCP or outbound connectivity is
 broken; the connections were not attempted after route inspection failed. The v3 probe parses supported
-BusyBox text output and preserves the same interface/source/prefix assertions. Full verification remains
-pending; no eligibility label has been assigned. The corrected parser was exercised in the pinned HA
-image against real address, default-route, and destination-route output. Cluster DNS/API TCP and outbound
+BusyBox text output and preserves the same interface/source/prefix assertions. The corrected parser was
+exercised in the pinned HA image against real address, default-route, and destination-route output. Cluster DNS/API TCP and outbound
 DNS/TLS checks also passed there; this runtime check validates image compatibility, not Apollo eligibility.
+
+PR #334 merged as `8f2d3ca2ee08c49f939b9f0ec490303d6b382584` on 2026-10-03. Flux reported the
+`iot-network-test` Kustomization Ready at that revision. All three v3 Jobs completed successfully:
+hcc5 and hcc6 in six seconds, hcc7 in seven seconds. Each log contained all eight named PASS results
+and a final PASS with an empty `failed_checks` list. The checks were `iot_address`,
+`primary_default_route`, `iot_gateway_route`, `iot_gateway_ping`, `lutron_tcp`,
+`cluster_dns_and_api_tcp`, `outbound_dns_and_tls`, and `lutron_mdns`.
 
 ## Cleanup and eligibility
 
-After recording results, remove the `iot-network-test` registration and app directory through git and
-verify all three pods have terminated. Remove its temporary section from `docs/networking.md`, preserving
-useful findings there, and archive this full execution record under `plans/done/`.
+The cleanup change removes the `iot-network-test` registration, app directory, and probe-specific tests.
+The result is preserved here and in `docs/networking.md`. All three probe containers had terminated
+successfully before cleanup; after merging, verify Flux has pruned their Jobs, Pods, and ConfigMap.
+The test addresses may then be released. This record remains in `plans/` until cleanup is verified,
+then moves to `plans/done/`.
+
+- [x] All three nodes passed every IPv4 probe check.
+- [ ] Merge cleanup and verify the temporary resources are gone.
+- [ ] Apply the separately reviewed Talos eligibility labels and verify them live.
 
 Prepare a separate Talos configuration change granting `network.home.arpa/iot-ipv4: "true"` only to nodes
 that passed, and apply it with explicit operator approval. Verify the live labels before the HA outage.
