@@ -15,3 +15,7 @@ resources:
   - ./paperless/ks-consume-monitor.yaml
   - ./teslamate/ks.yaml
   - ./teslamate/ks-database.yaml
+  - ./home-assistant/ks.yaml
+  - ./home-assistant/ks-storage.yaml
+  - ./home-assistant/ks-database.yaml
+  - ./home-assistant/ks-tailscale.yaml

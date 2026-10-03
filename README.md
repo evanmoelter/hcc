@@ -1,7 +1,7 @@
 # Home Compute Cluster (hcc)
 
 > [!WARNING]
-> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, Paperless with scanner SFTP, TeslaMate, and Grafana. Remaining household apps run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
+> **Migration in progress; this README is under construction.** The cluster is moving from ansible-managed k3s to Talos. Apollo hosts Mealie, Authentik, WebFinger, Paperless with scanner SFTP, TeslaMate, Grafana, and Home Assistant. Remaining household apps run on the old cluster under `kubernetes/main`. Sections marked as placeholders get filled in as the migration proceeds. Where this README and [plans/20260816-talos-migration.md](./plans/20260816-talos-migration.md) disagree, the plan wins.
 
 Kubernetes cluster(s) running the household's services on bare metal in the basement: home automation, recipes, documents, and car telemetry. Flux reconciles everything from this repository using the guiding principles of GitOps.
 
@@ -11,7 +11,7 @@ Kubernetes cluster(s) running the household's services on bare metal in the base
 |              | `kubernetes/main`              | `kubernetes/apollo` |
 | ------------ | ------------------------------ | ------------------- |
 | Distribution | k3s on Debian, ansible-managed | Talos               |
-| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, and Grafana |
+| Status       | serving remaining apps; frozen       | Cilium, Multus, Flux, Spegel, Reloader, bootstrap metrics, metrics-server, kube-ops-view, ESO, Connect, cert-manager, Longhorn, snapshot-controller, VolSync, CNPG, Barman Cloud, Dragonfly, Envoy Gateway, DNS, cloudflared, Tailscale, echo-server, Mealie, Authentik, WebFinger, Paperless, scanner SFTP, TeslaMate, Grafana, and Home Assistant |
 | Fate         | deleted in Wave 2              | the cluster         |
 
 
@@ -36,6 +36,10 @@ consume backups, and Pushover notifications for stalled uploads. Its
 TeslaMate and Grafana use a [dedicated database and provisioned dashboards](./docs/teslamate.md).
 The [cutover record](./plans/20261002-teslamate-migration.md) separates historical-data migration from
 repairing the pre-existing vehicle-recording outage on Apollo.
+
+Home Assistant retains LAN and Tailscale access, its config and recorder history, and IPv4 IoT discovery.
+[Service notes](./docs/home-assistant.md) describe scheduling and deferred Matter/Thread; the
+[cutover record](./plans/20261003-home-assistant-migration.md) tracks recovery and verification.
 
 ## Hardware
 

@@ -10,6 +10,7 @@ their execution records.
 | SSO and login discovery | [Identity](identity.md): Authentik, proxy trust, database credentials, and Tailscale WebFinger. |
 | Vehicle telemetry | [TeslaMate](teslamate.md): database credentials, Grafana dashboards, collection checks, and cutover record. |
 | Document management and scanner ingestion | [Paperless](paperless.md): access, library/consume backups, stalled-upload alerts, and runtime constraints. |
+| Home automation | [Home Assistant](home-assistant.md): access, config/history, IPv4 IoT scheduling, and deferred Matter/Thread. |
 | Persistent files and backups | [Storage](storage.md): Longhorn, capacity, snapshots, R2 backup separation, and node registration. [VolSync lifecycle usage](../kubernetes/apollo/components/volsync/README.md) covers PVC creation, restore, backup, and cleanup. |
 | PostgreSQL and Redis-compatible services | [Databases](databases.md): Postgres components, initialization and recovery, credentials, backups, upgrade recovery points, and Dragonfly integration. |
 | HTTP ingress and proxy trust | [Gateway](gateway.md): LAN and external routing, listener isolation, forwarded headers, and verification. |

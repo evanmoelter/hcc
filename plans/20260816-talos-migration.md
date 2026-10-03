@@ -390,7 +390,7 @@ a shared instance. See `plans/11-cnpg-database-split.md` for the full database c
 
 | App | Required review |
 |---|---|
-| Home Assistant | Require verified IoT networking; prefer hcc6 but allow other eligible nodes without USB; use Apple TV for Thread and keep any future USB/OTBR workload separate; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
+| Home Assistant | Migrate without Matter/Thread until Apple TV is available; require verified IPv4/mDNS on hcc6 and an alternative; prefer hcc6 without USB; parameterize trusted proxy CIDRs; recover the database instead of using initdb |
 | Paperless | Assign its SFTP load-balancer IP from Apollo's pool; request 50Gi for the library PVC |
 | Mealie | Completed: LAN/public Gateway routes and database recovery. Separate Tailscale access was removed at the operator’s request. |
 | Authentik | Apply the Gateway pattern proven on echo-server; keep the same internal and external hostname |
@@ -399,7 +399,12 @@ a shared instance. See `plans/11-cnpg-database-split.md` for the full database c
 | App-template and raw-manifest workloads | Check `home-operations/containers` for a compatible replacement, especially for images currently built under `ghcr.io/evanmoelter`; verify user IDs, paths, arguments, and security context before switching |
 | TeslaMate | Operator confirmed the old SQL dump is obsolete; retain old manifests through Wave 2 |
 
-Home Assistant moves in Wave 1 after the IoT path is verified on hcc6 and at least one alternative node.
+Home Assistant moves in Wave 1 after IPv4/mDNS is verified on hcc6 and at least one alternative node.
+The operator deferred Matter/Thread until an Apple TV is purchased; a read-only check found zero paired
+Matter nodes and no Matter entities in HA. Apollo initially runs HA and its editor without Matter or a
+Matter PVC, using the separate `network.home.arpa/iot-ipv4` eligibility label. Preserve the old Matter PVC.
+The [per-app migration record](20261003-home-assistant-migration.md) tracks the revised cutover.
+The following combined HA/Matter design applies when Matter is added after IPv6/Thread verification.
 Use required node affinity for a verified IoT capability label and `preferredDuringSchedulingIgnoredDuringExecution`
 for hcc6. Keep HA and Matter Server together as one replica with a `Recreate` deployment strategy and persistent
 config and Matter state, so their IoT address and Matter identity survive a move. A preference does not move an
@@ -430,7 +435,8 @@ Migrate in this order:
    working Grafana access, and a completed Apollo backup. Temporary import configuration is retired;
    a separate Apollo upgrade still needs to repair the existing Owner API failure and verify live recording.
    Grafana retains LAN/Tailscale anonymous access.
-5. Home Assistant, after its IoT network path is ready on hcc6 and at least one alternative node.
+5. Home Assistant, after IPv4/mDNS is verified on hcc6 and at least one alternative node. Matter/Thread
+   is deferred until the Apple TV is available; it does not block this migration.
 6. Node-RED last, because it has no data to migrate and is not useful until Home Assistant is running.
 
 The operator selected Mealie first on 2026-09-18 because it is not currently used.
