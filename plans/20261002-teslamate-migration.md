@@ -57,9 +57,10 @@ Copy `ENCRYPTION_KEY` unchanged. Source database ownership was verified as `tesl
 must confirm the encrypted `DATABASE_USER` is that role before copying `DATABASE_PASS`, and verify
 that role can dump all objects over `192.168.6.21:5432`.
 
-The database-secrets Kustomization must become Ready before CNPG starts import. The destination
-basic-auth Secret has literal username `teslamate`. Grafana's namespace receives the same password
-through its own ExternalSecret. See [database guidance](../docs/databases.md) and
+The database Kustomization depends on `onepassword-store` and includes the credential ExternalSecrets
+alongside the Cluster, following Paperless's layout. The destination basic-auth Secret has literal
+username `teslamate`. Grafana's namespace receives the same password through its own ExternalSecret.
+See [database guidance](../docs/databases.md) and
 [secret integration](../docs/secrets.md).
 
 Confirm `tf-hcc-apollo-cnpg/teslamate/` and server name `teslamate-pg-apollo-v1` are unused. Keep the
@@ -102,11 +103,12 @@ there is no TeslaMate VolSync writer to suspend.
 ### Import and verify history on Apollo
 
 Merge the Apollo PR only after the final backup and name-release gates pass. Flux applies the
-credentials, then the dedicated database import, then the app and Grafana. CNPG imports only
+credential ExternalSecrets and database together, then waits for database readiness before starting
+the app and Grafana. CNPG imports only
 `teslamate`, not the other databases in the source cluster.
 
 ```sh
-kubectl --context apollo -n flux-system get kustomizations teslamate-database-secrets teslamate-database teslamate grafana grafana-tailscale
+kubectl --context apollo -n flux-system get kustomizations teslamate-database teslamate grafana grafana-tailscale
 kubectl --context apollo -n default get cluster teslamate-pg
 kubectl --context apollo -n default get pods
 kubectl --context apollo -n monitoring get pods,httproutes,ingresses

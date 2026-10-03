@@ -8,7 +8,7 @@ spec:
   dependsOn:
     - name: plugin-barman-cloud
     - name: longhorn-config
-    - name: teslamate-database-secrets
+    - name: onepassword-store
   targetNamespace: default
   path: ./kubernetes/apollo/apps/default/teslamate/database
   components:

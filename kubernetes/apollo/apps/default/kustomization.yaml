@@ -14,4 +14,3 @@ resources:
   - ./paperless/ks-tailscale.yaml
   - ./teslamate/ks.yaml
   - ./teslamate/ks-database.yaml
-  - ./teslamate/ks-database-secrets.yaml
