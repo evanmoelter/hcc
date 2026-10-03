@@ -39,4 +39,4 @@ Recreate prevents overlap during updates; it does not fence a failed node. Confi
 stopped or fence its node before starting a replacement with the same static IoT address.
 
 [The migration record](../plans/20261003-home-assistant-migration.md) tracks preparation, operator
-prerequisites, cutover, and cleanup. Deployment verification remains pending there.
+prerequisites, verified cutover, and remaining backup/cleanup and rescheduling checks.

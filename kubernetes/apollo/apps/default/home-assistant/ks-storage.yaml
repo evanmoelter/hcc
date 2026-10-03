@@ -77,7 +77,7 @@ metadata:
   name: home-assistant-backup
   namespace: flux-system
 spec:
-  suspend: true
+  suspend: false
   dependsOn:
     - name: home-assistant
     - name: volsync
