@@ -3,6 +3,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ./namespace.yaml
+  - ./k8s-explorer-eval/ks.yaml
+  - ./k8s-explorer-eval/ks-storage.yaml
   - ./mealie/ks.yaml
   - ./mealie/ks-database.yaml
   - ./mealie/ks-storage.yaml

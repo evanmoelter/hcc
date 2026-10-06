@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app k8s-explorer-eval
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: k8s-explorer-eval-storage
+    - name: kube-prometheus-stack
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/app
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 40m
