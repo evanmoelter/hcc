@@ -114,7 +114,7 @@ spec:
               MKL_NUM_THREADS: "2"
               RAYON_NUM_THREADS: "2"
               TOKENIZATION_WORKERS: "2"
-              MAX_BATCH_TOKENS: "4096"
+              MAX_BATCH_TOKENS: "5760"
               MAX_BATCH_REQUESTS: "1"
               MAX_CLIENT_BATCH_SIZE: "32"
               MAX_CONCURRENT_REQUESTS: "32"
@@ -159,10 +159,10 @@ spec:
             resources:
               requests:
                 cpu: "1"
-                memory: 3Gi
+                memory: 10Gi
               limits:
                 cpu: "2"
-                memory: 8Gi
+                memory: 12Gi
     service:
       artifacts:
         controller: artifacts

@@ -99,8 +99,10 @@ identity, special tokens, query instruction, and input lengths before embedding 
 TEI needs `AUTO_TRUNCATE=true` to boot Qwen with the reduced serving cap. The benchmark adapter
 explicitly sends `truncate:false`, so oversized evaluation inputs fail. Do not silently change
 chunking for one provider; a changed corpus is a new comparison for every provider.
-The initial 8,192-token CPU warmup exceeded the 8 GiB container limit. The serving cap is reduced
-for startup; actual corpus fit must be checked before activating a run.
+The initial 8,192-token CPU warmup exceeded the 8 GiB container limit. A reduced cap started successfully,
+but tokenizer preflight found 54 oversized chunks, with a maximum of 5,744 tokens. The operator approved
+more memory and a cap that accommodates those inputs. Every new attempt still checks the complete corpus
+before embedding, and preserves the failed attempt's artifacts under its original identity.
 
 Each run writes under `/artifacts/runs/<experiment>/<run-id>/`, including the approved judgments,
 provider settings, runner source, image identity, hashes, timestamps, token preflight for CPU
