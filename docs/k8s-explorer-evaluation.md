@@ -104,6 +104,11 @@ but tokenizer preflight found 54 oversized chunks, with a maximum of 5,744 token
 more memory and a cap that accommodates those inputs. Every new attempt still checks the complete corpus
 before embedding, and preserves the failed attempt's artifacts under its original identity.
 
+TEI's [health endpoint queues work on the inference backend](https://github.com/huggingface/text-embeddings-inference/blob/v1.9.4/backends/src/lib.rs#L379).
+Use it for startup verification. Steady-state probes use `/info`, which stays responsive during long CPU
+batches; backend failures surface through evaluation errors and metrics. Qwen allows longer HTTP requests
+and a three-day Job deadline because CPU indexing the expanded corpus can exceed one day.
+
 Each run writes under `/artifacts/runs/<experiment>/<run-id>/`, including the approved judgments,
 provider settings, runner source, image identity, hashes, timestamps, token preflight for CPU
 models, and hybrid retrieval report. CPU runs also save TEI `/info` and `/metrics` before and after.

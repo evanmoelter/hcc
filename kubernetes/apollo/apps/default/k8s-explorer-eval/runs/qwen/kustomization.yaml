@@ -3,7 +3,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../jobs/base
-nameSuffix: -qwen-v2
+nameSuffix: -qwen-v3
 patches:
   - patch: |
       apiVersion: batch/v1
@@ -12,6 +12,7 @@ patches:
         name: k8s-explorer-eval
       spec:
         suspend: false
+        activeDeadlineSeconds: 259200
         template:
           spec:
             containers:
@@ -20,4 +21,4 @@ patches:
               - name: EVAL_PROVIDER
                 value: qwen3-0.6b
               - name: EVAL_RUN_ID
-                value: qwen-v2
+                value: qwen-v3

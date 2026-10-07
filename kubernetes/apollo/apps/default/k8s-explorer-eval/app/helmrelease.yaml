@@ -126,7 +126,7 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    path: /health
+                    path: /info
                     port: 8080
                   periodSeconds: 10
                   timeoutSeconds: 5
@@ -146,7 +146,7 @@ spec:
                 custom: true
                 spec:
                   httpGet:
-                    path: /health
+                    path: /info
                     port: 8080
                   periodSeconds: 30
                   timeoutSeconds: 10
