@@ -57,7 +57,7 @@ operator decision.
 - Operator, 2026-10-07: run the complete evaluation in Apollo, superseding the local harness choice.
 - Codex: use native pgvector sidecars and the existing published application image.
 - Operator, 2026-10-07: confirmed the `k8s-explorer-eval` credential item and both API-key fields are created.
-- Pending: spending amount, final holdout review, successful provider runs, and complete artifact export.
+- Pending: final holdout review, successful provider runs, and complete artifact export.
 
 The existing upstream embedding-evaluation design remains the authority for measurement and
 judgment methodology. This plan covers cluster execution only.
