@@ -6,7 +6,7 @@ providers:
   model: Qwen/Qwen3-Embedding-0.6B
   model_revision: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
   dimensions: 1024
-  request_timeout_seconds: 300
+  request_timeout_seconds: 1800
   query_instruction: Retrieve Kubernetes configuration or documentation that answers
     the query with source evidence.
 - id: bge-m3

@@ -102,3 +102,10 @@ The first Qwen attempt checks all 17,307 documents and 50 questions. It stops be
 Its inputs, token report, TEI metadata, and startup telemetry are exported locally. A prepared
 follow-up uses a 5,760-token cap and a new attempt identity, requesting 10 GiB with a 12 GiB limit.
 The operator approves this capacity increase on 2026-10-07; the frozen corpus and judgments are unchanged.
+
+PR #349 deploys the approved memory increase. Qwen warms up in 184 seconds without a restart, and
+all documents and questions pass token preflight. The first embedding batch returns HTTP 200.
+During inference, `/health` queues behind backend work and exceeds probe timeouts, temporarily removing
+the service endpoint. A follow-up retains `/health` for startup and uses `/info` for steady-state probes.
+It starts `qwen-v3`, preserves previous attempt artifacts, and increases Qwen request/Job deadlines to
+allow slow CPU indexing. Other providers remain suspended and no paid requests are authorized.
