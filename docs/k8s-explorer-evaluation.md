@@ -3,7 +3,8 @@
 Apollo runs the temporary 20-repository evaluation for
 [k8s-at-home-explorer](https://github.com/evanmoelter/k8s-at-home-explorer).
 Corpus preparation, disposable databases, and provider comparisons run as Jobs on hcc8.
-One TEI server hosts Qwen3 and then BGE-M3 on the same hardware. Hosted-provider Jobs call
+The TEI server can host Qwen3 or BGE-M3 on the same hardware and is currently scaled to zero.
+Hosted-provider Jobs call
 OpenAI and Voyage directly. The permanent explorer service remains a separate installation.
 
 The upstream [evaluation guide](https://github.com/evanmoelter/k8s-at-home-explorer/blob/f0d54ffdfb748a145a51f6187281bd2c3148cf98/docs/embedding-evaluation.md)
@@ -18,7 +19,7 @@ The storage Kustomization waits for Longhorn and creates a prunable model cache 
 artifact PVC. The app lifecycle runs TEI and a read-only artifact server. Preparation waits for
 storage; CPU runs wait for preparation and the app. Paid runs wait for preparation and the credential
 lifecycle to synchronize the operator-confirmed 1Password item. They use a separate execution lock
-and run alongside Qwen in sequence: OpenAI, Voyage Code, then Voyage. A failed paid Job blocks
+and can run alongside a CPU evaluation in sequence: OpenAI, Voyage Code, then Voyage. A failed paid Job blocks
 the remaining sequence; retries require reviewing its usage and selecting a fresh attempt identity.
 
 All artifact consumers use hcc8 so the RWO volume has one node attachment. Each Job starts its
@@ -66,7 +67,9 @@ Kubernetes port-forward reaches it through the API server. The server has no pro
 
 ## Approve and run a comparison
 
-Qwen3 and the three hosted calibrations are enabled for the first frozen corpus; BGE-M3 remains suspended.
+The three hosted calibrations completed successfully for the first frozen corpus. Qwen3 was cancelled
+by the operator because CPU indexing throughput was insufficient for this deployment. Both CPU Jobs
+are suspended and TEI is scaled to zero; the corpus and run artifacts remain available.
 Before enabling another run, review the frozen inputs and set their exact byte
 SHA-256 hashes and selected provider IDs in
 [`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json)
@@ -97,7 +100,8 @@ The operator approved $10 for OpenAI and $10 total for both Voyage models for th
 and confirmed both provider accounts are restricted to those amounts.
 
 Enable a provider by adding `spec.suspend: false` to its Job patch in
-`runs/<provider>/kustomization.yaml`, then commit and let Flux converge. Start with Qwen3.
+`runs/<provider>/kustomization.yaml`, then commit and let Flux converge. A cancelled CPU run requires
+a new attempt identity and restoring the TEI controller to one replica.
 CPU models run one at a time. The hosted dependency chain serializes paid Jobs independently.
 For BGE-M3, change the TEI HelmRelease environment to the upstream pinned model revision and
 CLS pooling in the same activation change. The tokenizer preflight checks the actual model

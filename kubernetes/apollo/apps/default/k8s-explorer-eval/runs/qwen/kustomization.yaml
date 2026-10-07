@@ -11,7 +11,7 @@ patches:
       metadata:
         name: k8s-explorer-eval
       spec:
-        suspend: false
+        suspend: true
         activeDeadlineSeconds: 259200
         template:
           spec:

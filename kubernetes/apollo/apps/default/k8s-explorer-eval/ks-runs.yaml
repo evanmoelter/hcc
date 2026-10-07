@@ -24,7 +24,7 @@ spec:
   healthCheckExprs:
   - apiVersion: batch/v1
     kind: Job
-    failed: has(status.failed) && status.failed > 0
+    failed: '!(has(spec.suspend) && spec.suspend) && has(status.failed) && status.failed > 0'
     current: (has(spec.suspend) && spec.suspend) || (has(status.succeeded) && status.succeeded
       == 1)
 
