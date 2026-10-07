@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +12,10 @@ APP = ROOT / "kubernetes/apollo/apps/default/k8s-explorer-eval"
 SPEC = importlib.util.spec_from_file_location("evaluation_runner", APP / "jobs/base/runner.py")
 RUNNER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNNER)
+HOSTED_SPEC = importlib.util.spec_from_file_location("hosted_runner", APP / "jobs/hosted/hosted-runner.py")
+HOSTED = importlib.util.module_from_spec(HOSTED_SPEC)
+with mock.patch.dict("sys.modules", {"runner": RUNNER}):
+    HOSTED_SPEC.loader.exec_module(HOSTED)
 
 
 def render(path):
@@ -68,13 +73,34 @@ class EvaluationGuardsTests(unittest.TestCase):
             RUNNER.validate_approval(self.corpus, self.judgments, self.approval, "bge-m3")
 
 
+class HostedExecutionTests(unittest.TestCase):
+    def test_hosted_work_can_run_while_cpu_lock_is_held(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict("os.environ", {
+            "EVAL_ARTIFACTS": directory, "EVAL_PROVIDER": "openai-small", "EVAL_EXPERIMENT": "test-v1",
+        }), mock.patch("sys.argv", ["hosted-runner.py", "evaluate"]), mock.patch.object(RUNNER, "evaluate") as evaluate:
+            with (Path(directory) / "execution.lock").open("a") as lock:
+                RUNNER.fcntl.flock(lock, RUNNER.fcntl.LOCK_EX | RUNNER.fcntl.LOCK_NB)
+                HOSTED.main()
+            evaluate.assert_called_once()
+
+    def test_second_hosted_work_is_rejected_before_provider_calls(self):
+        with tempfile.TemporaryDirectory() as directory, mock.patch.dict("os.environ", {
+            "EVAL_ARTIFACTS": directory, "EVAL_PROVIDER": "voyage-4", "EVAL_EXPERIMENT": "test-v1",
+        }), mock.patch("sys.argv", ["hosted-runner.py", "evaluate"]), mock.patch.object(RUNNER, "evaluate") as evaluate:
+            with (Path(directory) / "hosted-execution.lock").open("a") as lock:
+                RUNNER.fcntl.flock(lock, RUNNER.fcntl.LOCK_EX | RUNNER.fcntl.LOCK_NB)
+                with self.assertRaises(BlockingIOError):
+                    HOSTED.main()
+            evaluate.assert_not_called()
+
+
 class EvaluationManifestTests(unittest.TestCase):
-    def test_only_preparation_and_approved_qwen_run_start(self):
+    def test_only_approved_runs_start(self):
         for folder in [APP / "prepare", *sorted((APP / "runs").iterdir())]:
             with self.subTest(folder=folder.name):
                 documents = render(folder)
                 job = next(doc for doc in documents if doc["kind"] == "Job")
-                self.assertEqual(job["spec"]["suspend"], folder.name not in {"prepare", "qwen"})
+                self.assertEqual(job["spec"]["suspend"], folder.name == "bge")
                 self.assertEqual(job["spec"]["backoffLimit"], 0)
                 self.assertNotIn("ttlSecondsAfterFinished", job["spec"])
                 pod = job["spec"]["template"]["spec"]

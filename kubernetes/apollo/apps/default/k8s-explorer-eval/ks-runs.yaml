@@ -71,7 +71,6 @@ metadata:
 spec:
   dependsOn:
   - name: k8s-explorer-eval-prepare
-  - name: k8s-explorer-eval
   - name: k8s-explorer-eval-credentials
   targetNamespace: default
   path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/openai
@@ -103,8 +102,8 @@ metadata:
 spec:
   dependsOn:
   - name: k8s-explorer-eval-prepare
-  - name: k8s-explorer-eval
   - name: k8s-explorer-eval-credentials
+  - name: k8s-explorer-eval-openai
   targetNamespace: default
   path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/voyage-code
   prune: true
@@ -135,8 +134,8 @@ metadata:
 spec:
   dependsOn:
   - name: k8s-explorer-eval-prepare
-  - name: k8s-explorer-eval
   - name: k8s-explorer-eval-credentials
+  - name: k8s-explorer-eval-voyage-code
   targetNamespace: default
   path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/voyage
   prune: true
