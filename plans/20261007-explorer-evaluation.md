@@ -57,8 +57,7 @@ operator decision.
 - Operator, 2026-10-07: run the complete evaluation in Apollo, superseding the local harness choice.
 - Codex: use native pgvector sidecars and the existing published application image.
 - Operator, 2026-10-07: confirmed the `k8s-explorer-eval` credential item and both API-key fields are created.
-- Pending: spending amount, frozen corpus and judgment review,
-  deployment verification, tokenizer checks, actual evaluation results, and artifact export.
+- Pending: spending amount, final holdout review, successful provider runs, and complete artifact export.
 
 The existing upstream embedding-evaluation design remains the authority for measurement and
 judgment methodology. This plan covers cluster execution only.
@@ -70,7 +69,7 @@ and authorization checks. All 153 Flux rendering checks pass after enabling the 
 credential lifecycle. A disposable local container test initializes the published runner's schema against
 the pinned pgvector image with non-root users, a read-only root filesystem, dropped capabilities,
 and loopback-only TCP. Both upstream helper downloads match their pinned checksums. The test uses
-the local ARM64 image variants; Apollo's AMD64 execution and native sidecar lifecycle remain unverified.
+the local ARM64 image variants; subsequent Apollo preparation verifies AMD64 execution and native sidecar shutdown.
 
 The operator renews the Apollo kubeconfig. Live checks confirm hcc8 uses about 1.6 GiB memory,
 Longhorn disks are Ready and Schedulable, and the storage and secret-store dependencies are Ready.
@@ -92,3 +91,14 @@ only change Jellyfin or Paperless image versions. Their configuration evidence a
 unchanged. The refreshed 50-question sparse calibration set validates against the frozen export.
 A follow-up records exact corpus/judgment hashes and enables only Qwen3; other providers remain
 suspended and paid budgets remain unset. Final holdout review across the expanded repositories is pending.
+
+PR #348 enables the Qwen calibration. The operator approves restarting the Flux controllers if the
+existing waits exceed 15 minutes; 18 and 23 minutes remain, so both controllers restart. Flux applies
+the reduced cap and Helm becomes Ready. Cached warmup takes about 105 seconds. Prometheus scrapes
+the model successfully and samples a peak working set of 6.72 GiB during this startup.
+
+The first Qwen attempt checks all 17,307 documents and 50 questions. It stops before embedding:
+54 document chunks exceed 4,096 tokens, with a maximum of 5,744; the longest query is 43 tokens.
+Its inputs, token report, TEI metadata, and startup telemetry are exported locally. A prepared
+follow-up uses a 5,760-token cap and a new attempt identity, requesting 10 GiB with a 12 GiB limit.
+The operator approves this capacity increase on 2026-10-07; the frozen corpus and judgments are unchanged.
