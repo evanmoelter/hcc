@@ -1,104 +1,138 @@
 # Explorer embedding evaluations
 
-Apollo's temporary `k8s-explorer-eval` release provides a private TEI endpoint for
+Apollo runs the temporary 20-repository evaluation for
 [k8s-at-home-explorer](https://github.com/evanmoelter/k8s-at-home-explorer).
-It serves one CPU model at a time on hcc8 so Qwen3 and BGE-M3 can use the same hardware
-and resource settings. The explorer service itself is a separate future installation.
+Corpus preparation, disposable databases, and provider comparisons run as Jobs on hcc8.
+One TEI server hosts Qwen3 and then BGE-M3 on the same hardware. Hosted-provider Jobs call
+OpenAI and Voyage directly. The permanent explorer service remains a separate installation.
 
-The upstream [serving handoff](https://github.com/evanmoelter/k8s-at-home-explorer/blob/f0d54ffdfb748a145a51f6187281bd2c3148cf98/docs/embedding-serving.md)
-defines weight revisions, preprocessing, tokenizer checks, and measurements.
-The [evaluation guide](https://github.com/evanmoelter/k8s-at-home-explorer/blob/f0d54ffdfb748a145a51f6187281bd2c3148cf98/docs/embedding-evaluation.md)
-owns corpus preparation and the benchmark CLI. Keep serving changes here and harness changes upstream.
+The upstream [evaluation guide](https://github.com/evanmoelter/k8s-at-home-explorer/blob/f0d54ffdfb748a145a51f6187281bd2c3148cf98/docs/embedding-evaluation.md)
+owns the benchmark and judgment methodology. Its
+[serving guide](https://github.com/evanmoelter/k8s-at-home-explorer/blob/f0d54ffdfb748a145a51f6187281bd2c3148cf98/docs/embedding-serving.md)
+owns model revisions, token limits, and measurements. The
+[execution plan](../plans/20261007-explorer-evaluation.md) records this installation's decisions and remaining verification.
 
-## Lifecycle and access
+## Lifecycles and storage
 
-The storage Kustomization waits for Longhorn; the app waits for storage and monitoring.
-The cache PVC contains only public, downloadable model weights. It has no VolSync backup
-and is intentionally pruned when its storage Kustomization is removed. Never store reports,
-corpora, or credentials there. Model changes retain the cache and use a Recreate rollout.
+The storage Kustomization waits for Longhorn and creates a prunable model cache and a retained
+artifact PVC. The app lifecycle runs TEI and a read-only artifact server. Preparation waits for
+storage; provider runs wait for preparation and the app. Paid runs also wait for the credential
+lifecycle, which stays suspended until the operator confirms the 1Password item.
 
-The CPU limit bounds interference with household workloads. Startup probes allow a cold
-download and warmup; the Deployment progress deadline and Helm timeout also accommodate it.
-The AVX2 setting follows the upstream NUC handoff; confirm the serving node's CPU capabilities
-and record its model before interpreting performance.
+All artifact consumers use hcc8 so the RWO volume has one node attachment. Each Job starts its
+own pgvector native sidecar with an emptyDir database. PostgreSQL listens only on pod loopback
+and trusts connections from the runner in that pod. It uses its image's UID 999; the runner uses
+568. The database stops with the Job and its files disappear when the pod is deleted. Neither
+household databases nor CNPG backups participate in this disposable experiment.
 
-There is no HTTPRoute, external DNS record, or native TEI API key. The ingress NetworkPolicy
-allows only Prometheus pods from `monitoring`. An authorized workstation can use Kubernetes
-port-forward, which reaches the pod through the API server. An in-cluster benchmark runner
-needs an explicit NetworkPolicy peer before using the Service.
+The artifact PVC disables Flux pruning. Its three Longhorn replicas provide local redundancy,
+not an offsite backup. Export and verify the artifacts before retiring it. The model cache
+contains only public downloadable weights and can be deleted after use.
 
-After the GitOps change reaches the cluster, verify readiness:
+## Prepare and review the corpus
+
+Merging the deployment starts `k8s-explorer-eval-prepare-v1`. Its checked-in catalogue selects
+20 repositories. It fetches each selected branch once, records the actual commits, and exports
+source-verified chunks. Any failed repository or missing export entry blocks completion.
+No embedding endpoint or hosted key is used during preparation.
+
+Preparation also downloads the tokenizer helper and pilot judgment starter from the pinned
+application commit and verifies their SHA-256 hashes. The published image already contains the
+remaining CLI, so no image build is required for this installation. The downloaded helper only
+runs after its checksum is checked again. Indexed repository code is never executed.
+
+Preparation writes under `/artifacts/corpora/expanded-20261007-v1/`:
+
+- `corpus.json`, `repositories.yaml`, `sync.json`, and retained source;
+- `prepared.json`, with corpus identity, SHA-256, repository and chunk counts;
+- the pinned tokenizer helper and pilot starter;
+- `candidate-judgments.json` only if every judged pilot passage rebinds unchanged.
+
+A failed rebind does not discard a valid corpus export. Review changed evidence and supply new
+judgments. The pilot's sparse 50-question calibration set is not a final holdout for 20 repositories.
+A successful rebind is only a candidate; it does not automatically authorize evaluation.
+
+Download artifacts through the read-only service:
 
 ```sh
-kubectl --context apollo -n flux-system get kustomization k8s-explorer-eval-storage k8s-explorer-eval
-kubectl --context apollo -n default get helmrelease k8s-explorer-eval
-kubectl --context apollo -n default get pods -l app.kubernetes.io/instance=k8s-explorer-eval -o wide
-kubectl --context apollo -n default get pvc k8s-explorer-eval-cache
-kubectl --context apollo -n default port-forward --address 127.0.0.1 service/k8s-explorer-eval 8081:8080
+kubectl --context apollo -n default port-forward --address 127.0.0.1 service/k8s-explorer-eval-artifacts 8089:8088
 ```
 
-Check `/health` and `/info` at `http://127.0.0.1:8081`. Verify model ID, weight SHA,
-float32 precision, pooling, and input limits. Smoke-test one vector and a representative batch;
-every vector must have 1,024 finite components and nonzero norm.
+Browse `http://127.0.0.1:8089/` or download individual files with `curl --fail --output FILE URL`.
+There is no public route. NetworkPolicy denies direct access to the artifact service; authorized
+Kubernetes port-forward reaches it through the API server. The server has no provider credentials.
 
-TEI needs `AUTO_TRUNCATE=true` to start Qwen with the reduced serving context. Every evaluation
-request must explicitly send `truncate:false`; the upstream adapter does this. Run the upstream
-`eval:token-check` against every prepared document and query before embedding. Byte size alone
-does not establish token fit. A failed check blocks that run; changing chunking requires a new,
-shared frozen corpus for all candidates.
+## Approve and run a comparison
 
-## Comparison sequence
+All five provider Jobs start suspended. Review the frozen inputs, then set their exact byte
+SHA-256 hashes and selected provider IDs in
+[`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json).
+The initial empty hashes and provider list deliberately block execution.
 
-The operator selected a 20-repository corpus and a local harness in the explorer repository,
-including both CPU models and the hosted OpenAI and Voyage candidates. Prepare and freeze
-the expanded corpus there, using `config/evaluation/repositories.yaml`, and review judgments
-against its actual source. Use identical frozen corpus and judgment files for all providers.
-The existing pilot's 50 questions are sparsely judged calibration data, not a final holdout
-for the expanded corpus.
+To use independently reviewed judgments, add `reviewed-judgments.json` to that directory and
+to its ConfigMap generator's `files` list. Otherwise the runner uses the preparation candidate.
+Record the hash of whichever file will actually run. All providers must use identical corpus
+and judgment artifacts. Provider endpoint/model settings are in `jobs/base/providers.yaml`.
 
-Use the upstream `eval:benchmark` task on the workstation and its disposable Compose
-pgvector database. It requires no production database credentials. Select only the active
-provider, run the token preflight first, then hybrid retrieval. Save reports and hashes with
-the frozen inputs outside Git. The initial Qwen forwarding port matches the upstream provider file.
+For paid providers, create the proposed `k8s-explorer-eval` item in the `hcc-apollo` vault with
+`OPENAI_API_KEY` and `VOYAGE_API_KEY` fields, following [Apollo secrets](secrets.md). Confirm the
+actual item title before enabling `ks-credentials.yaml`. ESO supplies only the relevant key to
+each provider Job. Keys never belong in Git, approval records, or artifact files.
 
-To switch to BGE-M3, change these three environment values in the
-[HelmRelease](../kubernetes/apollo/apps/default/k8s-explorer-eval/app/helmrelease.yaml)
-and let Flux deploy the commit:
+Record the operator-approved `openai_budget_usd`, aggregate `voyage_budget_usd`, and `approved_by`
+in the approval file before paid execution. The budget record is an authorization prerequisite,
+not a dollar meter: the upstream harness does not enforce spending caps. Configure provider
+account controls separately and review reported usage between runs, including both Voyage models.
 
-```yaml
-MODEL_ID: BAAI/bge-m3
-REVISION: 5617a9f61b028005a4858fdac845db406aefb181
-POOLING: cls
+Enable one provider at a time by adding `spec.suspend: false` to its Job patch in
+`runs/<provider>/kustomization.yaml`, then commit and let Flux converge. Start with Qwen3.
+For BGE-M3, change the TEI HelmRelease environment to the upstream pinned model revision and
+CLS pooling in the same activation change. The tokenizer preflight checks the actual model
+identity, special tokens, query instruction, and input lengths before embedding calls.
+
+TEI needs `AUTO_TRUNCATE=true` to boot Qwen with the reduced serving cap. The benchmark adapter
+explicitly sends `truncate:false`, so oversized evaluation inputs fail. Do not silently change
+chunking for one provider; a changed corpus is a new comparison for every provider.
+
+Each run writes under `/artifacts/runs/<experiment>/<run-id>/`, including the approved judgments,
+provider settings, runner source, image identity, hashes, timestamps, token preflight for CPU
+models, and hybrid retrieval report. CPU runs also save TEI `/info` and `/metrics` before and after.
+`completed.json` distinguishes a completed report from an interrupted attempt.
+
+## Retry and reconciliation behavior
+
+Jobs use no TTL cleanup, `backoffLimit: 0`, and `restartPolicy: Never`. Flux does not force
+replacement of immutable Jobs. A persistent attempt directory is created exclusively before
+work begins; a recreated pod cannot repeat that identity, including after partial paid calls.
+A filesystem lock also prevents concurrent attempts. Enable one Job at a time; a simultaneous
+attempt fails rather than waiting while consuming database resources.
+
+ConfigMap names are stable so approval edits do not change an existing Job's immutable pod template.
+The runner snapshots run configuration into its artifact directory and checks the copied inputs.
+Do not edit a running experiment's configuration. To retry a provider, inspect its partial results
+and usage, choose a new `EVAL_RUN_ID` and matching Job `nameSuffix`, and commit the change.
+To repeat preparation, use a new experiment ID and preparation Job suffix; never overwrite the
+previous frozen corpus. Give each provider a new Job suffix and reference the new experiment.
+Failed upstream runs may not emit usage totals; check provider accounting before authorizing a retry.
+
+## Verification and retirement
+
+Check Flux readiness, Job status, and the private services:
+
+```sh
+kubectl --context apollo -n flux-system get kustomizations | rg k8s-explorer-eval
+kubectl --context apollo -n default get jobs,pods,pvc | rg k8s-explorer-eval
+kubectl --context apollo -n default logs job/k8s-explorer-eval-prepare-v1 -c runner
 ```
 
-Stop the old port-forward and forward local port `8082` to Service port `8080` for BGE-M3.
-Repeat identity checks, smoke tests, and token preflight with `--provider bge-m3` before its
-hybrid run. Keep CPU settings, input artifacts, and measurement procedures identical.
-Model-switch commits must keep the serving revision aligned with the provider configuration.
+Verify hcc8's CPU capabilities, model `/info`, startup behavior, and Prometheus target before
+interpreting CPU measurements. Record cold download/startup separately from cached startup.
+Use Prometheus for memory working set/RSS, CPU usage and throttling, restarts, OOMs, and competing
+node load over each run interval. Export telemetry promptly: Apollo keeps only two days of metrics.
+A `kubectl top` sample does not establish peak memory. Missing telemetry remains unmeasured.
 
-The local harness calls OpenAI `text-embedding-3-small` and Voyage `voyage-code-4` and `voyage-4`
-directly. Their non-secret settings live in the explorer's `config/evaluation/providers.yaml`.
-The operator supplies `OPENAI_API_KEY` and `VOYAGE_API_KEY` to the local process environment;
-this deployment needs no provider credentials or ExternalSecret. Never place keys in provider
-YAML, Git, logs, or artifacts. Budget approval and credential setup belong to the evaluation
-work in the explorer repository and do not block this model-serving deployment. Confirm the
-budget there before paid calls; the harness does not enforce a dollar cap.
-
-## Measurements and cleanup
-
-The ServiceMonitor scrapes TEI every 15 seconds. Verify the target is up, and preserve `/metrics`
-before and after each run. Use Prometheus container metrics for memory working set, RSS,
-CPU usage, throttling, restarts, and OOMs over the exact interval. Apollo retains metrics for
-only two days, so export evidence promptly. Record cold download/startup separately from warm
-cache startup, and record competing node load and port-forward overhead with query latency.
-Do not infer peak memory from a single `kubectl top` sample.
-
-Archive corpus/judgment/provider hashes, application commit, serving image digest, `/info`,
-token preflight, relevance reports, usage, and resource telemetry together. Sparse calibration
-scores alone do not select a production provider; pooled candidate review and a reviewed holdout
-remain upstream work.
-
-To stop compute while retaining weights, commit `controllers.tei.replicas: 0`. To retire the
-experiment, first remove the app registration and wait for Flux to delete the workload, then
-remove the storage registration. This deletes the cache PVC and its Longhorn replicas.
-Remove the unused manifest directory and this catalog entry as part of retirement.
+Scale only the TEI controller to zero through Git to stop inference while keeping results downloadable.
+After exporting artifacts and verifying their hashes, remove run/preparation registrations, then
+app and credential registrations, and finally storage registration. The model cache is pruned;
+the artifact PVC remains until the operator explicitly authorizes deletion. Remove unused manifests
+and this documentation entry when retiring the experiment.

@@ -59,8 +59,9 @@ Each contributes NVMe storage to Longhorn; hcc7 also contributes a SATA SSD. See
 
 ## What runs here
 
-Apollo also hosts a temporary [embedding evaluation endpoint](./docs/k8s-explorer-evaluation.md)
-for k8s-at-home-explorer. Model serving is managed through Flux; the explorer service is not yet deployed.
+Apollo also runs temporary [embedding provider evaluations](./docs/k8s-explorer-evaluation.md)
+for k8s-at-home-explorer through Flux, with retained reports and disposable evaluation databases.
+The explorer service itself is not yet deployed.
 
 
 

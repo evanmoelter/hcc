@@ -29,13 +29,53 @@ spec:
         patches:
           - target:
               kind: Deployment
-              name: *app
+              name: k8s-explorer-eval-tei
             patch: |-
               - op: add
                 path: /spec/progressDeadlineSeconds
                 value: 2100
   values:
     controllers:
+      artifacts:
+        strategy: Recreate
+        pod:
+          automountServiceAccountToken: false
+          nodeSelector:
+            kubernetes.io/hostname: hcc8
+          securityContext:
+            runAsUser: 568
+            runAsGroup: 568
+            runAsNonRoot: true
+            fsGroup: 568
+            fsGroupChangePolicy: OnRootMismatch
+            seccompProfile:
+              type: RuntimeDefault
+        containers:
+          server:
+            image:
+              repository: ghcr.io/evanmoelter/k8s-at-home-explorer
+              tag: sha-f0d54ffdfb748a145a51f6187281bd2c3148cf98@sha256:e202d3737f4c36a9a855a32f74fe537cfda784eccbde4ca99875faccb00adde6
+            command: [python]
+            args: [-m, http.server, "8088", --bind, 0.0.0.0, --directory, /artifacts]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities:
+                drop: [ALL]
+            probes:
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /
+                    port: 8088
+            resources:
+              requests:
+                cpu: 10m
+                memory: 32Mi
+              limits:
+                memory: 256Mi
       tei:
         replicas: 1
         strategy: Recreate
@@ -124,8 +164,15 @@ spec:
                 cpu: "2"
                 memory: 8Gi
     service:
+      artifacts:
+        controller: artifacts
+        forceRename: k8s-explorer-eval-artifacts
+        ports:
+          http:
+            port: 8088
       app:
         controller: tei
+        forceRename: *app
         type: ClusterIP
         ports:
           http:
@@ -140,8 +187,17 @@ spec:
     persistence:
       cache:
         existingClaim: k8s-explorer-eval-cache
-        globalMounts:
-          - path: /data
+        advancedMounts:
+          tei:
+            tei:
+              - path: /data
+      artifacts:
+        existingClaim: k8s-explorer-eval-artifacts
+        advancedMounts:
+          artifacts:
+            server:
+              - path: /artifacts
+                readOnly: true
       tmp:
         type: emptyDir
         sizeLimit: 512Mi

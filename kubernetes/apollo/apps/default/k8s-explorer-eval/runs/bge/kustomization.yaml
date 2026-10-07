@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../jobs/base
+nameSuffix: -bge-v1
+patches:
+  - patch: |
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: k8s-explorer-eval
+      spec:
+        template:
+          spec:
+            containers:
+            - name: runner
+              env:
+              - name: EVAL_PROVIDER
+                value: bge-m3
+              - name: EVAL_RUN_ID
+                value: bge-v1

@@ -1,0 +1,136 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/job_v1.json
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k8s-explorer-eval
+spec:
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k8s-explorer-eval-runner
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: hcc8
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 568
+        runAsGroup: 568
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: postgres
+        restartPolicy: Always
+        image: pgvector/pgvector:0.8.6-pg17-trixie@sha256:724a4041afdb1750446e3f6b5cfa8f3b0ac5a2cf538ddfa6bfee4f94c2fa85c6
+        args:
+        - postgres
+        - -c
+        - listen_addresses=127.0.0.1
+        env:
+        - name: POSTGRES_DB
+          value: explorer
+        - name: POSTGRES_USER
+          value: explorer
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: trust
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          runAsUser: 999
+          runAsGroup: 999
+        startupProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - 127.0.0.1
+            - -U
+            - explorer
+            - -d
+            - explorer
+          periodSeconds: 2
+          failureThreshold: 90
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+        volumeMounts:
+        - name: database
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-tmp
+          mountPath: /tmp
+        - name: postgres-run
+          mountPath: /var/run/postgresql
+      containers:
+      - name: runner
+        image: &runnerImage ghcr.io/evanmoelter/k8s-at-home-explorer:sha-f0d54ffdfb748a145a51f6187281bd2c3148cf98@sha256:e202d3737f4c36a9a855a32f74fe537cfda784eccbde4ca99875faccb00adde6
+        command:
+        - python
+        - /config/runner.py
+        args:
+        - evaluate
+        env:
+        - name: EVAL_EXPERIMENT
+          value: expanded-20261007-v1
+        - name: EVAL_IMAGE
+          value: *runnerImage
+        - name: EXPLORER_REFRESH_METADATA
+          value: 'false'
+        - name: EXPLORER_FETCH_WORKERS
+          value: '2'
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        volumeMounts:
+        - name: artifacts
+          mountPath: /artifacts
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: artifacts
+        persistentVolumeClaim:
+          claimName: k8s-explorer-eval-artifacts
+      - name: config
+        configMap:
+          name: k8s-explorer-eval-runner
+      - name: database
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: postgres-tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: postgres-run
+        emptyDir: {}
+      - name: tmp
+        emptyDir:
+          sizeLimit: 512Mi
