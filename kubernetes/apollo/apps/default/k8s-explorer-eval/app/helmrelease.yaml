@@ -114,7 +114,7 @@ spec:
               MKL_NUM_THREADS: "2"
               RAYON_NUM_THREADS: "2"
               TOKENIZATION_WORKERS: "2"
-              MAX_BATCH_TOKENS: "8192"
+              MAX_BATCH_TOKENS: "4096"
               MAX_BATCH_REQUESTS: "1"
               MAX_CLIENT_BATCH_SIZE: "32"
               MAX_CONCURRENT_REQUESTS: "32"

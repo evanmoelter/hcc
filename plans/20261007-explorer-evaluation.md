@@ -74,4 +74,12 @@ the local ARM64 image variants; Apollo's AMD64 execution and native sidecar life
 
 The operator renews the Apollo kubeconfig. Live checks confirm hcc8 uses about 1.6 GiB memory,
 Longhorn disks are Ready and Schedulable, and the storage and secret-store dependencies are Ready.
-Deployment and model execution remain unverified. No embedding provider calls have been made.
+PR #346 merges and Flux deploys the environment. Both PVCs bind and ESO reports SecretSynced.
+The preparation Job completes in 79 seconds: all 20 repositories succeed, exporting 17,307 chunks
+and reporting 126 exclusions. The artifact service is Ready and its port-forward is verified.
+The old pilot judgments cannot rebind unchanged, so reviewed judgments are required.
+
+Qwen3 downloads its weights, falls back from unavailable ONNX files to Candle, and is OOM-killed
+during the 8,192-token CPU warmup under its 8 GiB limit. A follow-up reduces the serving cap
+without changing the frozen corpus; startup and tokenizer-fit verification continue. No embedding
+provider calls have been made.
