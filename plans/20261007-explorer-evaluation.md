@@ -57,7 +57,7 @@ operator decision.
 - Operator, 2026-10-07: run the complete evaluation in Apollo, superseding the local harness choice.
 - Codex: use native pgvector sidecars and the existing published application image.
 - Operator, 2026-10-07: confirmed the `k8s-explorer-eval` credential item and both API-key fields are created.
-- Pending: final holdout review, successful provider runs, and complete artifact export.
+- Pending: final holdout review, provider comparison, and complete artifact export.
 
 The existing upstream embedding-evaluation design remains the authority for measurement and
 judgment methodology. This plan covers cluster execution only.
@@ -116,3 +116,13 @@ configuration and uses a separate lock, while Flux orders OpenAI, Voyage Code, t
 one paid database/runner competes with Qwen at a time. The operator approves $10 for OpenAI and
 $10 total for both Voyage models, and confirms provider-account limits are set to those amounts.
 PR #351 enables the paid sequence using the same frozen corpus and reviewed calibration judgments.
+
+All paid evaluations complete successfully: OpenAI in 8m37s, Voyage Code in 6m26s, and Voyage in
+9m18s. Each reports 1,002 successful API requests and zero failures. Their reports are exported
+locally and verified against the retained completion hashes.
+
+The operator cancels Qwen on 2026-10-07 because its CPU throughput is not competitive for this
+deployment. Before cancellation, the run has persisted 1,966 of 15,027 unique document embeddings
+after about 4h8m; no final retrieval report exists. Runner logs are exported before stopping the
+disposable database. GitOps suspends the Qwen Job and scales TEI to zero, preserving artifact storage
+and the read-only artifact server. BGE-M3 remains suspended.
