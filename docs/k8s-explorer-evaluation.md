@@ -64,10 +64,17 @@ Kubernetes port-forward reaches it through the API server. The server has no pro
 
 ## Approve and run a comparison
 
-All five provider Jobs start suspended. Review the frozen inputs, then set their exact byte
+Qwen3 calibration is enabled for the first frozen corpus; the other four Jobs remain suspended.
+Before enabling another run, review the frozen inputs and set their exact byte
 SHA-256 hashes and selected provider IDs in
 [`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json).
-The initial empty hashes and provider list deliberately block execution.
+The approved hashes bind all runs to those exact files. A missing or mismatched hash blocks execution.
+
+The first 50-question calibration set retains 44 byte-identical pilot passages. Codex reviewed
+the other six judgments: the only source changes were Jellyfin and Paperless image-version bumps,
+which preserve their configuration evidence and grades. The reviewed JSON records those decisions.
+This calibration searches the expanded corpus but still has sparse labels from three repositories;
+pooled, independently reviewed questions across the new repositories remain necessary for final selection.
 
 To use independently reviewed judgments, add `reviewed-judgments.json` to that directory and
 to its ConfigMap generator's `files` list. Otherwise the runner uses the preparation candidate.

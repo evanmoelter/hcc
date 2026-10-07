@@ -83,3 +83,12 @@ Qwen3 downloads its weights, falls back from unavailable ONNX files to Candle, a
 during the 8,192-token CPU warmup under its 8 GiB limit. A follow-up reduces the serving cap
 without changing the frozen corpus; startup and tokenizer-fit verification continue. No embedding
 provider calls have been made.
+
+The warmup fix merges as PR #347. hcc8 is verified as an Intel i5-1135G7 with AVX2. The original
+Flux health check and Helm install delay application of the new cap until their waits finish.
+
+Codex reviews the failed judgment bindings: 44 passages have identical bytes, and the other six
+only change Jellyfin or Paperless image versions. Their configuration evidence and grades are
+unchanged. The refreshed 50-question sparse calibration set validates against the frozen export.
+A follow-up records exact corpus/judgment hashes and enables only Qwen3; other providers remain
+suspended and paid budgets remain unset. Final holdout review across the expanded repositories is pending.

@@ -10,6 +10,7 @@ configMapGenerator:
   - repositories.yaml
   - providers.yaml
   - approval.json
+  - reviewed-judgments.json
 generatorOptions:
   disableNameSuffixHash: true
   annotations:
