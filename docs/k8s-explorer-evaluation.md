@@ -49,11 +49,14 @@ shared frozen corpus for all candidates.
 
 ## Comparison sequence
 
-Confirm corpus choice, harness placement, and any hosted spending budget before starting.
-Use identical frozen corpus and judgment files for all providers. The existing pilot's
-50 questions are sparsely judged calibration data, not a final holdout.
+The operator selected a 20-repository corpus and a local harness in the explorer repository,
+including both CPU models and the hosted OpenAI and Voyage candidates. Prepare and freeze
+the expanded corpus there, using `config/evaluation/repositories.yaml`, and review judgments
+against its actual source. Use identical frozen corpus and judgment files for all providers.
+The existing pilot's 50 questions are sparsely judged calibration data, not a final holdout
+for the expanded corpus.
 
-For a workstation harness, use the upstream `eval:benchmark` task and its disposable Compose
+Use the upstream `eval:benchmark` task on the workstation and its disposable Compose
 pgvector database. It requires no production database credentials. Select only the active
 provider, run the token preflight first, then hybrid retrieval. Save reports and hashes with
 the frozen inputs outside Git. The initial Qwen forwarding port matches the upstream provider file.
@@ -73,9 +76,13 @@ Repeat identity checks, smoke tests, and token preflight with `--provider bge-m3
 hybrid run. Keep CPU settings, input artifacts, and measurement procedures identical.
 Model-switch commits must keep the serving revision aligned with the provider configuration.
 
-Hosted comparisons require an explicit budget and operator-managed credentials. Never place
-keys in provider YAML, Git, logs, or artifacts. The harness does not enforce a dollar cap.
-Future in-cluster credential delivery should follow [Apollo secrets](secrets.md).
+The local harness calls OpenAI `text-embedding-3-small` and Voyage `voyage-code-4` and `voyage-4`
+directly. Their non-secret settings live in the explorer's `config/evaluation/providers.yaml`.
+The operator supplies `OPENAI_API_KEY` and `VOYAGE_API_KEY` to the local process environment;
+this deployment needs no provider credentials or ExternalSecret. Never place keys in provider
+YAML, Git, logs, or artifacts. Budget approval and credential setup belong to the evaluation
+work in the explorer repository and do not block this model-serving deployment. Confirm the
+budget there before paid calls; the harness does not enforce a dollar cap.
 
 ## Measurements and cleanup
 
