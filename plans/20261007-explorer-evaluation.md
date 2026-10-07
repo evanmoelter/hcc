@@ -56,7 +56,8 @@ operator decision.
 - Operator, 2026-10-07: use 20 repositories and include paid providers.
 - Operator, 2026-10-07: run the complete evaluation in Apollo, superseding the local harness choice.
 - Codex: use native pgvector sidecars and the existing published application image.
-- Pending: operator-managed credential item and spending amount, frozen corpus and judgment review,
+- Operator, 2026-10-07: confirmed the `k8s-explorer-eval` credential item and both API-key fields are created.
+- Pending: spending amount, frozen corpus and judgment review,
   deployment verification, tokenizer checks, actual evaluation results, and artifact export.
 
 The existing upstream embedding-evaluation design remains the authority for measurement and
@@ -65,11 +66,12 @@ judgment methodology. This plan covers cluster execution only.
 ## Validation record
 
 2026-10-07: Apollo schemas and all 57 repository tests pass, including eight evaluation lifecycle
-and authorization checks. Full Flux rendering passes with the credential lifecycle intentionally
-suspended. A disposable local container test initializes the published runner's schema against
+and authorization checks. All 153 Flux rendering checks pass after enabling the confirmed
+credential lifecycle. A disposable local container test initializes the published runner's schema against
 the pinned pgvector image with non-root users, a read-only root filesystem, dropped capabilities,
 and loopback-only TCP. Both upstream helper downloads match their pinned checksums. The test uses
 the local ARM64 image variants; Apollo's AMD64 execution and native sidecar lifecycle remain unverified.
 
-The live Apollo client is rejected pending operator kubeconfig renewal, so today's capacity and
-deployment checks remain unverified. No embedding provider calls have been made.
+The operator renews the Apollo kubeconfig. Live checks confirm hcc8 uses about 1.6 GiB memory,
+Longhorn disks are Ready and Schedulable, and the storage and secret-store dependencies are Ready.
+Deployment and model execution remain unverified. No embedding provider calls have been made.

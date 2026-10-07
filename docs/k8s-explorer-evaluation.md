@@ -17,7 +17,7 @@ owns model revisions, token limits, and measurements. The
 The storage Kustomization waits for Longhorn and creates a prunable model cache and a retained
 artifact PVC. The app lifecycle runs TEI and a read-only artifact server. Preparation waits for
 storage; provider runs wait for preparation and the app. Paid runs also wait for the credential
-lifecycle, which stays suspended until the operator confirms the 1Password item.
+lifecycle to synchronize the operator-confirmed 1Password item.
 
 All artifact consumers use hcc8 so the RWO volume has one node attachment. Each Job starts its
 own pgvector native sidecar with an emptyDir database. PostgreSQL listens only on pod loopback
@@ -74,9 +74,8 @@ to its ConfigMap generator's `files` list. Otherwise the runner uses the prepara
 Record the hash of whichever file will actually run. All providers must use identical corpus
 and judgment artifacts. Provider endpoint/model settings are in `jobs/base/providers.yaml`.
 
-For paid providers, create the proposed `k8s-explorer-eval` item in the `hcc-apollo` vault with
-`OPENAI_API_KEY` and `VOYAGE_API_KEY` fields, following [Apollo secrets](secrets.md). Confirm the
-actual item title before enabling `ks-credentials.yaml`. ESO supplies only the relevant key to
+The operator created the `k8s-explorer-eval` item in the `hcc-apollo` vault with `OPENAI_API_KEY`
+and `VOYAGE_API_KEY` fields, following [Apollo secrets](secrets.md). ESO supplies only the relevant key to
 each provider Job. Keys never belong in Git, approval records, or artifact files.
 
 Record the operator-approved `openai_budget_usd`, aggregate `voyage_budget_usd`, and `approved_by`
