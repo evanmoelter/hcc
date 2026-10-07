@@ -2,8 +2,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../jobs/base
-nameSuffix: -voyage-code-v1
+  - ../../jobs/hosted
+nameSuffix: -voyage-code-v2
 patches:
   - patch: |
       apiVersion: batch/v1
@@ -19,7 +19,7 @@ patches:
               - name: EVAL_PROVIDER
                 value: voyage-code-4
               - name: EVAL_RUN_ID
-                value: voyage-code-v1
+                value: voyage-code-v2
               - name: VOYAGE_API_KEY
                 valueFrom:
                   secretKeyRef:

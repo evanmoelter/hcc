@@ -109,3 +109,8 @@ During inference, `/health` queues behind backend work and exceeds probe timeout
 the service endpoint. A follow-up retains `/health` for startup and uses `/info` for steady-state probes.
 It starts `qwen-v3`, preserves previous attempt artifacts, and increases Qwen request/Job deadlines to
 allow slow CPU indexing. Other providers remain suspended and no paid requests are authorized.
+
+PR #350 deploys the probe correction. Qwen remains Ready under inference and persists successful
+batches. The operator requests starting the paid Jobs. A hosted overlay preserves the active CPU
+configuration and uses a separate lock, while Flux orders OpenAI, Voyage Code, then Voyage so only
+one paid database/runner competes with Qwen at a time. The paid spending amounts remain pending.

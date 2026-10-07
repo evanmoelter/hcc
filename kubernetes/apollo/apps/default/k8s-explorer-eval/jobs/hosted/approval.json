@@ -1,0 +1,10 @@
+{
+  "corpus_sha256": "fda92e2c30c4eb719a30c1a0d8cdcb231e6e9f00b8a26e21d96c2d4f8040f416",
+  "judgments_sha256": "169e01bd486de352636b28ba633e40555fefec3ad502a016b54c6cda2be5aa66",
+  "providers": ["openai-small", "voyage-code-4", "voyage-4"],
+  "paid": {
+    "approved_by": "",
+    "openai_budget_usd": 0,
+    "voyage_budget_usd": 0
+  }
+}

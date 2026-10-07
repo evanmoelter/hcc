@@ -16,8 +16,10 @@ owns model revisions, token limits, and measurements. The
 
 The storage Kustomization waits for Longhorn and creates a prunable model cache and a retained
 artifact PVC. The app lifecycle runs TEI and a read-only artifact server. Preparation waits for
-storage; provider runs wait for preparation and the app. Paid runs also wait for the credential
-lifecycle to synchronize the operator-confirmed 1Password item.
+storage; CPU runs wait for preparation and the app. Paid runs wait for preparation and the credential
+lifecycle to synchronize the operator-confirmed 1Password item. They use a separate execution lock
+and run alongside Qwen in sequence: OpenAI, Voyage Code, then Voyage. A failed paid Job blocks
+the remaining sequence; retries require reviewing its usage and selecting a fresh attempt identity.
 
 All artifact consumers use hcc8 so the RWO volume has one node attachment. Each Job starts its
 own pgvector native sidecar with an emptyDir database. PostgreSQL listens only on pod loopback
@@ -67,7 +69,9 @@ Kubernetes port-forward reaches it through the API server. The server has no pro
 Qwen3 calibration is enabled for the first frozen corpus; the other four Jobs remain suspended.
 Before enabling another run, review the frozen inputs and set their exact byte
 SHA-256 hashes and selected provider IDs in
-[`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json).
+[`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json)
+for CPU runs or [`jobs/hosted/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/hosted/approval.json)
+for paid runs. The hosted overlay preserves the active CPU Job's configuration.
 The approved hashes bind all runs to those exact files. A missing or mismatched hash blocks execution.
 
 The first 50-question calibration set retains 44 byte-identical pilot passages. Codex reviewed
@@ -86,12 +90,13 @@ and `VOYAGE_API_KEY` fields, following [Apollo secrets](secrets.md). ESO supplie
 each provider Job. Keys never belong in Git, approval records, or artifact files.
 
 Record the operator-approved `openai_budget_usd`, aggregate `voyage_budget_usd`, and `approved_by`
-in the approval file before paid execution. The budget record is an authorization prerequisite,
+in the hosted approval file before paid execution. The budget record is an authorization prerequisite,
 not a dollar meter: the upstream harness does not enforce spending caps. Configure provider
 account controls separately and review reported usage between runs, including both Voyage models.
 
-Enable one provider at a time by adding `spec.suspend: false` to its Job patch in
+Enable a provider by adding `spec.suspend: false` to its Job patch in
 `runs/<provider>/kustomization.yaml`, then commit and let Flux converge. Start with Qwen3.
+CPU models run one at a time. The hosted dependency chain serializes paid Jobs independently.
 For BGE-M3, change the TEI HelmRelease environment to the upstream pinned model revision and
 CLS pooling in the same activation change. The tokenizer preflight checks the actual model
 identity, special tokens, query instruction, and input lengths before embedding calls.
@@ -119,8 +124,9 @@ models, and hybrid retrieval report. CPU runs also save TEI `/info` and `/metric
 Jobs use no TTL cleanup, `backoffLimit: 0`, and `restartPolicy: Never`. Flux does not force
 replacement of immutable Jobs. A persistent attempt directory is created exclusively before
 work begins; a recreated pod cannot repeat that identity, including after partial paid calls.
-A filesystem lock also prevents concurrent attempts. Enable one Job at a time; a simultaneous
-attempt fails rather than waiting while consuming database resources.
+A filesystem lock prevents concurrent CPU/preparation attempts, and a separate lock serializes
+hosted attempts. A conflicting attempt fails rather than waiting while consuming database resources.
+Each running Job owns its database and artifact directory; the frozen corpus is shared read-only.
 
 ConfigMap names are stable so approval edits do not change an existing Job's immutable pod template.
 The runner snapshots run configuration into its artifact directory and checks the copied inputs.
