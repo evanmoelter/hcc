@@ -3,8 +3,8 @@
   "judgments_sha256": "169e01bd486de352636b28ba633e40555fefec3ad502a016b54c6cda2be5aa66",
   "providers": ["openai-small", "voyage-code-4", "voyage-4"],
   "paid": {
-    "approved_by": "",
-    "openai_budget_usd": 0,
-    "voyage_budget_usd": 0
+    "approved_by": "evanmoelter",
+    "openai_budget_usd": 10,
+    "voyage_budget_usd": 10
   }
 }

@@ -66,7 +66,7 @@ Kubernetes port-forward reaches it through the API server. The server has no pro
 
 ## Approve and run a comparison
 
-Qwen3 calibration is enabled for the first frozen corpus; the other four Jobs remain suspended.
+Qwen3 and the three hosted calibrations are enabled for the first frozen corpus; BGE-M3 remains suspended.
 Before enabling another run, review the frozen inputs and set their exact byte
 SHA-256 hashes and selected provider IDs in
 [`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json)
@@ -93,6 +93,8 @@ Record the operator-approved `openai_budget_usd`, aggregate `voyage_budget_usd`,
 in the hosted approval file before paid execution. The budget record is an authorization prerequisite,
 not a dollar meter: the upstream harness does not enforce spending caps. Configure provider
 account controls separately and review reported usage between runs, including both Voyage models.
+The operator approved $10 for OpenAI and $10 total for both Voyage models for this comparison,
+and confirmed both provider accounts are restricted to those amounts.
 
 Enable a provider by adding `spec.suspend: false` to its Job patch in
 `runs/<provider>/kustomization.yaml`, then commit and let Flux converge. Start with Qwen3.

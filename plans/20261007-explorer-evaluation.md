@@ -113,4 +113,6 @@ allow slow CPU indexing. Other providers remain suspended and no paid requests a
 PR #350 deploys the probe correction. Qwen remains Ready under inference and persists successful
 batches. The operator requests starting the paid Jobs. A hosted overlay preserves the active CPU
 configuration and uses a separate lock, while Flux orders OpenAI, Voyage Code, then Voyage so only
-one paid database/runner competes with Qwen at a time. The paid spending amounts remain pending.
+one paid database/runner competes with Qwen at a time. The operator approves $10 for OpenAI and
+$10 total for both Voyage models, and confirms provider-account limits are set to those amounts.
+PR #351 enables the paid sequence using the same frozen corpus and reviewed calibration judgments.

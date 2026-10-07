@@ -11,6 +11,7 @@ patches:
       metadata:
         name: k8s-explorer-eval
       spec:
+        suspend: false
         template:
           spec:
             containers:
