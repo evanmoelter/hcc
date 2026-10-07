@@ -22,6 +22,7 @@ their execution records.
 | Metrics, alerts, and dashboards | [Monitoring](monitoring.md): Prometheus, Grafana management decision, public-path checks, Pushover, and cluster/Flux dashboards. |
 | Node boot and disk protection | [Talos security](talos-security.md): Secure Boot, TPM encryption, recovery, and node conversion. |
 | Manifest policies | [Linting](linting.md): policy definitions, exceptions, tests, and validation scope. |
+| Explorer provider evaluations | [In-cluster evaluation](k8s-explorer-evaluation.md): corpus preparation, provider Jobs, approvals, artifacts, and cleanup. |
 
 [Repository conventions](../AGENTS.md#patterns) and [validation commands](../AGENTS.md#validating-changes)
 live in AGENTS.md. The [app-onboarding skill](../.agents/skills/add-apollo-app/SKILL.md) provides the

@@ -1,0 +1,156 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-eval-qwen
+  namespace: flux-system
+  labels:
+    substitution.flux.home.arpa/disabled: 'true'
+spec:
+  dependsOn:
+  - name: k8s-explorer-eval-prepare
+  - name: k8s-explorer-eval
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/qwen
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 24h
+  healthCheckExprs:
+  - apiVersion: batch/v1
+    kind: Job
+    failed: has(status.failed) && status.failed > 0
+    current: (has(spec.suspend) && spec.suspend) || (has(status.succeeded) && status.succeeded
+      == 1)
+
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-eval-bge
+  namespace: flux-system
+  labels:
+    substitution.flux.home.arpa/disabled: 'true'
+spec:
+  dependsOn:
+  - name: k8s-explorer-eval-prepare
+  - name: k8s-explorer-eval
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/bge
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 24h
+  healthCheckExprs:
+  - apiVersion: batch/v1
+    kind: Job
+    failed: has(status.failed) && status.failed > 0
+    current: (has(spec.suspend) && spec.suspend) || (has(status.succeeded) && status.succeeded
+      == 1)
+
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-eval-openai
+  namespace: flux-system
+  labels:
+    substitution.flux.home.arpa/disabled: 'true'
+spec:
+  dependsOn:
+  - name: k8s-explorer-eval-prepare
+  - name: k8s-explorer-eval
+  - name: k8s-explorer-eval-credentials
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/openai
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 24h
+  healthCheckExprs:
+  - apiVersion: batch/v1
+    kind: Job
+    failed: has(status.failed) && status.failed > 0
+    current: (has(spec.suspend) && spec.suspend) || (has(status.succeeded) && status.succeeded
+      == 1)
+
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-eval-voyage-code
+  namespace: flux-system
+  labels:
+    substitution.flux.home.arpa/disabled: 'true'
+spec:
+  dependsOn:
+  - name: k8s-explorer-eval-prepare
+  - name: k8s-explorer-eval
+  - name: k8s-explorer-eval-credentials
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/voyage-code
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 24h
+  healthCheckExprs:
+  - apiVersion: batch/v1
+    kind: Job
+    failed: has(status.failed) && status.failed > 0
+    current: (has(spec.suspend) && spec.suspend) || (has(status.succeeded) && status.succeeded
+      == 1)
+
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-eval-voyage
+  namespace: flux-system
+  labels:
+    substitution.flux.home.arpa/disabled: 'true'
+spec:
+  dependsOn:
+  - name: k8s-explorer-eval-prepare
+  - name: k8s-explorer-eval
+  - name: k8s-explorer-eval-credentials
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer-eval/runs/voyage
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 24h
+  healthCheckExprs:
+  - apiVersion: batch/v1
+    kind: Job
+    failed: has(status.failed) && status.failed > 0
+    current: (has(spec.suspend) && spec.suspend) || (has(status.succeeded) && status.succeeded
+      == 1)

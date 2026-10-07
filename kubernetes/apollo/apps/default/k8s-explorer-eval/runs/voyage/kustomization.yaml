@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../jobs/base
+nameSuffix: -voyage-v1
+patches:
+  - patch: |
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: k8s-explorer-eval
+      spec:
+        template:
+          spec:
+            containers:
+            - name: runner
+              env:
+              - name: EVAL_PROVIDER
+                value: voyage-4
+              - name: EVAL_RUN_ID
+                value: voyage-v1
+              - name: VOYAGE_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: k8s-explorer-eval-providers
+                    key: VOYAGE_API_KEY

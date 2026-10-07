@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../jobs/base
+nameSuffix: -prepare-v1
+patches:
+  - patch: |
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: k8s-explorer-eval
+      spec:
+        suspend: false
+        activeDeadlineSeconds: 7200
+        template:
+          spec:
+            containers:
+            - name: runner
+              args:
+              - prepare

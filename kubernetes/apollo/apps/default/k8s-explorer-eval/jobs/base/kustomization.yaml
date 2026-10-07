@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ./job.yaml
+configMapGenerator:
+- name: k8s-explorer-eval-runner
+  files:
+  - runner.py
+  - repositories.yaml
+  - providers.yaml
+  - approval.json
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled

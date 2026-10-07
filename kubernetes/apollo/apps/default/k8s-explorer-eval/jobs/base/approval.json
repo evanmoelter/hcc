@@ -1,0 +1,10 @@
+{
+  "corpus_sha256": "",
+  "judgments_sha256": "",
+  "providers": [],
+  "paid": {
+    "approved_by": "",
+    "openai_budget_usd": 0,
+    "voyage_budget_usd": 0
+  }
+}
