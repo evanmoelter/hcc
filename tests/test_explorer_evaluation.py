@@ -69,12 +69,12 @@ class EvaluationGuardsTests(unittest.TestCase):
 
 
 class EvaluationManifestTests(unittest.TestCase):
-    def test_only_preparation_starts_without_approval(self):
+    def test_only_preparation_and_approved_qwen_run_start(self):
         for folder in [APP / "prepare", *sorted((APP / "runs").iterdir())]:
             with self.subTest(folder=folder.name):
                 documents = render(folder)
                 job = next(doc for doc in documents if doc["kind"] == "Job")
-                self.assertEqual(job["spec"]["suspend"], folder.name != "prepare")
+                self.assertEqual(job["spec"]["suspend"], folder.name not in {"prepare", "qwen"})
                 self.assertEqual(job["spec"]["backoffLimit"], 0)
                 self.assertNotIn("ttlSecondsAfterFinished", job["spec"])
                 pod = job["spec"]["template"]["spec"]

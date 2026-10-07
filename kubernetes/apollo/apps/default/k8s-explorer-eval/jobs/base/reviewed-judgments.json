@@ -1,0 +1,1512 @@
+{
+  "schema_version": 1,
+  "corpus_id": "5aec6cac449b1f32cd73108f7c9d904ec1d3dcae86bc659f401f51d4fb0e3315",
+  "purpose": "calibration",
+  "judgment_coverage": "sparse",
+  "queries": [
+    {
+      "id": "pilot-001",
+      "text": "Back up a persistent volume to a restic repository using CSI snapshots.",
+      "category": "conceptual",
+      "group_id": "volsync-backup",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "f1965aca31932c1a5c1d903fbdaa584c",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/backup/replicationsource.yaml",
+            "start_line": 2,
+            "end_line": 34,
+            "content_hash": "80eecf72b530ccbb9e1db3b7d54910d891d872fddf0bddcb417dafe54199df71"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-002",
+      "text": "Configure the VolSync ReplicationSource copyMethod and volumeSnapshotClassName.",
+      "category": "configuration",
+      "group_id": "volsync-backup",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "f1965aca31932c1a5c1d903fbdaa584c",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/backup/replicationsource.yaml",
+            "start_line": 2,
+            "end_line": 34,
+            "content_hash": "80eecf72b530ccbb9e1db3b7d54910d891d872fddf0bddcb417dafe54199df71"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-003",
+      "text": "Find restic retain daily weekly monthly and pruneIntervalDays settings.",
+      "category": "identifier",
+      "group_id": "volsync-backup",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "f1965aca31932c1a5c1d903fbdaa584c",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/backup/replicationsource.yaml",
+            "start_line": 2,
+            "end_line": 34,
+            "content_hash": "80eecf72b530ccbb9e1db3b7d54910d891d872fddf0bddcb417dafe54199df71"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-004",
+      "text": "Build RESTIC_REPOSITORY and AWS credentials from a Cloudflare R2 ExternalSecret.",
+      "category": "configuration",
+      "group_id": "volsync-credentials",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "fed7f71f8dfdde457834a7c239ac3637",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/backup/externalsecret.yaml",
+            "start_line": 2,
+            "end_line": 38,
+            "content_hash": "bc6c38e14d20a0079cad572eff1a1ee22f37b0e3bc86e30bbf636bcfa4a3da8a"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-005",
+      "text": "Order restore preflight, storage, application startup and backups during a PVC migration.",
+      "category": "conceptual",
+      "group_id": "volsync-lifecycle",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "c402f1befb7fbcd1a095fd1f20403a1e",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/README.md",
+            "start_line": 1,
+            "end_line": 76,
+            "content_hash": "d4caf708ef2bcc39a067f4cdadf3ade2f9d3e3584629bf71bdfbc53b372d3798"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-006",
+      "text": "Fail a restore preflight when the restic repository has no valid snapshot for host volsync and path /data.",
+      "category": "conceptual",
+      "group_id": "volsync-preflight",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "ba88c494adee7352ea07b0387e650fc6",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/restore-preflight/preflight.py",
+            "start_line": 1,
+            "end_line": 36,
+            "content_hash": "c63a44343fc04e622f446b2589dfd5d4673c2034b7933f71f0cef796bd882a13"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-007",
+      "text": "Trigger a manual VolSync ReplicationDestination restore with a restore ID.",
+      "category": "configuration",
+      "group_id": "volsync-restore",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "83fdb9123679d7c74f48ffac4602edc7",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/restore/replicationdestination.yaml",
+            "start_line": 2,
+            "end_line": 34,
+            "content_hash": "209e1157bcc796e062352def04413de7177f659ca92ea02d49de87354e6c5230"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-008",
+      "text": "Explain why a Longhorn restore must retain its temporary data PVC until application data verification.",
+      "category": "conceptual",
+      "group_id": "volsync-lifecycle",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "c402f1befb7fbcd1a095fd1f20403a1e",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/volsync/README.md",
+            "start_line": 1,
+            "end_line": 76,
+            "content_hash": "d4caf708ef2bcc39a067f4cdadf3ade2f9d3e3584629bf71bdfbc53b372d3798"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-009",
+      "text": "Bootstrap a CloudNativePG cluster by recovery from a Barman plugin external cluster.",
+      "category": "configuration",
+      "group_id": "cnpg-cluster",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "Cluster",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "38bc75f47f1185d8f2168758f6841d70",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/postgres/cluster.yaml",
+            "start_line": 2,
+            "end_line": 56,
+            "content_hash": "902793a6c1c41aed638cdfc78b31249a067a9fce42d26dd95b72a4f1e61267e3"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-010",
+      "text": "Find enableSuperuserAccess false and readOnlyRootFilesystem in a CNPG Cluster.",
+      "category": "identifier",
+      "group_id": "cnpg-cluster",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "Cluster",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "38bc75f47f1185d8f2168758f6841d70",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/postgres/cluster.yaml",
+            "start_line": 2,
+            "end_line": 56,
+            "content_hash": "902793a6c1c41aed638cdfc78b31249a067a9fce42d26dd95b72a4f1e61267e3"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-011",
+      "text": "Archive PostgreSQL data and WAL to object storage with compression and retention.",
+      "category": "conceptual",
+      "group_id": "cnpg-objectstore",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "ea1373c0ac788406f500a56be060f23f",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/postgres/objectstore.yaml",
+            "start_line": 2,
+            "end_line": 34,
+            "content_hash": "404e34b0e6d34aafef5d54f44f6efc4ac136b43e76cc1ecdbb900cc927c2fb52"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-012",
+      "text": "Find ObjectStore s3Credentials accessKeyId secretAccessKey and AWS_ENDPOINT_URL_S3.",
+      "category": "identifier",
+      "group_id": "cnpg-objectstore",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "ObjectStore",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "ea1373c0ac788406f500a56be060f23f",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/postgres/objectstore.yaml",
+            "start_line": 2,
+            "end_line": 34,
+            "content_hash": "404e34b0e6d34aafef5d54f44f6efc4ac136b43e76cc1ecdbb900cc927c2fb52"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-013",
+      "text": "Schedule CNPG backups with method plugin and barman-cloud.cloudnative-pg.io.",
+      "category": "configuration",
+      "group_id": "cnpg-scheduled-backup",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "ScheduledBackup",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "16161887a0ae9dbb366da0bbf5e5d2fb",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/postgres/scheduledbackup.yaml",
+            "start_line": 2,
+            "end_line": 14,
+            "content_hash": "da23c8e4886b27519593f253016660d8dee9c7959f7911da6f86ccfe51a026aa"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-014",
+      "text": "Integrate Mealie login with an Authentik OIDC discovery endpoint and admin groups.",
+      "category": "conceptual",
+      "group_id": "mealie-application",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "c89f9f36d62ba77fc4ed317959f4f612",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/default/mealie/app/helmrelease.yaml",
+            "start_line": 2,
+            "end_line": 167,
+            "content_hash": "52847ad42edde8afccf725569ef43105c436561e616edcb8ea431a7b1bd7e217"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-015",
+      "text": "Read Mealie PostgreSQL host, username and password from a database application Secret.",
+      "category": "configuration",
+      "group_id": "mealie-application",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "c89f9f36d62ba77fc4ed317959f4f612",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/default/mealie/app/helmrelease.yaml",
+            "start_line": 2,
+            "end_line": 167,
+            "content_hash": "52847ad42edde8afccf725569ef43105c436561e616edcb8ea431a7b1bd7e217"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-016",
+      "text": "Connect Authentik to PostgreSQL with verify-full TLS and a mounted CA certificate.",
+      "category": "conceptual",
+      "group_id": "authentik-application",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "5a8354c772f5b9a1c6477e8c4b9c8a0b",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/security/authentik/app/helmrelease.yaml",
+            "start_line": 2,
+            "end_line": 177,
+            "content_hash": "de1764ed1e1a4218b525c7ce1c649267ecc331b422724a328b83d0220ad794a8"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-017",
+      "text": "Select uppercase environment variable names using ExternalSecret dataFrom find name regexp.",
+      "category": "identifier",
+      "group_id": "home-assistant-secret",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "16ff0cbe13245416b399c570ac702a7b",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/default/home-assistant/app/externalsecret.yaml",
+            "start_line": 2,
+            "end_line": 18,
+            "content_hash": "b2e6f3384e809ced8e20b8d77f518fd4c2e9b2d590f2243c32569069eccb86f2"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-018",
+      "text": "URL-encode a Paperless Redis password inside an ExternalSecret template.",
+      "category": "configuration",
+      "group_id": "paperless-secret",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "7b9f8f3f9526961d2c12dc6efcd6d5c6",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/default/paperless/app/externalsecret.yaml",
+            "start_line": 2,
+            "end_line": 32,
+            "content_hash": "940ac1d8ca0920cf7beac1436f1b5e28734ec70d4d907ed395306d4702398f9e"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-019",
+      "text": "Disable PushSecret and ClusterPushSecret processing and CRD creation in External Secrets Helm values.",
+      "category": "configuration",
+      "group_id": "external-secrets-controller",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "db7003c43237d92aae475dcd8dfcb1a2",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/security/external-secrets/app/helmrelease.yaml",
+            "start_line": 2,
+            "end_line": 72,
+            "content_hash": "5940a3dc4492a2813dbeb53f912eb38fe24f0f85391e6f1087d3115c57e0cc3f"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-020",
+      "text": "Issue certificates using an ACME DNS-01 challenge through a Cloudflare API token Secret.",
+      "category": "conceptual",
+      "group_id": "acme-cloudflare",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "e6ac1e68a623a385e8a0a562d751719b",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/security/cert-manager/issuers/letsencrypt-production.yaml",
+            "start_line": 2,
+            "end_line": 19,
+            "content_hash": "734121b4104e40aa2663cacd9732653939f4aa94698fc4eccd0c5361709fc74c"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-021",
+      "text": "Terminate HTTPS on a Gateway API listener with a wildcard certificate Secret.",
+      "category": "configuration",
+      "group_id": "envoy-gateway-listeners",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "Gateway",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "6ec3b27b11788162e9eab020915d12c9",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/gateway-external.yaml",
+            "start_line": 2,
+            "end_line": 30,
+            "content_hash": "1fcac945ff91975db9f91e4a86e98ce4f2bd80be2c5ac42849de36bf6dc5f902"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-022",
+      "text": "Set an external Gateway address using lbipam.cilium.io/ips.",
+      "category": "identifier",
+      "group_id": "envoy-gateway-listeners",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "6ec3b27b11788162e9eab020915d12c9",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/gateway-external.yaml",
+            "start_line": 2,
+            "end_line": 30,
+            "content_hash": "1fcac945ff91975db9f91e4a86e98ce4f2bd80be2c5ac42849de36bf6dc5f902"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-023",
+      "text": "Redirect HTTP requests to HTTPS with a Gateway API HTTPRoute and status 301.",
+      "category": "conceptual",
+      "group_id": "gateway-http-redirect",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "HTTPRoute",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "f55593713a4f6c5987a219e7ca78f361",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/httproute.yaml",
+            "start_line": 2,
+            "end_line": 22,
+            "content_hash": "cb7baf5bc3cfb99be8850699dca46d6b2e97593dae9ac340bb331f604dce35a9"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-024",
+      "text": "Find a CiliumL2AnnouncementPolicy with loadBalancerIPs and interface selection.",
+      "category": "identifier",
+      "group_id": "cilium-l2",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "CiliumL2AnnouncementPolicy",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "8ecd0692a47988af877415bf14004789",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/kube-system/cilium/config/l2-announcement-policy.yaml",
+            "start_line": 3,
+            "end_line": 13,
+            "content_hash": "9a31a5e7c92d584b7470c830e95284821049245ecf74cb0a54d656bfa7cef336"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-025",
+      "text": "Reserve a start and stop address range in a CiliumLoadBalancerIPPool.",
+      "category": "configuration",
+      "group_id": "cilium-address-pool",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "CiliumLoadBalancerIPPool",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "b9b26a721a736487fa6d9518a471e6af",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/kube-system/cilium/config/loadbalancer-ip-pool.yaml",
+            "start_line": 3,
+            "end_line": 10,
+            "content_hash": "1453a38c05e599b93655e6d7cbb510401ff9d62b0113c6d35d1e78cf8316b721"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-026",
+      "text": "Advertise Kubernetes service addresses to network routers using Cilium BGP.",
+      "category": "conceptual",
+      "group_id": "cilium-bgp",
+      "filters": {
+        "repo_ids": [
+          "ceee7a1449efb51f9b6d5dcdf43303da"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "9452b7529cc53cd56753389983bb75d1",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/kube-system/cilium/app/networking.yaml",
+            "start_line": 13,
+            "end_line": 27,
+            "content_hash": "6d6832b87be6e0441eb745343aecf50954f7ea81d67e34d1c5edf6054c1ebfe4"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-027",
+      "text": "Set holdTimeSeconds and keepAliveTimeSeconds in CiliumBGPPeerConfig.",
+      "category": "identifier",
+      "group_id": "cilium-bgp",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "CiliumBGPPeerConfig",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "6c79f4198f045b5d3b0f49ab3adb6f28",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/kube-system/cilium/app/networking.yaml",
+            "start_line": 30,
+            "end_line": 43,
+            "content_hash": "ca868373ee08ed60af4d1f4e778b19c0a2cca72306fee535858e3324be8cfd21"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-028",
+      "text": "Run two Envoy gateway replicas with topology spread constraints and non-root pod security.",
+      "category": "configuration",
+      "group_id": "envoy-proxy",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "d193321775edbfb9411651b316929254",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/envoyproxy.yaml",
+            "start_line": 2,
+            "end_line": 51,
+            "content_hash": "65460f4d85800ac3918a54efa54f3dabdbce65bace8e841300475a27b3e29d20"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-029",
+      "text": "Restrict external gateway ingress to cloudflared pods and monitoring namespaces.",
+      "category": "conceptual",
+      "group_id": "gateway-network-policy",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "f1f795fc80bc21d0d020b8c26b74d867",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/networkpolicy.yaml",
+            "start_line": 2,
+            "end_line": 32,
+            "content_hash": "225fac3d86b17df8470e376befd4572740fcc4097a2be9d5c3b751f69d0644f4"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-030",
+      "text": "Scrape /stats/prometheus on Envoy gateway pods with a PodMonitor.",
+      "category": "identifier",
+      "group_id": "envoy-proxy-monitoring",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "PodMonitor",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "ceae1718e0d21abd2a4bbf5fc60eb14e",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/podmonitor.yaml",
+            "start_line": 2,
+            "end_line": 12,
+            "content_hash": "3a5c6d98289258766d7fab273f86503a5255f49a72ab59ec2fe1f6294d03889a"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-031",
+      "text": "Connect a GatewayClass to its EnvoyProxy using parametersRef.",
+      "category": "configuration",
+      "group_id": "gateway-class",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "GatewayClass",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "8e4e6ba21f096b6b7b0aa7af73ace641",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/gatewayclass.yaml",
+            "start_line": 2,
+            "end_line": 12,
+            "content_hash": "a2574ee7d4fc4c9a75cf9db8d68c89bf9e847e61b59816dec31ca73a51284234"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-032",
+      "text": "Define a Longhorn StorageClass with two replicas and volume expansion.",
+      "category": "configuration",
+      "group_id": "longhorn-storage-class",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "StorageClass",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "9f9c8843f35bf996a3222a5fbd72a08a",
+          "grade": 3,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/storage/longhorn/config/storageclass.yaml",
+            "start_line": 2,
+            "end_line": 15,
+            "content_hash": "f13953cfbf82b6d8c0c185c99be0d391f4d23b55816999f500a2a846656c1722"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-033",
+      "text": "Find Cilium loadBalancer mode dsr and algorithm maglev settings.",
+      "category": "identifier",
+      "group_id": "cilium-values",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "b389ba430f3291d20c25b78141e90b5d",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/kube-system/cilium/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 94,
+            "content_hash": "46475815eaec12eaaf339ec25e98c05c24c1e7bf5f2c33f28e94cb77d321ce1d"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-034",
+      "text": "Replace kube-proxy and enable native routing in Cilium Helm values.",
+      "category": "conceptual",
+      "group_id": "cilium-values",
+      "filters": {
+        "repo_ids": [
+          "ceee7a1449efb51f9b6d5dcdf43303da"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "b389ba430f3291d20c25b78141e90b5d",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/kube-system/cilium/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 94,
+            "content_hash": "46475815eaec12eaaf339ec25e98c05c24c1e7bf5f2c33f28e94cb77d321ce1d"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-035",
+      "text": "Attach Home Assistant to an IoT network with a Multus network annotation.",
+      "category": "conceptual",
+      "group_id": "home-assistant-application",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "8555fc6cebea97351f5c500d6c56e6de",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/default/home-assistant/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 100,
+            "content_hash": "0e0ac02bc9d715b481719688c099a52c22cc3a9ab3f3ee3200496b558b85ba6e"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-036",
+      "text": "Configure a Home Assistant readiness probe on /healthz port 8123.",
+      "category": "identifier",
+      "group_id": "home-assistant-application",
+      "filters": {
+        "repo_ids": [
+          "ceee7a1449efb51f9b6d5dcdf43303da"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "8555fc6cebea97351f5c500d6c56e6de",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/default/home-assistant/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 100,
+            "content_hash": "0e0ac02bc9d715b481719688c099a52c22cc3a9ab3f3ee3200496b558b85ba6e"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-037",
+      "text": "Set X-Plex-Http-Pipeline to infinite through a RequestHeaderModifier route filter.",
+      "category": "identifier",
+      "group_id": "plex-application",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "634476f44e2da054dca57b8eccc54248",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/default/plex/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 136,
+            "content_hash": "0af96a4912761baaf9f682b03409d08c45dd59f8ed6a78150197f452428d1f91"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-038",
+      "text": "Allocate a GPU to Plex using resourceClaims and resourceClaimTemplateName.",
+      "category": "configuration",
+      "group_id": "plex-application",
+      "filters": {
+        "repo_ids": [
+          "ceee7a1449efb51f9b6d5dcdf43303da"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "634476f44e2da054dca57b8eccc54248",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/default/plex/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 136,
+            "content_hash": "0af96a4912761baaf9f682b03409d08c45dd59f8ed6a78150197f452428d1f91"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-039",
+      "text": "Connect a Home Assistant MCP server to the internal Home Assistant service with HOMEASSISTANT_URL.",
+      "category": "conceptual",
+      "group_id": "home-assistant-mcp",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "af6be19b0ca69430c84abb4e7d7289b5",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/default/home-assistant/mcp/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 94,
+            "content_hash": "b58ad111ae237c3c1fc06e4699f19a94bc1012199739072ee9914abe0922c0c1"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-040",
+      "text": "Allocate a GPU to Jellyfin using a resource claim template and container resource claims.",
+      "category": "configuration",
+      "group_id": "jellyfin-application",
+      "filters": {
+        "repo_ids": [
+          "f2ff291633edb4337e26980504c7e83b"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "d071d83318c351e888b1d935d92b8223",
+          "grade": 3,
+          "source": {
+            "repo_id": "f2ff291633edb4337e26980504c7e83b",
+            "commit": "1649098d1315a0cf9ee42ff4cadea623f5cb628c",
+            "path": "kubernetes/apps/media/jellyfin/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 160,
+            "content_hash": "b0deed1732b7d932ee4fab9305dc0ffb1b3cdb6dd488616f43a4737d18c0d522"
+          }
+        }
+      ],
+      "notes": "Codex reviewed the 2026-10-07 frozen-source diff: only the Jellyfin or Paperless image version changed; the judged configuration and grade are unchanged. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-041",
+      "text": "Run Jellyfin with a read-only root filesystem and dropped Linux capabilities.",
+      "category": "configuration",
+      "group_id": "jellyfin-application",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "d071d83318c351e888b1d935d92b8223",
+          "grade": 3,
+          "source": {
+            "repo_id": "f2ff291633edb4337e26980504c7e83b",
+            "commit": "1649098d1315a0cf9ee42ff4cadea623f5cb628c",
+            "path": "kubernetes/apps/media/jellyfin/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 160,
+            "content_hash": "b0deed1732b7d932ee4fab9305dc0ffb1b3cdb6dd488616f43a4737d18c0d522"
+          }
+        }
+      ],
+      "notes": "Codex reviewed the 2026-10-07 frozen-source diff: only the Jellyfin or Paperless image version changed; the judged configuration and grade are unchanged. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-042",
+      "text": "Configure PAPERLESS_REDIS with the paperless-dragonfly service.",
+      "category": "identifier",
+      "group_id": "paperless-application",
+      "filters": {
+        "repo_ids": [
+          "f2ff291633edb4337e26980504c7e83b"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "603e29471b41017ec2799890c0157352",
+          "grade": 3,
+          "source": {
+            "repo_id": "f2ff291633edb4337e26980504c7e83b",
+            "commit": "1649098d1315a0cf9ee42ff4cadea623f5cb628c",
+            "path": "kubernetes/apps/selfhosted/paperless/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 150,
+            "content_hash": "e549844b598ca8e68a1aba5f7d6fd4e9d549c280f8336ae2359706a318ab0b40"
+          }
+        }
+      ],
+      "notes": "Codex reviewed the 2026-10-07 frozen-source diff: only the Jellyfin or Paperless image version changed; the judged configuration and grade are unchanged. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-043",
+      "text": "Configure Paperless OCR language and installed OCR languages for Dutch.",
+      "category": "configuration",
+      "group_id": "paperless-application",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "603e29471b41017ec2799890c0157352",
+          "grade": 3,
+          "source": {
+            "repo_id": "f2ff291633edb4337e26980504c7e83b",
+            "commit": "1649098d1315a0cf9ee42ff4cadea623f5cb628c",
+            "path": "kubernetes/apps/selfhosted/paperless/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 150,
+            "content_hash": "e549844b598ca8e68a1aba5f7d6fd4e9d549c280f8336ae2359706a318ab0b40"
+          }
+        }
+      ],
+      "notes": "Codex reviewed the 2026-10-07 frozen-source diff: only the Jellyfin or Paperless image version changed; the judged configuration and grade are unchanged. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-044",
+      "text": "Permit Paperless egress to a Dragonfly Redis broker through a Cilium network policy.",
+      "category": "conceptual",
+      "group_id": "paperless-application",
+      "filters": {
+        "repo_ids": [
+          "f2ff291633edb4337e26980504c7e83b"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "603e29471b41017ec2799890c0157352",
+          "grade": 3,
+          "source": {
+            "repo_id": "f2ff291633edb4337e26980504c7e83b",
+            "commit": "1649098d1315a0cf9ee42ff4cadea623f5cb628c",
+            "path": "kubernetes/apps/selfhosted/paperless/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 150,
+            "content_hash": "e549844b598ca8e68a1aba5f7d6fd4e9d549c280f8336ae2359706a318ab0b40"
+          }
+        }
+      ],
+      "notes": "Codex reviewed the 2026-10-07 frozen-source diff: only the Jellyfin or Paperless image version changed; the judged configuration and grade are unchanged. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-045",
+      "text": "Configure Zstd, Brotli and Gzip compression in an Envoy BackendTrafficPolicy.",
+      "category": "configuration",
+      "group_id": "envoy-compression",
+      "filters": {
+        "repo_ids": null,
+        "app": null,
+        "service": null,
+        "kind": "BackendTrafficPolicy",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "d8a25f669a1935aeae0ca2844cd1d3a0",
+          "grade": 3,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/network/envoy-gateway/app/envoy.yaml",
+            "start_line": 120,
+            "end_line": 148,
+            "content_hash": "e622916eb987bfba73035fcce6ff186889682db9ee46a15f5e24a2763289855f"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-046",
+      "text": "Does the CloudNativePG Cluster object establish that its PostgreSQL data is backed up by VolSync restic?",
+      "category": "negative",
+      "group_id": "cnpg-volsync-negative",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "Cluster",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "38bc75f47f1185d8f2168758f6841d70",
+          "grade": 0,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/components/postgres/cluster.yaml",
+            "start_line": 2,
+            "end_line": 56,
+            "content_hash": "902793a6c1c41aed638cdfc78b31249a067a9fce42d26dd95b72a4f1e61267e3"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-047",
+      "text": "Does declaring a CloudNativePG controller HelmRelease establish a Paperless database connection?",
+      "category": "negative",
+      "group_id": "cnpg-paperless-negative",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "97593c7bd1ebdc60cb897ee7e1b61be6",
+          "grade": 0,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/database/cloudnative-pg/app/helmrelease.yaml",
+            "start_line": 2,
+            "end_line": 54,
+            "content_hash": "1d013f11696b3e4ff8b23990ed3acdd6db5ddd41c387369c351a12cf18e3a921"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-048",
+      "text": "Does a GatewayClass parametersRef establish the application database backup configuration?",
+      "category": "negative",
+      "group_id": "gateway-database-negative",
+      "filters": {
+        "repo_ids": [
+          "56ef1eeccff12b265e12db3ad70c0f25"
+        ],
+        "app": null,
+        "service": null,
+        "kind": "GatewayClass",
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "8e4e6ba21f096b6b7b0aa7af73ace641",
+          "grade": 0,
+          "source": {
+            "repo_id": "56ef1eeccff12b265e12db3ad70c0f25",
+            "commit": "b98e854e75080135a332a7120d8a6b3fc3dbbc50",
+            "path": "kubernetes/apollo/apps/network/envoy-gateway/config/gatewayclass.yaml",
+            "start_line": 2,
+            "end_line": 12,
+            "content_hash": "a2574ee7d4fc4c9a75cf9db8d68c89bf9e847e61b59816dec31ca73a51284234"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-049",
+      "text": "Does this Cilium HelmRelease establish VolSync restic backup retention for persistent volumes?",
+      "category": "negative",
+      "group_id": "cilium-restic-negative",
+      "filters": {
+        "repo_ids": [
+          "ceee7a1449efb51f9b6d5dcdf43303da"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "b389ba430f3291d20c25b78141e90b5d",
+          "grade": 0,
+          "source": {
+            "repo_id": "ceee7a1449efb51f9b6d5dcdf43303da",
+            "commit": "62c7cbce990b66e832c40ca8315d903895c578aa",
+            "path": "kubernetes/apps/kube-system/cilium/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 94,
+            "content_hash": "46475815eaec12eaaf339ec25e98c05c24c1e7bf5f2c33f28e94cb77d321ce1d"
+          }
+        }
+      ],
+      "notes": "Rebound to the 2026-10-07 frozen 20-repository corpus with unchanged path, lines, and content hash. Original Codex source inspection retained. Sparse calibration, not a reviewed holdout."
+    },
+    {
+      "id": "pilot-050",
+      "text": "Does a Paperless Redis service URL establish a CNPG Barman object-storage destination?",
+      "category": "negative",
+      "group_id": "paperless-backup-negative",
+      "filters": {
+        "repo_ids": [
+          "f2ff291633edb4337e26980504c7e83b"
+        ],
+        "app": null,
+        "service": null,
+        "kind": null,
+        "namespace": null,
+        "context": null
+      },
+      "relevance": [
+        {
+          "chunk_id": "603e29471b41017ec2799890c0157352",
+          "grade": 0,
+          "source": {
+            "repo_id": "f2ff291633edb4337e26980504c7e83b",
+            "commit": "1649098d1315a0cf9ee42ff4cadea623f5cb628c",
+            "path": "kubernetes/apps/selfhosted/paperless/app/helmrelease.yaml",
+            "start_line": 3,
+            "end_line": 150,
+            "content_hash": "e549844b598ca8e68a1aba5f7d6fd4e9d549c280f8336ae2359706a318ab0b40"
+          }
+        }
+      ],
+      "notes": "Codex reviewed the 2026-10-07 frozen-source diff: only the Jellyfin or Paperless image version changed; the judged configuration and grade are unchanged. Sparse calibration, not a reviewed holdout."
+    }
+  ]
+}
