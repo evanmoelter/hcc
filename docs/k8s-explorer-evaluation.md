@@ -3,7 +3,7 @@
 Apollo runs the temporary 20-repository evaluation for
 [k8s-at-home-explorer](https://github.com/evanmoelter/k8s-at-home-explorer).
 Corpus preparation, disposable databases, and provider comparisons run as Jobs on hcc8.
-The TEI server can host Qwen3 or BGE-M3 on the same hardware. BGE-M3 is enabled for a bounded throughput trial.
+The TEI server can host Qwen3 or BGE-M3 on the same hardware. Both CPU Jobs are suspended and TEI is scaled to zero.
 Hosted-provider Jobs call
 OpenAI and Voyage directly. The permanent explorer service remains a separate installation.
 
@@ -22,8 +22,8 @@ lifecycle to synchronize the operator-confirmed 1Password item. They use a separ
 and can run alongside a CPU evaluation in sequence: OpenAI, Voyage Code, then Voyage. A failed paid Job blocks
 the remaining sequence; retries require reviewing its usage and selecting a fresh attempt identity.
 
-All artifact consumers use hcc8 so the RWO volume has one node attachment. Each Job starts its
-own pgvector native sidecar with an emptyDir database. PostgreSQL listens only on pod loopback
+All artifact consumers use hcc8 so the RWO volume has one node attachment. Preparation and full evaluation
+Jobs start their own pgvector native sidecar with an emptyDir database. PostgreSQL listens only on pod loopback
 and trusts connections from the runner in that pod. It uses its image's UID 999; the runner uses
 568. The database stops with the Job and its files disappear when the pod is deleted. Neither
 household databases nor CNPG backups participate in this disposable experiment.
@@ -69,7 +69,7 @@ Kubernetes port-forward reaches it through the API server. The server has no pro
 
 The three hosted calibrations completed successfully for the first frozen corpus. Qwen3 was cancelled
 by the operator because CPU indexing throughput was insufficient for this deployment. Qwen remains
-suspended. BGE-M3 runs a throughput-only trial; the corpus and previous run artifacts remain available.
+suspended. BGE-M3 completed a throughput-only trial; the corpus and run artifacts remain available.
 Before enabling another run, review the frozen inputs and set their exact byte
 SHA-256 hashes and selected provider IDs in
 [`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json)
@@ -83,8 +83,16 @@ queries and batches of 16 unique documents for at most 600 seconds. Documents ar
 fixed seed within UTF-8 byte-length quartiles and interleaved to cover short and long inputs early.
 `observations.jsonl` preserves completed request timings; `report.json` includes throughput, latency,
 and any unfinished request. Projections include unfinished batch time and omit database indexing cost.
-The Job has a separate 20-minute deadline covering setup and measurement. Scale TEI back to zero
-through Git after collecting the trial and its resource telemetry.
+The Job has a separate 20-minute deadline covering setup and measurement. After any future trial,
+scale TEI back to zero through Git after collecting results and resource telemetry.
+
+The completed `bge-smoke-v1` trial embedded 144 unique documents in ten minutes, with a rough
+17.3-hour projection for corpus embeddings alone. Its ten query requests had 0.20-second median
+latency and a 0.45-second maximum. Sampled peak memory working set was 11.07 GiB, with no restarts.
+This uses ONNX Runtime on two CPU cores; the backend selected a batch limit of eight, overriding
+the configured four. Input ordering and length padding affect throughput, so the projection is
+not a full-run timing or a retrieval-quality result. The hosted evaluations completed in 6–9 minutes;
+BGE remains an option for local serving, but this test does not justify a full CPU comparison here.
 
 The first 50-question calibration set retains 44 byte-identical pilot passages. Codex reviewed
 the other six judgments: the only source changes were Jellyfin and Paperless image-version bumps,

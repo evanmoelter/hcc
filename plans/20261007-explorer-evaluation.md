@@ -134,3 +134,27 @@ validates all frozen inputs, then measures ten queries and byte-length-stratifie
 for at most 600 seconds after startup/preflight. It has no database and produces no retrieval-quality
 scores. A 20-minute Job deadline bounds setup plus measurement. Export results and telemetry, then
 scale TEI back to zero through GitOps; do not automatically start a full BGE evaluation.
+
+PR #353 deploys `bge-smoke-v1`. ONNX weights download in 93 seconds and warmup takes 100 seconds;
+the model becomes Ready without an ORT initialization error or fallback weight download. The
+serving `/info` confirms the pinned BGE revision, CLS pooling, and an effective maximum backend
+batch size of eight despite the configured four. All 17,307 document chunks and 50 queries pass
+tokenizer preflight; the longest document is 5,876 tokens.
+
+The trial finishes normally at its 600-second deadline on 2026-10-08 at 04:23:41 UTC. It completes
+144 unique document embeddings in nine batches and ten query embeddings. Query latency is
+0.203 seconds median and 0.446 seconds maximum (also the reported nearest-rank p95 for ten samples).
+Completed document batches take 36–87 seconds. Including time spent on the interrupted tenth batch,
+throughput is 0.241 documents/second and the 15,027-document projection is 17.32 hours before database
+indexing. This small, length-stratified sample is sensitive to batching/padding and establishes no
+retrieval-quality score. The adapter counts the intentional deadline interruption as one failed
+request; the Job completes successfully and preserves the unfinished batch IDs.
+
+Prometheus exports cover startup and measurement at 15-second query resolution. The sampled peak
+working set is 11.07 GiB (RSS 10.06 GiB), with zero restarts. During the measurement interval, mean
+CPU is 1.86 cores and mean throttled-period ratio is 13.3%; throttled-seconds telemetry is unavailable.
+Artifacts, model/runner logs, Job completion state, and telemetry are exported locally. The report
+matches its retained completion SHA-256, `75ce82a60fd44bd10506170941efe9dd259169cefff7dd56850153a4b79ae5fb`.
+GitOps suspends the completed BGE Job and scales TEI back to zero; artifact serving remains enabled.
+The paid calibrations remain the practical candidates for this deployment. No full BGE evaluation
+is started, and the independently reviewed final holdout remains outstanding.
