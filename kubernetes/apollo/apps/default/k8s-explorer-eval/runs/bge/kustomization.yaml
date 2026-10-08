@@ -2,8 +2,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../jobs/base
-nameSuffix: -bge-v1
+  - ../../jobs/smoke
+nameSuffix: -bge-smoke-v1
 patches:
   - patch: |
       apiVersion: batch/v1
@@ -11,6 +11,7 @@ patches:
       metadata:
         name: k8s-explorer-eval
       spec:
+        suspend: false
         template:
           spec:
             containers:
@@ -19,4 +20,4 @@ patches:
               - name: EVAL_PROVIDER
                 value: bge-m3
               - name: EVAL_RUN_ID
-                value: bge-v1
+                value: bge-smoke-v1

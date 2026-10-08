@@ -5,6 +5,8 @@ import subprocess
 import tempfile
 import unittest
 from unittest import mock
+from types import SimpleNamespace
+import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +18,10 @@ HOSTED_SPEC = importlib.util.spec_from_file_location("hosted_runner", APP / "job
 HOSTED = importlib.util.module_from_spec(HOSTED_SPEC)
 with mock.patch.dict("sys.modules", {"runner": RUNNER}):
     HOSTED_SPEC.loader.exec_module(HOSTED)
+SMOKE_SPEC = importlib.util.spec_from_file_location("smoke_runner", APP / "jobs/smoke/smoke.py")
+SMOKE = importlib.util.module_from_spec(SMOKE_SPEC)
+with mock.patch.dict("sys.modules", {"runner": RUNNER}):
+    SMOKE_SPEC.loader.exec_module(SMOKE)
 
 
 def render(path):
@@ -94,21 +100,44 @@ class HostedExecutionTests(unittest.TestCase):
             evaluate.assert_not_called()
 
 
+class SmokeTrialTests(unittest.TestCase):
+    def test_selection_deduplicates_and_balances_length_quartiles(self):
+        chunks = [SimpleNamespace(id=str(i), content_hash=str(i), content="x" * (i + 1)) for i in range(80)]
+        ordered = SMOKE.representative_order(chunks + chunks)
+        self.assertEqual(len(ordered), 80)
+        self.assertEqual([item.id for item in ordered], [item.id for item in SMOKE.representative_order(chunks)])
+        for offset in range(0, len(ordered), 4):
+            self.assertEqual({int(item.id) // 20 for item in ordered[offset:offset + 4]}, {0, 1, 2, 3})
+
+    def test_deadline_interrupts_inflight_request_and_preserves_report(self):
+        provider = SimpleNamespace(embed_query=lambda _: time.sleep(1), usage_stats={})
+        with tempfile.TemporaryDirectory() as directory:
+            report = SMOKE.measure(provider, [], [SimpleNamespace(id="q1", text="query")], Path(directory), duration=.02)
+        self.assertEqual(report["outcome"], "time_budget_reached")
+        self.assertEqual(report["completed_documents"], 0)
+        self.assertEqual(report["incomplete_request"], {"role": "query", "ids": ["q1"]})
+        self.assertEqual(SMOKE.signal.getitimer(SMOKE.signal.ITIMER_REAL)[0], 0)
+
+
 class EvaluationManifestTests(unittest.TestCase):
     def test_only_approved_runs_start(self):
         for folder in [APP / "prepare", *sorted((APP / "runs").iterdir())]:
             with self.subTest(folder=folder.name):
                 documents = render(folder)
                 job = next(doc for doc in documents if doc["kind"] == "Job")
-                self.assertEqual(job["spec"]["suspend"], folder.name in {"qwen", "bge"})
+                self.assertEqual(job["spec"]["suspend"], folder.name == "qwen")
                 self.assertEqual(job["spec"]["backoffLimit"], 0)
                 self.assertNotIn("ttlSecondsAfterFinished", job["spec"])
                 pod = job["spec"]["template"]["spec"]
                 self.assertFalse(pod["automountServiceAccountToken"])
                 self.assertEqual(pod["restartPolicy"], "Never")
-                database = pod["initContainers"][0]
-                self.assertEqual(database["restartPolicy"], "Always")
-                self.assertIn("listen_addresses=127.0.0.1", database["args"])
+                if folder.name == "bge":
+                    self.assertFalse(pod.get("initContainers"))
+                    self.assertEqual(job["spec"]["activeDeadlineSeconds"], 1200)
+                else:
+                    database = pod["initContainers"][0]
+                    self.assertEqual(database["restartPolicy"], "Always")
+                    self.assertIn("listen_addresses=127.0.0.1", database["args"])
                 self.assertEqual(pod["nodeSelector"]["kubernetes.io/hostname"], "hcc8")
                 runner = pod["containers"][0]
                 keys = [env["name"] for env in runner["env"] if "secretKeyRef" in env.get("valueFrom", {})]
