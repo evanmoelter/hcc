@@ -3,7 +3,7 @@
 Apollo runs the temporary 20-repository evaluation for
 [k8s-at-home-explorer](https://github.com/evanmoelter/k8s-at-home-explorer).
 Corpus preparation, disposable databases, and provider comparisons run as Jobs on hcc8.
-The TEI server can host Qwen3 or BGE-M3 on the same hardware and is currently scaled to zero.
+The TEI server can host Qwen3 or BGE-M3 on the same hardware. BGE-M3 is enabled for a bounded throughput trial.
 Hosted-provider Jobs call
 OpenAI and Voyage directly. The permanent explorer service remains a separate installation.
 
@@ -68,14 +68,23 @@ Kubernetes port-forward reaches it through the API server. The server has no pro
 ## Approve and run a comparison
 
 The three hosted calibrations completed successfully for the first frozen corpus. Qwen3 was cancelled
-by the operator because CPU indexing throughput was insufficient for this deployment. Both CPU Jobs
-are suspended and TEI is scaled to zero; the corpus and run artifacts remain available.
+by the operator because CPU indexing throughput was insufficient for this deployment. Qwen remains
+suspended. BGE-M3 runs a throughput-only trial; the corpus and previous run artifacts remain available.
 Before enabling another run, review the frozen inputs and set their exact byte
 SHA-256 hashes and selected provider IDs in
 [`jobs/base/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/base/approval.json)
 for CPU runs or [`jobs/hosted/approval.json`](../kubernetes/apollo/apps/default/k8s-explorer-eval/jobs/hosted/approval.json)
 for paid runs. The hosted overlay preserves the active CPU Job's configuration.
 The approved hashes bind all runs to those exact files. A missing or mismatched hash blocks execution.
+
+The BGE smoke overlay uses `jobs/smoke/approval.json` and does not initialize a database or calculate
+retrieval-quality scores. It checks all frozen inputs with the serving tokenizer, then measures ten
+queries and batches of 16 unique documents for at most 600 seconds. Documents are shuffled with a
+fixed seed within UTF-8 byte-length quartiles and interleaved to cover short and long inputs early.
+`observations.jsonl` preserves completed request timings; `report.json` includes throughput, latency,
+and any unfinished request. Projections include unfinished batch time and omit database indexing cost.
+The Job has a separate 20-minute deadline covering setup and measurement. Scale TEI back to zero
+through Git after collecting the trial and its resource telemetry.
 
 The first 50-question calibration set retains 44 byte-identical pilot passages. Codex reviewed
 the other six judgments: the only source changes were Jellyfin and Paperless image-version bumps,

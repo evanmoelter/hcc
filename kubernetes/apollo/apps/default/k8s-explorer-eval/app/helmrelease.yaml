@@ -77,7 +77,7 @@ spec:
               limits:
                 memory: 256Mi
       tei:
-        replicas: 0
+        replicas: 1
         strategy: Recreate
         pod:
           automountServiceAccountToken: false
@@ -99,9 +99,9 @@ spec:
               tag: cpu-1.9.4@sha256:8419f533857b503ebf6ec292a95d4f1cf9c0464ac8b8abeef39518cf110e5726
             args: [--json-output, --disable-spans]
             env:
-              MODEL_ID: Qwen/Qwen3-Embedding-0.6B
-              REVISION: 97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3
-              POOLING: last-token
+              MODEL_ID: BAAI/bge-m3
+              REVISION: 5617a9f61b028005a4858fdac845db406aefb181
+              POOLING: cls
               HOSTNAME: 0.0.0.0
               PORT: "8080"
               DTYPE: float32
@@ -114,8 +114,8 @@ spec:
               MKL_NUM_THREADS: "2"
               RAYON_NUM_THREADS: "2"
               TOKENIZATION_WORKERS: "2"
-              MAX_BATCH_TOKENS: "5760"
-              MAX_BATCH_REQUESTS: "1"
+              MAX_BATCH_TOKENS: "8192"
+              MAX_BATCH_REQUESTS: "4"
               MAX_CLIENT_BATCH_SIZE: "32"
               MAX_CONCURRENT_REQUESTS: "32"
               PAYLOAD_LIMIT: "2000000"

@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base
+configMapGenerator:
+  - name: k8s-explorer-eval-runner
+    behavior: merge
+    files:
+      - approval.json
+      - smoke.py
+patches:
+  - patch: |
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: k8s-explorer-eval
+      spec:
+        activeDeadlineSeconds: 1200
+        template:
+          spec:
+            initContainers:
+              - name: postgres
+                $patch: delete
+            containers:
+              - name: runner
+                command: [python, /config/smoke.py]
+                args: []
+            volumes:
+              - name: database
+                $patch: delete
+              - name: postgres-tmp
+                $patch: delete
+              - name: postgres-run
+                $patch: delete

@@ -126,3 +126,11 @@ deployment. Before cancellation, the run has persisted 1,966 of 15,027 unique do
 after about 4h8m; no final retrieval report exists. Runner logs are exported before stopping the
 disposable database. GitOps suspends the Qwen Job and scales TEI to zero, preserving artifact storage
 and the read-only artifact server. BGE-M3 remains suspended.
+
+The operator authorizes a bounded BGE-M3 throughput trial. Its pinned revision has an ONNX export;
+the actual backend must be confirmed from startup logs. Retain the two-CPU ceiling and approved
+12 GiB memory limit, use CLS pooling, and allow the model's 8,192-token context. A fresh smoke Job
+validates all frozen inputs, then measures ten queries and byte-length-stratified document batches
+for at most 600 seconds after startup/preflight. It has no database and produces no retrieval-quality
+scores. A 20-minute Job deadline bounds setup plus measurement. Export results and telemetry, then
+scale TEI back to zero through GitOps; do not automatically start a full BGE evaluation.
