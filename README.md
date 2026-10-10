@@ -61,7 +61,7 @@ Each contributes NVMe storage to Longhorn; hcc7 also contributes a SATA SSD. See
 
 Apollo also runs temporary [embedding provider evaluations](./docs/k8s-explorer-evaluation.md)
 for k8s-at-home-explorer through Flux, with retained reports and disposable evaluation databases.
-The explorer service itself is not yet deployed.
+The persistent [explorer MCP service](./docs/k8s-explorer.md) serves authenticated LAN queries using Voyage embeddings.
 
 
 

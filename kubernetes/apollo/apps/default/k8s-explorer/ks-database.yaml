@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-database
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: k8s-explorer-validation
+  - name: plugin-barman-cloud
+  - name: longhorn-config
+  - name: onepassword-store
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer/database
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  components:
+  - ../../../../components/postgres
+  - ../../../../components/postgres/init
+  healthCheckExprs:
+  - apiVersion: postgresql.cnpg.io/v1
+    kind: Cluster
+    current: has(status.conditions) && status.conditions.exists(e, e.type == 'Ready' && e.status == 'True')
+  postBuild:
+    substitute:
+      APP: k8s-explorer
+      POSTGRES_DATABASE: explorer
+      POSTGRES_USERNAME: explorer
+      POSTGRES_CAPACITY: 10Gi
+      POSTGRES_MEMORY_REQUEST: 512Mi
+      POSTGRES_MEMORY_LIMIT: 2Gi
+      POSTGRES_IMAGE: ghcr.io/cloudnative-pg/postgresql:17.11-standard-trixie@sha256:d456fe7392b0b2147b4cea0dc124d51aee7ad3ec522c57f3177799e01f29a2d1

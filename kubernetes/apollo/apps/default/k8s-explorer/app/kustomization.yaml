@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ./helmrelease.yaml
+- ./ocirepository.yaml
+- ./networkpolicy.yaml
+configMapGenerator:
+- name: k8s-explorer-values
+  files:
+  - base-values.yaml
+  - voyage-values.yaml
+- name: k8s-explorer-catalogue
+  files:
+  - repositories.yaml
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    reconcile.fluxcd.io/watch: Enabled

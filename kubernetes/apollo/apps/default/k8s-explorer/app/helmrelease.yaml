@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bjw-s-labs/helm-charts/app-template-5.2.1/charts/other/app-template/schemas/helmrelease-helm-v2.schema.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &app k8s-explorer
+spec:
+  interval: 30m
+  releaseName: *app
+  chartRef:
+    kind: OCIRepository
+    name: *app
+  install:
+    strategy:
+      name: RemediateOnFailure
+    remediation:
+      retries: 3
+  upgrade:
+    strategy:
+      name: RemediateOnFailure
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+      strategy: rollback
+  rollback:
+    cleanupOnFail: true
+  values:
+    controllers:
+      explorer:
+        annotations:
+          reloader.stakater.com/auto: 'true'
+        pod:
+          nodeSelector:
+            kubernetes.io/hostname: hcc8
+        initContainers:
+          init-db:
+            image: &image
+              repository: ghcr.io/evanmoelter/k8s-at-home-explorer
+              tag: sha-5eed2805d945094dcc5ae13e3a9ee2fdfcbcd445@sha256:d086f167dcd9c746e1272a1f7d24e089f6b3d8331ef81f7255190da86aafb900
+              pullPolicy: IfNotPresent
+            env:
+              EXPLORER_DATABASE_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: k8s-explorer-pg-app
+                    key: uri
+              PGSSLMODE: require
+              EXPLORER_REFRESH_METADATA: 'false'
+              EXPLORER_FETCH_WORKERS: '2'
+              EXPLORER_ALLOWED_HTTP_HOSTS: '["explorer.${SECRET_DOMAIN}","k8s-explorer","k8s-explorer.default.svc.cluster.local","localhost","127.0.0.1"]'
+              TZ: ${TIMEZONE}
+        containers:
+          api:
+            image: *image
+            env:
+              EXPLORER_DATABASE_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: k8s-explorer-pg-app
+                    key: uri
+              PGSSLMODE: require
+              EXPLORER_REFRESH_METADATA: 'false'
+              EXPLORER_FETCH_WORKERS: '2'
+              EXPLORER_ALLOWED_HTTP_HOSTS: '["explorer.${SECRET_DOMAIN}","k8s-explorer","k8s-explorer.default.svc.cluster.local","localhost","127.0.0.1"]'
+              TZ: ${TIMEZONE}
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+          worker:
+            image: *image
+            env:
+              EXPLORER_DATABASE_URL:
+                valueFrom:
+                  secretKeyRef:
+                    name: k8s-explorer-pg-app
+                    key: uri
+              PGSSLMODE: require
+              EXPLORER_REFRESH_METADATA: 'false'
+              EXPLORER_FETCH_WORKERS: '2'
+              EXPLORER_ALLOWED_HTTP_HOSTS: '["explorer.${SECRET_DOMAIN}","k8s-explorer","k8s-explorer.default.svc.cluster.local","localhost","127.0.0.1"]'
+              TZ: ${TIMEZONE}
+              EXPLORER_SYNC_INTERVAL: '3600'
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                cpu: '2'
+                memory: 2Gi
+    configMaps:
+      config:
+        enabled: false
+    persistence:
+      corpus:
+        type: persistentVolumeClaim
+        existingClaim: k8s-explorer-corpus
+      config:
+        type: configMap
+        identifier: null
+        name: k8s-explorer-catalogue
+    route:
+      internal:
+        enabled: true
+        hostnames:
+        - explorer.${SECRET_DOMAIN}
+        parentRefs:
+        - name: envoy-internal
+          namespace: network
+          sectionName: https
+        rules:
+        - backendRefs:
+          - identifier: app
+            port: http
+          timeouts:
+            request: 120s
+  valuesFrom:
+  - kind: ConfigMap
+    name: k8s-explorer-values
+    valuesKey: base-values.yaml
+  - kind: ConfigMap
+    name: k8s-explorer-values
+    valuesKey: voyage-values.yaml

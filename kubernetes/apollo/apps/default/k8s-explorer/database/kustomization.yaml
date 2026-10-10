@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+  - target:
+      group: postgresql.cnpg.io
+      kind: Cluster
+    patch: |-
+      - op: add
+        path: /spec/bootstrap/initdb/postInitApplicationSQL
+        value:
+          - CREATE EXTENSION IF NOT EXISTS vector;
+      - op: add
+        path: /spec/postgresql
+        value:
+          parameters:
+            shared_buffers: 128MB
+            max_connections: "100"

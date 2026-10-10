@@ -27,3 +27,9 @@ resources:
   - ./node-red/ks.yaml
   - ./node-red/ks-storage.yaml
   - ./node-red/ks-tailscale.yaml
+  - ./k8s-explorer/ks-credentials.yaml
+  - ./k8s-explorer/ks-validation.yaml
+  - ./k8s-explorer/ks-storage.yaml
+  - ./k8s-explorer/ks-database.yaml
+  - ./k8s-explorer/ks.yaml
+  - ./k8s-explorer/ks-verify.yaml
