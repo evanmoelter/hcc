@@ -168,9 +168,10 @@ and tailnet access follows the existing Tailscale policy. Adding login and actio
 Apollo fetches Flux distribution manifests from the upstream OCI artifact so patch releases do not depend
 on the operator image's embedded bundle. The Flux version and the artifact's tag and digest are pinned in Git.
 The digest fixes the bundle contents, including controller image digests. Bundle updates are independent of
-the installed operator chart; new Flux minor versions still require support in the installed operator.
+the installed operator chart; new Flux minor versions still require
+[support in the installed operator](https://fluxoperator.dev/docs/crd/fluxinstance/#distribution-artifact).
 
-Renovate tracks the bundle tag and digest separately from the operator. Flux version and bundle updates
+Renovate tracks the bundle tag and digest separately from the operator. Apollo Flux version and bundle updates
 require dashboard approval and do not automerge. Before merging a Flux version bump, pull the pinned bundle
 with `flux pull artifact` into an existing temporary directory and confirm it contains both `flux/v<version>/`
 and `flux-images/v<version>/upstream-alpine.yaml`. Update the bundle first or in the same PR when needed.
@@ -182,8 +183,3 @@ waits while the instance Kustomization is unready; existing webhook resources re
 
 Bootstrap already uses GHCR for the operator chart. The operator also needs access to GHCR to fetch the
 distribution artifact during the existing five-minute FluxInstance readiness wait.
-
-The tagged bundle follows
-[szinn's configuration](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-instance/app/helmrelease.yaml),
-with an additional digest pin for reproducibility. Upstream documents
-[distribution artifacts and minor-version constraints](https://fluxoperator.dev/docs/crd/fluxinstance/#distribution-artifact).

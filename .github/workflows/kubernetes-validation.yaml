@@ -33,6 +33,7 @@ jobs:
             Taskfile.yaml
             .taskfiles/Kubernetes/Taskfile.yaml
             tests/**
+            .github/renovate.json5
             .github/workflows/kubernetes-validation.yaml
 
   kubeconform:

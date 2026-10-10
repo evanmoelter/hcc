@@ -136,9 +136,9 @@ against the PR event's base commit. Manifest diffs use that same baseline, keepi
 to its immediate parent.
 
 Kubernetes Validation runs schema checks for both clusters and component/policy tests when Kubernetes
-manifests, validation scripts, policies, tool pins, the Kubernetes taskfile, tests, or its workflow change;
-otherwise those jobs skip. `flux-diff.yaml` runs its rendering jobs when Kubernetes manifests, its workflow,
-or its helper scripts change. It renders `main` with flux-local and Apollo with
+manifests, validation scripts, policies, tool pins, Renovate configuration, the Kubernetes taskfile, tests,
+or its workflow change; otherwise those jobs skip. `flux-diff.yaml` runs its rendering jobs when Kubernetes
+manifests, its workflow, or its helper scripts change. It renders `main` with flux-local and Apollo with
 [flate](https://github.com/home-operations/flate). Apollo validation renders the full tree; only the diff
 uses a baseline. Both rendering tools output the manifest delta for review. Aggregate jobs report the
 required checks even when validation jobs skip because no relevant files changed; the Flux aggregate

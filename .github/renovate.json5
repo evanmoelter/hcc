@@ -168,6 +168,9 @@
     },
     {
       description: 'Review Flux versions and distribution bundles independently of the operator',
+      matchFileNames: [
+        'kubernetes/apollo/**',
+      ],
       matchPackageNames: [
         'fluxcd/flux2',
         'ghcr.io/controlplaneio-fluxcd/flux-operator-manifests',
