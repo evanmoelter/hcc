@@ -13,8 +13,6 @@ spec:
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
-      nodeSelector:
-        kubernetes.io/hostname: hcc8
       securityContext:
         runAsNonRoot: true
         runAsUser: 568

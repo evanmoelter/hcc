@@ -18,7 +18,7 @@ def main():
     explorer = Explorer(Settings())
     output = Path("/data/deployment-check-v1")
     output.mkdir()
-    deadline = time.monotonic() + 2100
+    deadline = time.monotonic() + 7200
     previous = None
     while True:
         snapshots = explorer.store.snapshots(limit=100)["items"]

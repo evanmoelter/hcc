@@ -5,7 +5,7 @@ metadata:
   name: k8s-explorer-serving-check-v1
 spec:
   backoffLimit: 0
-  activeDeadlineSeconds: 2700
+  activeDeadlineSeconds: 9000
   template:
     metadata:
       labels:

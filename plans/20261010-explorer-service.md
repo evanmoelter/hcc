@@ -29,8 +29,40 @@ not the serving architecture.
 3. Observe initial worker ingestion. Run a GitOps validation Job after all 20 selected repositories
    are ready: repeat sync, record cache reuse, and execute the deployment smoke against LAN HTTPS.
    Keep keys inside Secret-backed containers. Export non-secret reports and logs locally.
-4. Verify both offsite backup streams, then remove first-install database initialization settings.
+4. Verify both offsite backup streams, then complete the required GitOps cleanup below. Deployment
+   is not complete until the one-time gates are retired and steady-state reconciliation is verified.
    Keep validation results and document endpoint/client setup, recovery limitations, and app issues.
+
+## Required post-deployment cleanup
+
+Keep the bootstrap gates only until both provider tests, the 20-repository serving check, and the first
+offsite database and corpus backups succeed. Export Job logs, `/data/deployment-check-v1/`, and backup
+status before pruning their Kubernetes resources. Do not replace immutable Jobs automatically or reuse
+an existing report directory: an intentional retry uses a new Job name and output directory in Git.
+The serving check allows two hours for ingestion, including an hourly retry, with another 30 minutes
+for repeat sync and smoke; Flux allows five additional minutes for Job completion reporting.
+
+1. Commit the following cleanup together and let Flux converge:
+   - Remove `k8s-explorer-validation` from `dependsOn` in `ks-storage.yaml` and `ks-database.yaml`.
+     Preserve their storage, database platform, and secret dependencies.
+   - Replace the corpus backup's `k8s-explorer-verify` dependency in `ks-storage.yaml` with
+     `k8s-explorer`, retaining `volsync` and `onepassword-store`.
+   - Remove `ks-validation.yaml` and `ks-verify.yaml` from the default namespace's
+     `kustomization.yaml`, and delete those files and their `validation/` and `verify/` directories.
+   - Remove the `k8s-explorer-initial-backup` Kustomization document from `ks-storage.yaml` and
+     its `backup/` directory. Keep the shared CNPG ScheduledBackup and WAL configuration.
+   - Remove the postgres `init` component from `ks-database.yaml` and the
+     `/spec/bootstrap/initdb/postInitApplicationSQL` patch from `database/kustomization.yaml`
+     together. Keep PostgreSQL parameter overrides; recovery restores the existing vector extension.
+2. Verify Flux has pruned the one-time Jobs and their pods. Then remove the application's
+   `controllers.explorer.pod.nodeSelector` override from `app/helmrelease.yaml` in a follow-up commit.
+   The hcc8 pin is required only while the serving-check pod shares the RWO corpus claim; the disposable
+   provider-validation Job has no node pin.
+3. Run the Apollo schema, policy, and render checks for both commits. Verify the application and
+   corpus backup Kustomizations reconcile without validation or verify dependencies, the API remains
+   reachable with authentication, the ReplicationSource has its daily schedule and no manual trigger,
+   and the database renders recovery bootstrap. Preserve the completed plan and evidence in
+   `plans/done/` and update the documentation link when deployment is complete.
 
 Database and corpus backups are separate streams, not an atomic snapshot. Recover both with the worker
 stopped, verify source guards, and rebuild derived indexes if their snapshots do not match. Catalogue

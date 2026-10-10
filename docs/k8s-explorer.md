@@ -25,8 +25,11 @@ storage, routing, and catalogue overrides. API and worker use `voyage-4` at 1,02
 refreshes the tested 20-repository catalogue with two fetch workers. GitHub metadata refresh is disabled;
 stars/preferences come from Git. Adding repositories requires editing the catalogue explicitly.
 
-One pod on hcc8 shares an RWO corpus claim and uses Recreate updates. Each repository publishes its
-latest completed scan. Failed refreshes retain the prior published source; semantic failures preserve
+One pod shares an RWO corpus claim and uses Recreate updates. During initial verification, the app and
+serving-check Job are pinned to hcc8 so both can mount the claim. Required post-deployment cleanup
+removes the check and then the app's pin, allowing the volume to attach on another node.
+Each repository publishes its latest completed scan. Failed refreshes retain the prior published source;
+semantic failures preserve
 completed embedding batches for the next sync. Inspect worker failure counts and index readiness:
 `/health/ready` verifies database/schema access, not complete embeddings. Provider requests incur
 ongoing usage; account spending controls remain the operator's responsibility.
@@ -38,6 +41,12 @@ sync and verifies zero new embeddings for unchanged repositories, then runs the 
 against the authenticated LAN HTTPS endpoint. Credentials remain inside Secret-backed containers.
 Results live under `/data/deployment-check-v1/`; Job logs contain non-secret summaries. Jobs have no
 automatic retries or TTL cleanup. Retrying a failed serving check requires a new Job and output identity.
+The check waits up to two hours for indexing, allowing an hourly worker retry after an initial failure;
+the Job allows another 30 minutes for repeat sync and smoke, and Flux waits up to 155 minutes.
+These Jobs and their deployment dependencies are temporary: after checks and initial backups pass,
+export the results and retire the Jobs through the required cleanup in the
+[deployment plan](../plans/20261010-explorer-service.md#required-post-deployment-cleanup). Steady-state
+reconciliation and recovery must not depend on rerunning paid provider tests.
 
 For an independently configured client environment, the upstream task is:
 
@@ -53,14 +62,16 @@ refresh cannot invalidate source guards during the check.
 The corpus and dedicated PostgreSQL database each use retained Longhorn storage. The CNPG standard
 image includes pgvector; first-install bootstrap enables the extension before application migrations.
 Barman supplies weekly base backups and continuous WAL to Apollo's database bucket. VolSync snapshots
-the corpus into the separate Apollo file-backup bucket. The database is distinct from all disposable
-provider-evaluation databases, and their cached embeddings are not imported.
+the corpus daily into the separate Apollo file-backup bucket, using the shared schedule without a manual
+trigger override. The database is distinct from all disposable provider-evaluation databases, and their
+cached embeddings are not imported.
 
 These are separate backup streams, not an atomic snapshot. Restore both with ingestion stopped, verify
 source guards, and rebuild derived indexes if the recovered corpus and database disagree. Catalogue and
 preferences remain in Git. Follow the database and VolSync recovery lifecycles; never expect a database
-restore alone to reconstruct files. Remove first-install init configuration only after successful serving
-checks and the first offsite database backup.
+restore alone to reconstruct files. After successful serving checks and both initial offsite backups,
+remove first-install database init configuration together with its pgvector bootstrap patch, and retire
+the one-time Jobs and fixed-node placement as specified in the deployment cleanup.
 
 The [deployment record](../plans/20261010-explorer-service.md) retains validation and application issues.
 The earlier [provider calibration](k8s-explorer-evaluation.md) documents the model selection evidence.
