@@ -9,6 +9,13 @@ spec:
   dependsOn:
     - name: flux-operator
   interval: 1h
+  retryInterval: 1m
+  timeout: 10m
+  healthChecks:
+    - apiVersion: fluxcd.controlplane.io/v1
+      kind: FluxInstance
+      name: flux
+      namespace: flux-system
   path: ./kubernetes/apollo/apps/flux-system/flux-instance/app
   prune: false
   deletionPolicy: Orphan

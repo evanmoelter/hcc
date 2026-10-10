@@ -117,9 +117,8 @@
         'docker',
       ],
       matchPackageNames: [
-        '/flux-operator/',
-        '/flux-instance/',
-        '/flux-operator-manifests/',
+        '/flux-operator$/',
+        '/flux-instance$/',
       ],
       group: {
         commitMessageTopic: '{{{groupName}}} group',
@@ -166,6 +165,19 @@
       minimumReleaseAge: '7 days',
       automerge: true,
       automergeType: 'pr',
+    },
+    {
+      description: 'Review Flux versions and distribution bundles independently of the operator',
+      matchFileNames: [
+        'kubernetes/apollo/**',
+      ],
+      matchPackageNames: [
+        'fluxcd/flux2',
+        'ghcr.io/controlplaneio-fluxcd/flux-operator-manifests',
+      ],
+      groupName: null,
+      automerge: false,
+      dependencyDashboardApproval: true,
     },
     // System Upgrade Controller Group
     {
@@ -420,7 +432,7 @@
         '/\\.ya?ml$/',
       ],
       matchStrings: [
-        'oci://(?<depName>[^:]+):(?<currentValue>\\S+)',
+        'oci://(?<depName>[^\\s"\'@]+?):(?<currentValue>[^\\s"\'@:/]+)(?:@(?<currentDigest>sha256:[a-fA-F0-9]{64}))?(?:[\\s"\']|$)',
       ],
       datasourceTemplate: 'docker',
     },
