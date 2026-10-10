@@ -162,3 +162,8 @@ Open `https://flux-ui.${SECRET_DOMAIN}` on the LAN or use `flux-ui` in Tailscale
 The Flux Operator's built-in UI has no application login and stays in its default read-only mode;
 reconcile, suspend, resume, and other user actions are disabled. LAN access relies on the trusted network,
 and tailnet access follows the existing Tailscale policy. Adding login and actions is a separate decision.
+
+Apollo fetches Flux distribution manifests from the upstream OCI artifact so patch releases do not depend
+on the operator image's embedded bundle. The exact Flux version remains pinned in Git; new minor versions
+still require support in the installed operator. The `flux-instance` Kustomization checks the FluxInstance's
+readiness so a failed controller upgrade is reported even while the previous controllers remain healthy.
