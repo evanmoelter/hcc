@@ -163,7 +163,24 @@ The Flux Operator's built-in UI has no application login and stays in its defaul
 reconcile, suspend, resume, and other user actions are disabled. LAN access relies on the trusted network,
 and tailnet access follows the existing Tailscale policy. Adding login and actions is a separate decision.
 
+## Flux upgrades
+
 Apollo fetches Flux distribution manifests from the upstream OCI artifact so patch releases do not depend
-on the operator image's embedded bundle. The exact Flux version remains pinned in Git; new minor versions
-still require support in the installed operator. The `flux-instance` Kustomization checks the FluxInstance's
-readiness so a failed controller upgrade is reported even while the previous controllers remain healthy.
+on the operator image's embedded bundle. The Flux version is pinned in Git, but the artifact floats at
+`latest`: upstream can revise manifests and controller image digests for that version without a Git change
+or PR manifest diff. This allows upstream fixes within the selected version; new minor versions still require
+support in the installed operator.
+
+The `flux-instance` Kustomization checks the FluxInstance's readiness so a failed controller upgrade is
+reported even while the previous controllers remain healthy. Its dependent `flux-webhooks` Kustomization
+waits while the instance Kustomization is unready; existing webhook resources remain in place.
+
+Bootstrap already uses GHCR for the operator chart. The operator also needs access to GHCR to fetch the
+distribution artifact during the existing five-minute FluxInstance readiness wait.
+
+The floating artifact follows the chart defaults used by
+[onedr0p](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml)
+and [joryirving](https://github.com/joryirving/home-ops/blob/main/kubernetes/clusters/main/flux-instance/helmrelease.yaml).
+[szinn](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-instance/app/helmrelease.yaml)
+instead selects a tagged artifact. Upstream documents
+[artifact refresh and minor-version constraints](https://fluxoperator.dev/docs/crd/fluxinstance/#distribution-artifact).
