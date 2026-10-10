@@ -166,10 +166,15 @@ and tailnet access follows the existing Tailscale policy. Adding login and actio
 ## Flux upgrades
 
 Apollo fetches Flux distribution manifests from the upstream OCI artifact so patch releases do not depend
-on the operator image's embedded bundle. The Flux version is pinned in Git, but the artifact floats at
-`latest`: upstream can revise manifests and controller image digests for that version without a Git change
-or PR manifest diff. This allows upstream fixes within the selected version; new minor versions still require
-support in the installed operator.
+on the operator image's embedded bundle. The Flux version and the artifact's tag and digest are pinned in Git.
+The digest fixes the bundle contents, including controller image digests. Bundle updates are independent of
+the installed operator chart; new Flux minor versions still require support in the installed operator.
+
+Renovate tracks the bundle tag and digest separately from the operator. Flux version and bundle updates
+require dashboard approval and do not automerge. Before merging a Flux version bump, pull the pinned bundle
+with `flux pull artifact` into an existing temporary directory and confirm it contains both `flux/v<version>/`
+and `flux-images/v<version>/upstream-alpine.yaml`. Update the bundle first or in the same PR when needed.
+The regular manifest render validates the FluxInstance resource, not the contents of its distribution bundle.
 
 The `flux-instance` Kustomization checks the FluxInstance's readiness so a failed controller upgrade is
 reported even while the previous controllers remain healthy. Its dependent `flux-webhooks` Kustomization
@@ -178,9 +183,7 @@ waits while the instance Kustomization is unready; existing webhook resources re
 Bootstrap already uses GHCR for the operator chart. The operator also needs access to GHCR to fetch the
 distribution artifact during the existing five-minute FluxInstance readiness wait.
 
-The floating artifact follows the chart defaults used by
-[onedr0p](https://github.com/onedr0p/home-ops/blob/main/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml)
-and [joryirving](https://github.com/joryirving/home-ops/blob/main/kubernetes/clusters/main/flux-instance/helmrelease.yaml).
-[szinn](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-instance/app/helmrelease.yaml)
-instead selects a tagged artifact. Upstream documents
-[artifact refresh and minor-version constraints](https://fluxoperator.dev/docs/crd/fluxinstance/#distribution-artifact).
+The tagged bundle follows
+[szinn's configuration](https://github.com/szinn/k8s-homelab/blob/main/kubernetes/main/apps/flux-system/flux-instance/app/helmrelease.yaml),
+with an additional digest pin for reproducibility. Upstream documents
+[distribution artifacts and minor-version constraints](https://fluxoperator.dev/docs/crd/fluxinstance/#distribution-artifact).
