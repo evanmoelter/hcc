@@ -34,7 +34,7 @@ spec:
             kubernetes.io/hostname: hcc8
         initContainers:
           init-db:
-            image: &id001
+            image: &image
               repository: ghcr.io/evanmoelter/k8s-at-home-explorer
               tag: sha-5eed2805d945094dcc5ae13e3a9ee2fdfcbcd445@sha256:d086f167dcd9c746e1272a1f7d24e089f6b3d8331ef81f7255190da86aafb900
               pullPolicy: IfNotPresent
@@ -51,7 +51,7 @@ spec:
               TZ: ${TIMEZONE}
         containers:
           api:
-            image: *id001
+            image: *image
             env:
               EXPLORER_DATABASE_URL:
                 valueFrom:
@@ -70,7 +70,7 @@ spec:
               limits:
                 memory: 1Gi
           worker:
-            image: *id001
+            image: *image
             env:
               EXPLORER_DATABASE_URL:
                 valueFrom:
