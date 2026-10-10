@@ -23,6 +23,7 @@ spec:
   - apiVersion: v1
     kind: PersistentVolumeClaim
     current: has(status.phase) && status.phase == 'Bound'
+
 ---
 # yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -36,7 +37,7 @@ spec:
   - name: volsync
   - name: onepassword-store
   targetNamespace: default
-  path: ./kubernetes/apollo/apps/default/k8s-explorer/backup
+  path: ./kubernetes/apollo/components/volsync/backup
   prune: true
   deletionPolicy: WaitForTermination
   sourceRef:
@@ -50,3 +51,37 @@ spec:
     substitute:
       APP: k8s-explorer
       CLAIM: k8s-explorer-corpus
+  patches:
+  - target:
+      kind: ReplicationSource
+    patch: |-
+      - op: add
+        path: /spec/trigger/manual
+        value: explorer-initial-v1
+
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-initial-backup
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: k8s-explorer-verify
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer/backup
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  healthCheckExprs:
+  - apiVersion: postgresql.cnpg.io/v1
+    kind: Backup
+    current: has(status.phase) && status.phase == 'completed'
+    failed: has(status.phase) && status.phase == 'failed'
