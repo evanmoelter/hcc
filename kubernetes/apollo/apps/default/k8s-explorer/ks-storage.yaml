@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-storage
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: k8s-explorer-validation
+  - name: longhorn-config
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer/storage
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  healthCheckExprs:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    current: has(status.phase) && status.phase == 'Bound'
+---
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer-backup
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: k8s-explorer-verify
+  - name: volsync
+  - name: onepassword-store
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer/backup
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  postBuild:
+    substitute:
+      APP: k8s-explorer
+      CLAIM: k8s-explorer-corpus

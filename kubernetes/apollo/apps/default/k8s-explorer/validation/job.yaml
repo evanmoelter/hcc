@@ -1,0 +1,133 @@
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/batch/job_v1.json
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k8s-explorer-provider-validation-v1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1200
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k8s-explorer-validation
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: hcc8
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 568
+        runAsGroup: 568
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: postgres
+        restartPolicy: Always
+        image: pgvector/pgvector:0.8.6-pg17-trixie@sha256:724a4041afdb1750446e3f6b5cfa8f3b0ac5a2cf538ddfa6bfee4f94c2fa85c6
+        args:
+        - postgres
+        - -c
+        - listen_addresses=127.0.0.1
+        env:
+        - name: POSTGRES_DB
+          value: explorer
+        - name: POSTGRES_USER
+          value: explorer
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: trust
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          runAsUser: 999
+          runAsGroup: 999
+        startupProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - 127.0.0.1
+            - -U
+            - explorer
+            - -d
+            - explorer
+          periodSeconds: 2
+          failureThreshold: 90
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+        volumeMounts:
+        - name: database
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-tmp
+          mountPath: /tmp
+        - name: postgres-run
+          mountPath: /var/run/postgresql
+      containers:
+      - name: runner
+        image: ghcr.io/evanmoelter/k8s-at-home-explorer:sha-5eed2805d945094dcc5ae13e3a9ee2fdfcbcd445@sha256:d086f167dcd9c746e1272a1f7d24e089f6b3d8331ef81f7255190da86aafb900
+        command:
+        - python
+        - /config/validate.py
+        env:
+        - name: EXPLORER_TEST_DATABASE_URL
+          value: postgresql://explorer@127.0.0.1:5432/explorer
+        - name: EXPLORER_TEST_EMBEDDING_PROTOCOL
+          value: voyage
+        - name: EXPLORER_TEST_EMBEDDING_URL
+          value: https://api.voyageai.com/v1/embeddings
+        - name: EXPLORER_TEST_EMBEDDING_MODEL
+          value: voyage-4
+        - name: EXPLORER_TEST_EMBEDDING_DIMENSIONS
+          value: '1024'
+        - name: EXPLORER_TEST_EMBEDDING_REQUESTED_DIMENSIONS
+          value: '1024'
+        - name: EXPLORER_TEST_EMBEDDING_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: k8s-explorer-credentials
+              key: EXPLORER_EMBEDDING_API_KEY
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: config
+        configMap:
+          name: k8s-explorer-validation
+      - name: database
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: postgres-tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      - name: postgres-run
+        emptyDir: {}
+      - name: tmp
+        emptyDir:
+          sizeLimit: 1Gi

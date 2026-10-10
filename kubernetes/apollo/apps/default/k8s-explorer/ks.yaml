@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: k8s-explorer
+  namespace: flux-system
+spec:
+  dependsOn:
+  - name: k8s-explorer-credentials
+  - name: k8s-explorer-storage
+  - name: k8s-explorer-database
+  - name: envoy-gateway-config
+  - name: unifi-dns
+  targetNamespace: default
+  path: ./kubernetes/apollo/apps/default/k8s-explorer/app
+  prune: true
+  deletionPolicy: WaitForTermination
+  sourceRef:
+    kind: GitRepository
+    name: home-kubernetes
+  wait: true
+  interval: 30m
+  retryInterval: 1m
+  timeout: 20m
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: k8s-explorer

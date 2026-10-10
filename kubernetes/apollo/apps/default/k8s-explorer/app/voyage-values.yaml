@@ -1,0 +1,17 @@
+controllers:
+  explorer:
+    containers:
+      api:
+        env: &id001
+          EXPLORER_EMBEDDING_PROTOCOL: voyage
+          EXPLORER_EMBEDDING_URL: https://api.voyageai.com/v1/embeddings
+          EXPLORER_EMBEDDING_MODEL: voyage-4
+          EXPLORER_EMBEDDING_DIMENSIONS: '1024'
+          EXPLORER_EMBEDDING_REQUESTED_DIMENSIONS: '1024'
+          EXPLORER_EMBEDDING_API_KEY:
+            valueFrom:
+              secretKeyRef:
+                name: k8s-explorer-credentials
+                key: EXPLORER_EMBEDDING_API_KEY
+      worker:
+        env: *id001

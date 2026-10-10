@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://k8s-schemas.home-operations.com/postgresql.cnpg.io/backup_v1.json
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: k8s-explorer-initial-v1
+spec:
+  cluster:
+    name: k8s-explorer-pg
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

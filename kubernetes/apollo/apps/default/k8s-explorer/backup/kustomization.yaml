@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../components/volsync/backup
+  - ./initial-database-backup.yaml
+patches:
+  - target:
+      kind: ReplicationSource
+    patch: |-
+      - op: add
+        path: /spec/trigger/manual
+        value: explorer-initial-v1
