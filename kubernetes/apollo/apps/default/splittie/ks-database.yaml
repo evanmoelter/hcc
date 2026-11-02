@@ -32,4 +32,4 @@ spec:
   postBuild:
     substitute:
       APP: splittie
-      POSTGRES_IMAGE: ghcr.io/cloudnative-pg/postgresql:18.1-system-trixie@sha256:51bc94428be3df3e234447278e33803544a93d27a57a4b6af737f218d6472d12
+      POSTGRES_IMAGE: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie@sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185

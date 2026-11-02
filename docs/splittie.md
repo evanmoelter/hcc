@@ -29,18 +29,20 @@ variables. No budget or account names are committed to this repository.
 | `START_DATE` | Earliest transaction date to sync, in `YYYY-MM-DD` format. |
 | `PAYEE_MODE` | `original` retains the merchant as payee; `memo` puts it in the memo and uses the receiving side's mirror payee. |
 
-The first sync is named `primary`, with `writeCap: 50` in the ExternalSecret template. The operator
+The first sync is named `primary`; its write cap lives in the
+[ExternalSecret template](../kubernetes/apollo/apps/default/splittie/app/externalsecret.yaml). The operator
 controls the initial date; no test budgets or household history are enabled implicitly. Local app
-testing covers Test A/B. Adding more pairs requires extending the config template and its field mappings.
+testing covers Test A/B. Adding more pairs requires extending the config template and the fields
+in the 1Password item.
 
 The private image uses a separate `splittie-ghcr` item in `hcc-apollo`, with `username` and `password`.
 Use the GitHub username and a classic PAT with `read:packages` and access to the Splittie package.
 ESO creates a `kubernetes.io/dockerconfigjson` Secret referenced by the job's `imagePullSecrets`.
 
 Before running after any field change, wait for the relevant ExternalSecret to refresh and report Ready.
-Its `status.refreshTime` must be later than the edit; `refreshInterval` is one hour. A previously Ready
-Secret can still hold the old start date. New Jobs read the updated values; do not change configuration
-during a run or between its approved preview and sync.
+Its `status.refreshTime` must be later than the edit. A previously Ready Secret can still hold the
+old start date. New Jobs read the updated values; do not change configuration during a run or
+between its approved preview and sync.
 
 ## Manual runs
 
@@ -54,14 +56,25 @@ kubectl --context apollo -n default get pods -l app.kubernetes.io/name=splittie
 
 The following commands create live Jobs and require operator approval when run by an agent.
 They copy the deployed CronJob template, so image, credentials, and config references match Flux.
+They remove the inherited CronJob owner reference so history cleanup cannot delete manual Jobs.
 They do not edit the Flux-managed CronJob.
+
+Run these commands from the repository root. The log helper waits for the `app` container to run
+or terminate, including a Job that finishes before logs attach. If startup times out, inspect that
+Job and its pods, then rerun the log helper with the same Job name. A log-command failure does not
+mean the sync failed and is not a reason to create another Job. Earlier retained output is included.
 
 Preview the currently configured syncs:
 
 ```sh
 splittie_job="splittie-preview-$(date +%s)"
-kubectl --context apollo -n default create job "$splittie_job" --from=cronjob/splittie
-kubectl --context apollo -n default logs -f "job/$splittie_job"
+kubectl --context apollo -n default create job "$splittie_job" \
+  --from=cronjob/splittie --dry-run=client -o json |
+  jq 'del(.metadata.ownerReferences) |
+    .spec.template.spec.containers |= map(if .name == "app" then
+    .args = ["run", "--dry-run"] else . end)' |
+  kubectl --context apollo -n default create -f -
+bash scripts/splittie-logs.sh apollo "$splittie_job"
 kubectl --context apollo -n default get job "$splittie_job"
 ```
 
@@ -71,11 +84,12 @@ For a historical sweep, choose the inclusive date range for `primary`:
 splittie_job="splittie-sweep-$(date +%s)"
 kubectl --context apollo -n default create job "$splittie_job" \
   --from=cronjob/splittie --dry-run=client -o json |
-  jq '.spec.template.spec.containers |= map(if .name == "app" then
+  jq 'del(.metadata.ownerReferences) |
+    .spec.template.spec.containers |= map(if .name == "app" then
     .args = ["sweep", "--sync", "primary", "--from", "2025-01-01", "--to", "2025-12-31"]
     else . end)' |
   kubectl --context apollo -n default create -f -
-kubectl --context apollo -n default logs -f "job/$splittie_job"
+bash scripts/splittie-logs.sh apollo "$splittie_job"
 ```
 
 After reviewing a preview and approving its writes, run the same configuration without `--dry-run`:
@@ -84,9 +98,10 @@ After reviewing a preview and approving its writes, run the same configuration w
 splittie_job="splittie-sync-$(date +%s)"
 kubectl --context apollo -n default create job "$splittie_job" \
   --from=cronjob/splittie --dry-run=client -o json |
-  jq '.spec.template.spec.containers |= map(if .name == "app" then .args = ["run"] else . end)' |
+  jq 'del(.metadata.ownerReferences) |
+    .spec.template.spec.containers |= map(if .name == "app" then .args = ["run"] else . end)' |
   kubectl --context apollo -n default create -f -
-kubectl --context apollo -n default logs -f "job/$splittie_job"
+bash scripts/splittie-logs.sh apollo "$splittie_job"
 kubectl --context apollo -n default get job "$splittie_job"
 ```
 
@@ -100,8 +115,10 @@ it does not process the first N writes. Lower it again after the batch.
 Job completion alone does not establish a clean sync. Inspect `sync_applied.failures`,
 `run_finished.unbalancedSyncs`, and Pushover notifications as well as the Job's exit status.
 Dry-run and sweep output contains transaction details; keep it out of commits and PRs.
-Finished Jobs expire after seven days. Failed Jobs do not retry automatically; inspect partial writes
-and pending write-log records before deciding to run again.
+Manual Jobs become eligible for cleanup according to `ttlSecondsAfterFinished` in the
+[HelmRelease](../kubernetes/apollo/apps/default/splittie/app/helmrelease.yaml). This is not a guarantee
+of log retention; node loss or log rotation can also remove output. Failed Jobs do not retry
+automatically; inspect partial writes and pending write-log records before deciding to run again.
 
 ## Deployment checks
 
@@ -118,8 +135,8 @@ database and its Kustomization. [Database recovery](databases.md) describes the 
 ## Enabling the schedule
 
 Once testing and backfill are complete, update the HelmRelease through git: change the container args
-to `[run]` and set `controllers.splittie.cronjob.suspend: false`. The prepared schedule is every
-30 minutes, with a 60-second start deadline to avoid replaying a long suspension. Confirm the final
+to `[run]` and set `controllers.splittie.cronjob.suspend: false`. Review the schedule and
+start deadline in the HelmRelease; the deadline limits catch-up after suspension. Confirm the final
 start dates and write cap first, and ensure no manually started Job is still running.
 
 ## References
