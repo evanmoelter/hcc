@@ -31,8 +31,9 @@ variables. No budget or account names are committed to this repository.
 | `MIRROR_PAYEE_A`, `MIRROR_PAYEE_B` | Payee to use for mirrors arriving in each corresponding budget. |
 | `START_DATE` | Earliest transaction date to sync, in `YYYY-MM-DD` format. |
 | `PAYEE_MODE` | `original` retains the merchant as payee; `memo` puts it in the memo and uses the receiving side's mirror payee. |
+| `WRITE_CAP` (optional) | Positive integer limiting writes per run. Missing or blank uses the default in the ExternalSecret template. |
 
-The first sync is named `primary`; its write cap lives in the
+The first sync is named `primary`; the fallback write cap lives in the
 [ExternalSecret template](../kubernetes/apollo/apps/default/splittie/app/externalsecret.yaml). The operator
 controls the initial date; no test budgets or household history are enabled implicitly. Local app
 testing covers Test A/B. Adding more pairs requires extending the config template and the fields
@@ -111,9 +112,10 @@ kubectl --context apollo -n default get job "$splittie_job"
 `run` executes every configured sync; `--sync`, `--from`, and `--to` only apply to `sweep`.
 Enable pairs one at a time. For each backlog step, sweep the proposed range, fix the reported issues
 in YNAB, move `START_DATE` earlier in 1Password, wait for ESO to refresh, and preview again. Review the
-planned write count before raising `writeCap` in the ExternalSecret template through git, then run
-and verify balances before moving further back. The cap aborts an entire run above the limit;
-it does not process the first N writes. Lower it again after the batch.
+planned write count before raising `WRITE_CAP` in 1Password, wait for ESO to refresh, then run and
+verify balances before moving further back. The cap aborts an entire run above the limit;
+it does not process the first N writes. Lower it again after the batch, or clear the field to restore
+the default. Malformed or non-positive values fail application configuration validation.
 
 Job completion alone does not establish a clean sync. Inspect `sync_applied.failures`,
 `run_finished.unbalancedSyncs`, and Pushover notifications as well as the Job's exit status.

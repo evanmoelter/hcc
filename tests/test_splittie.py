@@ -10,6 +10,44 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class WriteCapTests(unittest.TestCase):
+    def test_optional_write_cap_renders_as_a_number(self):
+        manifest = ROOT / "kubernetes/apollo/apps/default/splittie/app/externalsecret.yaml"
+        secret = json.loads(subprocess.check_output(["yq", "-o=json", ".", str(manifest)]))
+        config = secret["spec"]["target"]["template"]["data"]["splittie.yaml"]
+        fields = {
+            "BUDGET_A": "Example A", "BUDGET_B": "Example B",
+            "ACCOUNT_A": "Split B", "ACCOUNT_B": "Split A",
+            "MIRROR_PAYEE_A": "B", "MIRROR_PAYEE_B": "A",
+            "START_DATE": "2026-01-01", "PAYEE_MODE": "memo",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "templates").mkdir()
+            (root / "Chart.yaml").write_text("apiVersion: v2\nname: fixture\nversion: 0.1.0\n")
+            (root / "templates/config.yaml").write_text(
+                '{{- define "config" -}}\n' + config + '\n{{- end -}}\n'
+                'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: fixture\ndata:\n'
+                '  config: {{ include "config" .Values.fields | quote }}\n'
+            )
+            for value, expected in ((None, 50), ("", 50), ("200", 200), ("050", 50),
+                                    ("0", 0), ("-1", -1), ("abc", 0), ("1.5", 0),
+                                    ("200\nsyncs: []", 0)):
+                with self.subTest(value=value):
+                    selected = fields if value is None else {**fields, "WRITE_CAP": value}
+                    rendered = subprocess.check_output(
+                        ["helm", "template", "fixture", str(root), "-f", "-"],
+                        input=json.dumps({"fields": selected}).encode(),
+                    )
+                    document = json.loads(subprocess.check_output(["yq", "-o=json", "."], input=rendered))
+                    parsed = json.loads(subprocess.check_output(
+                        ["yq", "-o=json", "."], input=document["data"]["config"].encode(),
+                    ))
+                    self.assertIs(type(parsed["writeCap"]), int)
+                    self.assertEqual(parsed["writeCap"], expected)
+                    self.assertEqual(len(parsed["syncs"]), 1)
+
+
 class ManualJobTests(unittest.TestCase):
     def test_documented_jobs_override_scheduled_args_and_remove_ownership(self):
         commands = (ROOT / "docs/splittie.md").read_text()
