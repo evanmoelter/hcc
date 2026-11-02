@@ -11,13 +11,16 @@ Dry runs and sweeps update the database cache and may run schema migrations, but
 
 ## Credentials and configuration
 
-The operator populates the `splittie` item in the `hcc-apollo` 1Password vault with `YNAB_TOKEN`,
-`PUSHOVER_TOKEN`, and `PUSHOVER_USER`. ESO creates the application Secret through the `onepassword`
-ClusterSecretStore. The database URI comes directly from CNPG's generated `splittie-pg-app` Secret.
+The operator populates the `splittie` item in the `hcc-apollo` 1Password vault with `YNAB_TOKEN`
+and the configuration fields below. ESO creates the application Secret through the `onepassword`
+ClusterSecretStore. It reuses `PUSHOVER_API_TOKEN` and `PUSHOVER_USER_KEY` from the existing `pushover`
+item, mapping them to Splittie's `PUSHOVER_TOKEN` and `PUSHOVER_USER` environment variables.
+Do not duplicate those credentials in the `splittie` item.
+The database URI comes directly from CNPG's generated `splittie-pg-app` Secret.
 Existing shared `cloudflare-r2` and `cnpg-r2` items provide database backup access.
 See the [secrets integration](secrets.md) for field and refresh behavior.
 
-The same item supplies these configuration fields. ESO renders a private `splittie.yaml` and the pod
+The `splittie` item also supplies these configuration fields. ESO renders a private `splittie.yaml` and the pod
 mounts only that key at `/config/splittie.yaml`; Splittie itself does not support account environment
 variables. No budget or account names are committed to this repository.
 
