@@ -27,3 +27,5 @@ resources:
   - ./node-red/ks.yaml
   - ./node-red/ks-storage.yaml
   - ./node-red/ks-tailscale.yaml
+  - ./splittie/ks.yaml
+  - ./splittie/ks-database.yaml

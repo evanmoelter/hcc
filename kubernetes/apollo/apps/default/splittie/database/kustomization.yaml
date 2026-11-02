@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+patches:
+  - target:
+      group: postgresql.cnpg.io
+      kind: Cluster
+    patch: |-
+      - op: add
+        path: /spec/postgresql
+        value:
+          parameters:
+            max_connections: "100"
+            shared_buffers: 64MB

@@ -59,6 +59,9 @@ Each contributes NVMe storage to Longhorn; hcc7 also contributes a SATA SSD. See
 
 ## What runs here
 
+Splittie runs [manually triggered YNAB sync jobs](./docs/splittie.md) on Apollo with a dedicated
+PostgreSQL database and R2 backups. Its CronJob stays suspended during testing and backlog processing.
+
 Apollo also runs temporary [embedding provider evaluations](./docs/k8s-explorer-evaluation.md)
 for k8s-at-home-explorer through Flux, with retained reports and disposable evaluation databases.
 The explorer service itself is not yet deployed.
