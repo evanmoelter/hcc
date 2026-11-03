@@ -41,8 +41,8 @@ in the 1Password item.
 
 The `joint-auto` rule runs before syncing in budget A, including history from `START_DATE`.
 It converts unsplit `Joint: Auto` transactions into a full-amount split transfer to `ACCOUNT_A`.
-Its zero-amount padding line also uses `Joint: Auto`, keeping the split editable in YNAB without
-requiring another category. Splittie skips split actions on transactions already in sync accounts.
+Its zero-amount padding line uses `None: None`, which must exist in budget A to keep the split
+editable in YNAB. Splittie skips split actions on transactions already in sync accounts.
 A real run refetches after rule writes so the new transfers can be mirrored in the same run.
 A dry run previews the rule writes, but its sync preview does not include transfers those writes
 would create.
