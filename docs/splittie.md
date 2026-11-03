@@ -39,6 +39,14 @@ controls the initial date; no test budgets or household history are enabled impl
 testing covers Test A/B. Adding more pairs requires extending the config template and the fields
 in the 1Password item.
 
+The `joint-auto` rule runs before syncing in budget A, including history from `START_DATE`.
+It converts unsplit `Joint: Auto` transactions into a full-amount split transfer to `ACCOUNT_A`.
+Its zero-amount padding line also uses `Joint: Auto`, keeping the split editable in YNAB without
+requiring another category. Splittie skips split actions on transactions already in sync accounts.
+A real run refetches after rule writes so the new transfers can be mirrored in the same run.
+A dry run previews the rule writes, but its sync preview does not include transfers those writes
+would create.
+
 The private image uses a separate `splittie-ghcr` item in `hcc-apollo`, with `username` and `password`.
 Use the GitHub username and a classic PAT with `read:packages` and access to the Splittie package.
 ESO creates a `kubernetes.io/dockerconfigjson` Secret referenced by the job's `imagePullSecrets`.
@@ -113,8 +121,10 @@ kubectl --context apollo -n default get job "$splittie_job"
 Enable pairs one at a time. For each backlog step, sweep the proposed range, fix the reported issues
 in YNAB, move `START_DATE` earlier in 1Password, wait for ESO to refresh, and preview again. Review the
 planned write count before raising `WRITE_CAP` in 1Password, wait for ESO to refresh, then run and
-verify balances before moving further back. The cap aborts an entire run above the limit;
-it does not process the first N writes. Lower it again after the batch, or clear the field to restore
+verify balances before moving further back. Rules and syncs share the write cap. Each phase aborts
+before writing if its plan exceeds the remaining cap; rule planning also reserves writes for the
+mirrors its transfers will create. A sync-phase abort can happen after rule writes have succeeded,
+so inspect the run before retrying. Lower the cap again after the batch, or clear the field to restore
 the default. Malformed or non-positive values fail application configuration validation.
 
 Job completion alone does not establish a clean sync. Inspect `sync_applied.failures`,
