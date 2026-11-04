@@ -16,9 +16,13 @@ class WriteCapTests(unittest.TestCase):
         secret = json.loads(subprocess.check_output(["yq", "-o=json", ".", str(manifest)]))
         config = secret["spec"]["target"]["template"]["data"]["splittie.yaml"]
         fields = {
-            "BUDGET_A": "Example A", "BUDGET_B": "Example B",
-            "ACCOUNT_A": "Split B", "ACCOUNT_B": "Split A",
-            "MIRROR_PAYEE_A": "B", "MIRROR_PAYEE_B": "A",
+            "BUDGET_E": "Example E", "BUDGET_K": "Example K", "BUDGET_J": "Example J",
+            "ACCOUNT_E_K": "E split K", "ACCOUNT_K_E": "K split E",
+            "ACCOUNT_E_J": "E split J", "ACCOUNT_J_E": "J split E",
+            "ACCOUNT_K_J": "K split J", "ACCOUNT_J_K": "J split K",
+            "MIRROR_PAYEE_E_K": "K", "MIRROR_PAYEE_K_E": "E",
+            "MIRROR_PAYEE_E_J": "J", "MIRROR_PAYEE_J_E": "E",
+            "MIRROR_PAYEE_K_J": "J", "MIRROR_PAYEE_J_K": "K",
             "START_DATE": "2026-01-01", "PAYEE_MODE": "memo",
         }
         with tempfile.TemporaryDirectory() as temporary:
@@ -45,7 +49,18 @@ class WriteCapTests(unittest.TestCase):
                     ))
                     self.assertIs(type(parsed["writeCap"]), int)
                     self.assertEqual(parsed["writeCap"], expected)
-                    self.assertEqual(len(parsed["syncs"]), 1)
+                    self.assertEqual(
+                        [[(side["budget"], side["account"]) for side in sync["sides"]] for sync in parsed["syncs"]],
+                        [
+                            [("e", "E split K"), ("k", "K split E")],
+                            [("e", "E split J"), ("j", "J split E")],
+                            [("k", "K split J"), ("j", "J split K")],
+                        ],
+                    )
+                    self.assertEqual(
+                        [(rule["budgets"], rule["then"][0]["split"][0]["transfer"]) for rule in parsed["rules"]],
+                        [(["e"], "E split J"), (["k"], "K split J")],
+                    )
 
 
 class ManualJobTests(unittest.TestCase):
@@ -73,7 +88,7 @@ class ManualJobTests(unittest.TestCase):
                 self.assertNotIn("ownerReferences", job["metadata"])
                 args = job["spec"]["template"]["spec"]["containers"][0]["args"]
                 if expected == ["sweep"]:
-                    self.assertEqual(args, ["sweep", "--sync", "primary", "--from", "2025-01-01", "--to", "2025-12-31"])
+                    self.assertEqual(args, ["sweep", "--sync", "e-j", "--from", "2025-01-01", "--to", "2025-12-31"])
                 else:
                     self.assertEqual(args, expected)
                 job["spec"]["template"]["spec"]["containers"][0]["args"] = ["run"]

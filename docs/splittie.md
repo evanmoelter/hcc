@@ -26,22 +26,23 @@ variables. No budget or account names are committed to this repository.
 
 | Field | Value |
 |---|---|
-| `BUDGET_A`, `BUDGET_B` | Exact YNAB budget names for the first pair. |
-| `ACCOUNT_A`, `ACCOUNT_B` | Exact account names in the corresponding budgets. |
-| `MIRROR_PAYEE_A`, `MIRROR_PAYEE_B` | Payee to use for mirrors arriving in each corresponding budget. |
+| `BUDGET_E`, `BUDGET_K`, `BUDGET_J` | Exact YNAB budget names. |
+| `ACCOUNT_E_K`, `ACCOUNT_K_E`, `ACCOUNT_E_J`, `ACCOUNT_J_E`, `ACCOUNT_K_J`, `ACCOUNT_J_K` | Exact sync account names. `ACCOUNT_X_Y` is the account in budget X that syncs with budget Y. |
+| `MIRROR_PAYEE_E_K`, `MIRROR_PAYEE_K_E`, `MIRROR_PAYEE_E_J`, `MIRROR_PAYEE_J_E`, `MIRROR_PAYEE_K_J`, `MIRROR_PAYEE_J_K` | Payee for mirrors arriving in the matching account. |
 | `START_DATE` | Earliest transaction date to sync, in `YYYY-MM-DD` format. |
 | `PAYEE_MODE` | `original` retains the merchant as payee; `memo` puts it in the memo and uses the receiving side's mirror payee. |
 | `WRITE_CAP` (optional) | Positive integer limiting writes per run. Missing or blank uses the default in the ExternalSecret template. |
 
-The first sync is named `primary`; the fallback write cap lives in the
-[ExternalSecret template](../kubernetes/apollo/apps/default/splittie/app/externalsecret.yaml). The operator
-controls the initial date; no test budgets or household history are enabled implicitly. Local app
+The syncs are named `e-k`, `e-j`, and `k-j`. They share `START_DATE` and `PAYEE_MODE`; the fallback write
+cap lives in the [ExternalSecret template](../kubernetes/apollo/apps/default/splittie/app/externalsecret.yaml).
+The operator controls the initial date; no test budgets or household history are enabled implicitly. Local app
 testing covers Test A/B. Adding more pairs requires extending the config template and the fields
 in the 1Password item.
 
-The `joint-auto` rule runs before syncing in budget A, including history from `START_DATE`.
-It converts approved, unsplit `Joint: Auto` transactions into a full-amount split transfer to `ACCOUNT_A`.
-Its zero-amount padding line uses `None: None`, which must exist in budget A to keep the split
+The `joint-auto-e` and `joint-auto-k` rules run before syncing in budgets E and K, including history
+from `START_DATE`. They convert approved, unsplit `Joint: Auto` transactions into a full-amount split transfer
+to `ACCOUNT_E_J` and `ACCOUNT_K_J`.
+The zero-amount padding line uses `None: None`, which must exist in budgets E and K to keep the split
 editable in YNAB. Splittie skips split actions on transactions already in sync accounts.
 A real run refetches after rule writes so the new transfers can be mirrored in the same run.
 A dry run previews the rule writes, but its sync preview does not include transfers those writes
@@ -90,7 +91,7 @@ bash scripts/splittie-logs.sh apollo "$splittie_job"
 kubectl --context apollo -n default get job "$splittie_job"
 ```
 
-For a historical sweep, choose the inclusive date range for `primary`:
+For a historical sweep, choose a sync and an inclusive date range:
 
 ```sh
 splittie_job="splittie-sweep-$(date +%s)"
@@ -98,7 +99,7 @@ kubectl --context apollo -n default create job "$splittie_job" \
   --from=cronjob/splittie --dry-run=client -o json |
   jq 'del(.metadata.ownerReferences) |
     .spec.template.spec.containers |= map(if .name == "app" then
-    .args = ["sweep", "--sync", "primary", "--from", "2025-01-01", "--to", "2025-12-31"]
+    .args = ["sweep", "--sync", "e-j", "--from", "2025-01-01", "--to", "2025-12-31"]
     else . end)' |
   kubectl --context apollo -n default create -f -
 bash scripts/splittie-logs.sh apollo "$splittie_job"
@@ -118,7 +119,8 @@ kubectl --context apollo -n default get job "$splittie_job"
 ```
 
 `run` executes every configured sync; `--sync`, `--from`, and `--to` only apply to `sweep`.
-Enable pairs one at a time. For each backlog step, sweep the proposed range, fix the reported issues
+All three syncs go live together, so set every field above before deploying a template that reads them.
+For each backlog step, sweep the proposed range for each sync, fix the reported issues
 in YNAB, move `START_DATE` earlier in 1Password, wait for ESO to refresh, and preview again. Review the
 planned write count before raising `WRITE_CAP` in 1Password, wait for ESO to refresh, then run and
 verify balances before moving further back. Rules and syncs share the write cap. Each phase aborts
