@@ -49,7 +49,7 @@ spec:
           app:
             image:
               repository: ghcr.io/evanmoelter/splittie
-              tag: sha-b16367ab2fc78832129cc1e1b7349e2da6fd915c@sha256:26aba8bf9a99360a4e749ffca62415160754f6ef3b927a87483f7d52712a1871
+              tag: sha-5748bf2955e11995549f9194ea0535800461c8bf@sha256:5853c1f985fe4a3ae04a63011c390e41731010c4a375922556535a99cdad6bae
             args: [run, --dry-run]
             env:
               TZ: ${TIMEZONE}
