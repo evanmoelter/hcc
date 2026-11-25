@@ -41,7 +41,7 @@ spec:
           init-directories:
             image: &image
               repository: ghcr.io/paperless-ngx/paperless-ngx
-              tag: 2.20.15@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
+              tag: 3.5.1@sha256:8508853b8a0f8394074260957d0be186c8c64f346973b24a7583de4580f306b9
             command: [python3, -c]
             args:
               - >-
@@ -79,7 +79,7 @@ spec:
               PAPERLESS_DATA_DIR: /library/data
               PAPERLESS_EXPORT_DIR: /library/export
               PAPERLESS_MEDIA_ROOT: /library/media
-              PAPERLESS_CONSUMER_POLLING: "60"
+              PAPERLESS_CONSUMER_POLLING_INTERVAL: "60"
               PAPERLESS_CONSUMER_RECURSIVE: "true"
               PAPERLESS_CONSUMER_SUBDIRS_AS_TAGS: "true"
               PAPERLESS_CONSUMER_ENABLE_ASN_BARCODE: "true"
@@ -103,8 +103,7 @@ spec:
                   secretKeyRef:
                     name: *database
                     key: password
-              PAPERLESS_DBSSLMODE: verify-full
-              PAPERLESS_DBSSLROOTCERT: /etc/postgresql/ca.crt
+              PAPERLESS_DB_OPTIONS: sslmode=verify-full,sslrootcert=/etc/postgresql/ca.crt
               PAPERLESS_REDIS_PREFIX: pngx
               S6_READ_ONLY_ROOT: "1"
               S6_YES_I_WANT_A_WORLD_WRITABLE_RUN_BECAUSE_KUBERNETES: "1"
@@ -136,7 +135,7 @@ spec:
                     httpHeaders:
                       - name: Host
                         value: paperless.${SECRET_DOMAIN}
-                  failureThreshold: 120
+                  failureThreshold: 360
                   periodSeconds: 5
                   timeoutSeconds: 5
             securityContext:
