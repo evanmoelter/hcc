@@ -44,7 +44,7 @@ or every partially unreadable directory. The consume backup still covers the who
 has no library or credential mounts. Gatus's in-memory state resets on restart, as described in
 [monitoring](monitoring.md).
 
-Paperless accepts duplicate uploads and flags them in the UI rather than deleting them from consume.
+Paperless consumes duplicate uploads and flags them in the UI instead of rejecting them.
 Born-digital PDFs keep their embedded text and receive no archive copy; scans are OCRed and archived.
 The consumer polls because the RWX consume claim does not deliver reliable file notifications.
 

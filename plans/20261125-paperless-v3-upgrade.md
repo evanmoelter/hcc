@@ -33,6 +33,10 @@ These steps change the live cluster or need the operator:
 
 ## Verification
 
+If the first start outlasts Helm's 5-minute wait, the HelmRelease reports `UpgradeFailed` and retries. The retry
+renders the same manifests, so it does not restart the pod. Watch the pod logs, not the release status, and do not
+roll back or restart while migrations run.
+
 - [ ] Pod starts; logs show migrations and `[init-index]` completing without errors or deprecation warnings.
 - [ ] SSO login succeeds. On `invalid_client`, add `"token_auth_method": "client_secret_basic"` to the provider
   settings in the `paperless` 1Password item. On a 403, set `PAPERLESS_TRUSTED_PROXIES`.
