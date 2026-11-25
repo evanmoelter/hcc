@@ -23,7 +23,7 @@ Consume backups use `tf-hcc-apollo-volsync/paperless-consume`. The `paperless-co
 the `hcc-apollo` 1Password vault supplies its unique `RESTIC_PASSWORD`; R2 access uses the existing
 `volsync-r2` item. The snapshot mover uses an RWO clone of the RWX source, leaving the live scanner
 share mounted. SFTP's init container seeds `._volsync` so an empty inbox still establishes a
-restore point; Paperless's default `._*` ignore pattern excludes it from ingestion. Backup deployment
+restore point; Paperless's built-in ignore patterns exclude `._` files from ingestion. Backup deployment
 depends on storage, independently of SFTP and the monitor. A completely empty volume can skip its
 initial backup until the seed or an upload appears. Hourly snapshots protect captured pending uploads, but
 cannot guarantee a copy of every file passing through between runs or a complete in-progress upload.
@@ -44,8 +44,12 @@ or every partially unreadable directory. The consume backup still covers the who
 has no library or credential mounts. Gatus's in-memory state resets on restart, as described in
 [monitoring](monitoring.md).
 
+Paperless consumes duplicate uploads and flags them in the UI instead of rejecting them.
+Born-digital PDFs keep their embedded text and receive no archive copy; scans are OCRed and archived.
+The consumer polls because the RWX consume claim does not deliver reliable file notifications.
+
 Paperless runs as UID/GID 1000, matching the upstream image and restored files. The upstream
-[user-mapping initialization](https://github.com/paperless-ngx/paperless-ngx/blob/v2.20.15/docker/rootfs/etc/s6-overlay/s6-rc.d/init-modify-user/run)
+[user-mapping initialization](https://github.com/paperless-ngx/paperless-ngx/blob/v3.5.1/docker/rootfs/etc/s6-overlay/s6-rc.d/init-modify-user/run)
 requires privileges to change that identity. The container otherwise runs with a read-only root filesystem,
 no capabilities, and no privilege escalation. Writable runtime mounts accommodate s6; the initialization
 step creates the configured export and scanner directories. Runtime OCR-language installation is unavailable

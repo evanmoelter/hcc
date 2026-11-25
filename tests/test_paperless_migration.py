@@ -226,7 +226,9 @@ class PaperlessMigrationTest(unittest.TestCase):
         self.assertEqual(controller["strategy"], "Recreate")
         app = controller["containers"]["app"]
         env = app["env"]
-        self.assertEqual(env["PAPERLESS_DBSSLMODE"], "verify-full")
+        db_options = env["PAPERLESS_DB_OPTIONS"].split(",")
+        self.assertIn("sslmode=verify-full", db_options)
+        self.assertIn("sslrootcert=/etc/postgresql/ca.crt", db_options)
         for key in ["PAPERLESS_DBUSER", "PAPERLESS_DBPASS"]:
             self.assertEqual(env[key]["valueFrom"]["secretKeyRef"]["name"], "paperless-pg-app")
         for identifier in ["library", "consume"]:
